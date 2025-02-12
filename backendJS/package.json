@@ -1,0 +1,20 @@
+{
+  "name": "resilience-backend-js",
+  "version": "0.1.0",
+  "description": "A Node.js Express backend for the Resilience platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node main.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "Yongqin Zhao",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}
