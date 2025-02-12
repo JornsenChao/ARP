@@ -1,0 +1,52 @@
+/* src/pages/Workflow.css */
+
+.workflow-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: Arial, sans-serif;
+}
+
+.workflow-step {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 1rem;
+}
+
+.workflow-step h2 {
+  margin-top: 0;
+  font-size: 1.3rem;
+  color: #333;
+}
+
+.task-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0.5rem 0;
+}
+
+.task-item {
+  margin: 0.5rem 0;
+  cursor: pointer;
+}
+
+.task-title {
+  font-weight: bold;
+  color: #007bff;
+}
+
+.task-title:hover {
+  text-decoration: underline;
+}
+
+.task-detail {
+  margin: 0.5rem 0 0.5rem 1rem;
+  color: #555;
+}
+
+.deliverable {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: #eee;
+  border-left: 4px solid #666;
+}

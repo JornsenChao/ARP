@@ -1,0 +1,94 @@
+/* src/pages/WorkflowHome.css */
+
+/* 让 body / html / #root 占满全屏，没有额外的上下滚动 */
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* 如果想保留垂直滚动可改成 auto */
+}
+
+/* 最外层容器：占满整个屏幕，可横向滚动 */
+.big-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto; /* 横向滚动 */
+  overflow-y: hidden;
+  background: #f7f7f7; /* 画布背景，可自定义 */
+  white-space: nowrap; /* 避免 Step 卡片自动换行 */
+}
+
+/* 内部容器：用于水平排列卡片 */
+.steps-scroller {
+  display: inline-flex; /* 或者 display: flex + white-space: nowrap */
+  align-items: center;
+  position: relative;
+  padding: 2rem;
+}
+
+/* 顶部连线 */
+.steps-line {
+  position: absolute;
+  top: 6rem; /* 视卡片高度微调，让线穿过卡片顶部 */
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #ccc;
+  z-index: 1;
+}
+
+/* 大卡片统一大小 */
+.step-card {
+  position: relative;
+  width: 300px; /* 固定宽度 */
+  height: 300px; /* 固定高度 */
+  background: #fff;
+  margin-right: 3rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  z-index: 2; /* 在连线之上 */
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow-wrap: break-word; /* 允许自动换行，防止文字溢出 */
+  word-wrap: break-word;
+  white-space: normal; /* 允许多行文字 */
+}
+
+.step-card h2 {
+  margin: 0.5rem 0 0;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.step-card h4 {
+  margin: 0.5rem 0;
+  text-align: center;
+  color: #666;
+  font-weight: normal;
+}
+
+/* 子元素的列表： bullet points */
+.step-card ul {
+  list-style-type: disc;
+  margin-left: 1.2rem; /* 给子弹一点左侧空间 */
+  padding-left: 0;
+  margin-top: 1rem;
+  max-height: 170px; /* 让 ul 不超过卡片剩余空间 */
+  overflow-y: auto; /* 若任务太多，出现滚动条 */
+}
+
+.step-card li {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+/* 悬停效果 */
+.step-card:hover {
+  background: #fefefe;
+  transition: background 0.2s;
+}
