@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import workflowData from '../WorkflowData';
 import WorkflowTaskModal from './WorkflowTaskModal';
+import ResourceLibrary from '../components/ResrcPrecLibrary/ResrcPrecLibrary';
 import './WorkflowStep.css';
 
 const WorkflowStep = () => {
   const { stepId } = useParams();
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const stepNum = parseInt(stepId, 10);
 
   const step = workflowData.find((s) => s.id === stepNum);
@@ -34,6 +36,8 @@ const WorkflowStep = () => {
   const handleStartTask = (taskId) => {
     navigate(`/workflow/step/${stepId}/task/${taskId}`);
   };
+  const openResourceLibrary = () => setLibraryOpen(true);
+  const closeResourceLibrary = () => setLibraryOpen(false);
 
   return (
     <div className="workflow-step-container">
@@ -60,6 +64,11 @@ const WorkflowStep = () => {
         ))}
       </div>
 
+      <br />
+      <h2>Resources and Precedents</h2>
+      <button onClick={openResourceLibrary}>Open Resource Library</button>
+      {/* 这里是核心：条件渲染侧边面板 */}
+      <ResourceLibrary isOpen={libraryOpen} onClose={closeResourceLibrary} />
       {modalOpen && selectedTask && (
         <WorkflowTaskModal task={selectedTask} onClose={handleCloseModal} />
       )}
