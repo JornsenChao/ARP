@@ -7,6 +7,7 @@ const cors = require('cors');
 const tasksRouter = require('./routes/tasksRouter');
 const resourcesRouter = require('./routes/resourcesRouter');
 const precedentsRouter = require('./routes/precedentsRouter');
+const notesRouter = require('./routes/notesRouter');
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.get('/', (req, res) => {
 app.use('/tasks', tasksRouter);
 app.use('/resources', resourcesRouter);
 app.use('/precedents', precedentsRouter);
+app.use('/notes', notesRouter);
 
 // 启动服务器
 const PORT = process.env.PORT || 8000;

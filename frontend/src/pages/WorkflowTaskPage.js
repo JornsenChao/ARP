@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import workflowData from '../WorkflowData';
-import ResourceLibrary from '../components/ResrcPrecLibrary/ResrcPrecLibrary';
+import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
 import './WorkflowTaskPage.css';
 
 const WorkflowTaskPage = () => {
@@ -37,7 +37,12 @@ const WorkflowTaskPage = () => {
       <button onClick={openResourceLibrary}>Open Resource Library</button>
 
       {/* 这里是核心：条件渲染侧边面板 */}
-      <ResourceLibrary isOpen={libraryOpen} onClose={closeResourceLibrary} />
+      <ResrcPrecNotesLibrary
+        isOpen={libraryOpen}
+        onClose={closeResourceLibrary}
+        currentStepId={step.id}
+        currentTaskId={task.id}
+      />
       <p>
         Here you can implement the actual process for completing this task...
       </p>

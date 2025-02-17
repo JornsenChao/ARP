@@ -19,6 +19,9 @@ const NavBar = () => {
           <Link to="/tasks">Tasks</Link>
         </li>
         <li>
+          <Link to="/notes">Notes</Link>
+        </li>
+        <li>
           <Link to="/resources">Resources</Link>
         </li>
         <li>

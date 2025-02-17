@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import workflowData from '../WorkflowData';
 import WorkflowTaskModal from './WorkflowTaskModal';
-import ResourceLibrary from '../components/ResrcPrecLibrary/ResrcPrecLibrary';
+import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
 import './WorkflowStep.css';
 
 const WorkflowStep = () => {
@@ -68,7 +68,10 @@ const WorkflowStep = () => {
       <h2>Resources and Precedents</h2>
       <button onClick={openResourceLibrary}>Open Resource Library</button>
       {/* 这里是核心：条件渲染侧边面板 */}
-      <ResourceLibrary isOpen={libraryOpen} onClose={closeResourceLibrary} />
+      <ResrcPrecNotesLibrary
+        isOpen={libraryOpen}
+        onClose={closeResourceLibrary}
+      />
       {modalOpen && selectedTask && (
         <WorkflowTaskModal task={selectedTask} onClose={handleCloseModal} />
       )}

@@ -8,6 +8,7 @@ import Tasks from './pages/Tasks';
 import TaskDetails from './pages/TaskDetails';
 import Resources from './pages/Resources';
 import Precedents from './pages/Precedents';
+import NotesOverview from './pages/NotesOverview';
 // import Workflow from './pages/Workflow';
 import WorkflowHome from './pages/WorkflowHome';
 import WorkflowStep from './pages/WorkflowStep';
@@ -30,6 +31,7 @@ function App() {
           element={<WorkflowTaskPage />}
         />
         <Route path="/tasks/:taskId" element={<TaskDetails />} />
+        <Route path="/notes" element={<NotesOverview />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/precedents" element={<Precedents />} />
       </Routes>

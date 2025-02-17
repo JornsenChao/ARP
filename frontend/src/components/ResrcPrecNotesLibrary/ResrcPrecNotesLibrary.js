@@ -2,7 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import './ResrcPrecNotesLibrary.css';
 
-function ResrcPrecNotesLibrary({ isOpen, onClose }) {
+function ResrcPrecNotesLibrary({
+  isOpen,
+  onClose,
+  currentStepId = null,
+  currentTaskId = null,
+}) {
   // isOpen: Boolean, 是否显示面板
   // onClose: Function, 关闭面板的回调
 
@@ -15,7 +20,9 @@ function ResrcPrecNotesLibrary({ isOpen, onClose }) {
 
   const [resources, setResources] = useState([]);
   const [precedents, setPrecedents] = useState([]);
-
+  // 笔记相关
+  const [notes, setNotes] = useState([]);
+  const [noteContent, setNoteContent] = useState('');
   // 当组件挂载或查询参数变化时，请求后端
   useEffect(() => {
     if (isOpen && activeTab === 'resources') {
@@ -55,6 +62,46 @@ function ResrcPrecNotesLibrary({ isOpen, onClose }) {
     }
   };
 
+  const fetchNotes = async () => {
+    try {
+      // 可以自定义查询参数
+      // 例如 GET /notes?stepId=xx&taskId=yy
+      let url = 'http://localhost:8000/notes';
+      const params = [];
+      if (currentStepId) params.push(`stepId=${currentStepId}`);
+      if (currentTaskId) params.push(`taskId=${currentTaskId}`);
+      if (params.length) {
+        url += `?${params.join('&')}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+      setNotes(data);
+    } catch (err) {
+      console.error('Error fetching notes:', err);
+    }
+  };
+  // 新增笔记
+  const handleCreateNote = async () => {
+    if (!noteContent.trim()) return;
+    try {
+      const response = await fetch('http://localhost:8000/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: noteContent,
+          stepId: currentStepId,
+          taskId: currentTaskId,
+        }),
+      });
+      const newNote = await response.json();
+      // 加到列表里
+      setNotes((prev) => [...prev, newNote]);
+      setNoteContent('');
+    } catch (err) {
+      console.error('Error creating note:', err);
+    }
+  };
   if (!isOpen) return null; // 如果isOpen=false，不渲染面板
 
   return (
@@ -77,6 +124,12 @@ function ResrcPrecNotesLibrary({ isOpen, onClose }) {
             onClick={() => setActiveTab('precedents')}
           >
             Precedents
+          </button>
+          <button
+            className={activeTab === 'notes' ? 'active' : ''}
+            onClick={() => setActiveTab('notes')}
+          >
+            Notes
           </button>
         </div>
 
@@ -128,6 +181,35 @@ function ResrcPrecNotesLibrary({ isOpen, onClose }) {
                 </button>
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === 'notes' && (
+          <div className="notes-container">
+            <h4>
+              Current Step: {currentStepId ?? 'None'}, Task:{' '}
+              {currentTaskId ?? 'None'}
+            </h4>
+            <div className="notes-list">
+              {notes.map((note) => (
+                <div key={note.id} className="notes-item">
+                  <p>{note.content}</p>
+                  <small>
+                    [Step {note.stepId}, Task {note.taskId ?? 'N/A'}] -{' '}
+                    {new Date(note.createTime).toLocaleString()}
+                  </small>
+                </div>
+              ))}
+            </div>
+            <div className="note-input">
+              <textarea
+                rows={3}
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+                placeholder="Add a note..."
+              />
+              <button onClick={handleCreateNote}>Save Note</button>
+            </div>
           </div>
         )}
       </div>
