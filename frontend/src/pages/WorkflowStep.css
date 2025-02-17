@@ -92,3 +92,28 @@ body,
   background: #fefefe;
   transition: background 0.2s;
 }
+
+.workflow-step-layout {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+.workflow-step-content {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto; /* 可以滚动 */
+}
+
+.task-cards-container {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.step-nav-buttons {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
+}

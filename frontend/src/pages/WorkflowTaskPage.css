@@ -1,7 +1,25 @@
 /* src/pages/WorkflowTaskPage.css */
 
-.task-exec-container {
+/* .task-exec-container {
   max-width: 600px;
   margin: 0 auto;
   padding: 1rem;
+} */
+.task-page-layout {
+  display: flex;
+  width: 100%;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+.task-exec-container {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.task-nav-buttons {
+  margin-top: 1rem;
+  display: flex;
+  gap: 1rem;
 }
