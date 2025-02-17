@@ -1,6 +1,11 @@
-/* src/components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary.css */
+/* 
+   这是一个示例，您可根据实际需求修改 
+   注意类名与上面JS文件一致： 
+   .resrc-prec-notes-overlay / .resrc-prec-notes-panel / .library-panels-container 等
+*/
 
-.resource-library-overlay {
+/* 整体 overlay */
+.resrc-prec-notes-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -8,14 +13,15 @@
   height: 100vh;
   background-color: rgba(0, 0, 0, 0.3);
   display: flex;
-  justify-content: flex-end; /* 面板从右侧滑入 */
+  justify-content: flex-end;
   z-index: 999;
 }
 
-.resource-library-panel {
+/* 右侧面板容器 */
+.resrc-prec-notes-panel {
   background: #fff;
-  width: 400px;
-  max-width: 80%;
+  width: 1000px; /* 你想要多宽就调 */
+  max-width: 90%;
   height: 100%;
   padding: 1rem;
   overflow-y: auto;
@@ -23,6 +29,7 @@
   box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
 }
 
+/* 关闭按钮 */
 .close-btn {
   position: absolute;
   top: 10px;
@@ -30,34 +37,48 @@
   border: none;
   background: transparent;
   font-size: 1.5rem;
-}
-
-.tabs {
-  display: flex;
-  margin-bottom: 1rem;
-}
-
-.tabs button {
-  flex: 1;
-  padding: 0.5rem 1rem;
-  border: none;
-  background: #ddd;
   cursor: pointer;
 }
 
-.tabs button.active {
-  background: #bbb;
-  font-weight: bold;
-}
-
+/* 顶部的一些搜索过滤器 */
 .filters {
   margin-bottom: 1rem;
   display: flex;
   gap: 0.5rem;
 }
 
+/* 三列子面板容器 */
+.library-panels-container {
+  display: flex;
+  gap: 1rem; /* 面板之间留点空隙 */
+  align-items: flex-start;
+}
+
+/* 统一子面板样式 */
+.subpanel {
+  flex: 1; /* 均分 */
+  border: 1px solid #ccc;
+  padding: 0.5rem;
+  min-height: 500px;
+  overflow-y: auto;
+}
+
+.subpanel h3 {
+  margin-top: 0;
+}
+
+/* Resource & Precedent & Notes 列表示例 */
 .resource-item,
-.precedent-item {
-  border-bottom: 1px solid #ccc;
-  padding: 0.5rem 0;
+.precedent-item,
+.notes-item {
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+}
+
+.note-input {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }

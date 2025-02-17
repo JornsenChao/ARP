@@ -2,44 +2,58 @@
 import React, { useState, useEffect } from 'react';
 import './ResrcPrecNotesLibrary.css';
 
+/**
+ * 右侧面板，内部分成3个子面板：Resources、Precedents、Notes。
+ * 同时显示，无需Tab切换。
+ */
 function ResrcPrecNotesLibrary({
   isOpen,
   onClose,
   currentStepId = null,
   currentTaskId = null,
 }) {
-  // isOpen: Boolean, 是否显示面板
-  // onClose: Function, 关闭面板的回调
-
-  const [activeTab, setActiveTab] = useState('resources');
-  // 也可'precedents'，实现两大区块的切换
+  // -----------------------
+  // State: 筛选/查询相关
+  // -----------------------
   const [query, setQuery] = useState('');
   const [hazardFilter, setHazardFilter] = useState('');
   const [buildingType, setBuildingType] = useState('');
-  // ... 其他过滤字段
 
+  // -----------------------
+  // 三大库数据
+  // -----------------------
   const [resources, setResources] = useState([]);
   const [precedents, setPrecedents] = useState([]);
-  // 笔记相关
   const [notes, setNotes] = useState([]);
-  const [noteContent, setNoteContent] = useState('');
-  // 当组件挂载或查询参数变化时，请求后端
-  useEffect(() => {
-    if (isOpen && activeTab === 'resources') {
-      fetchResources();
-    } else if (isOpen && activeTab === 'precedents') {
-      fetchPrecedents();
-    }
-    // eslint-disable-next-line
-  }, [isOpen, activeTab, query, hazardFilter, buildingType]);
 
+  // -----------------------
+  // Notes输入框
+  // -----------------------
+  const [noteContent, setNoteContent] = useState('');
+
+  // -----------------------
+  // 一次性获取 Resources / Precedents / Notes
+  // -----------------------
+  useEffect(() => {
+    if (!isOpen) return; // 面板关闭时不抓取
+
+    // 并行抓取
+    fetchResources();
+    fetchPrecedents();
+    fetchNotes();
+    // eslint-disable-next-line
+  }, [isOpen, query, hazardFilter, buildingType, currentStepId, currentTaskId]);
+
+  // -----------------------
+  // Fetch Resources
+  // -----------------------
   const fetchResources = async () => {
     try {
       let url = `http://localhost:8000/resources?query=${encodeURIComponent(
         query
       )}`;
-      // 可以把 hazardFilter, buildingType 等也拼到 url 上
-      // url += `&hazard=${hazardFilter}&buildingType=${buildingType}`
+      // 如果需要 hazardFilter / buildingType 也拼接，可自行添加
+      //   url += `&hazard=${hazardFilter}&buildingType=${buildingType}`
       const response = await fetch(url);
       const data = await response.json();
       setResources(data);
@@ -48,12 +62,15 @@ function ResrcPrecNotesLibrary({
     }
   };
 
+  // -----------------------
+  // Fetch Precedents
+  // -----------------------
   const fetchPrecedents = async () => {
     try {
       let url = `http://localhost:8000/precedents?query=${encodeURIComponent(
         query
       )}`;
-      // 同理添加过滤参数
+      // 同理可以添加 hazardFilter 等
       const response = await fetch(url);
       const data = await response.json();
       setPrecedents(data);
@@ -62,10 +79,12 @@ function ResrcPrecNotesLibrary({
     }
   };
 
+  // -----------------------
+  // Fetch Notes
+  // -----------------------
   const fetchNotes = async () => {
     try {
-      // 可以自定义查询参数
-      // 例如 GET /notes?stepId=xx&taskId=yy
+      // 根据当前 stepId/taskId 过滤
       let url = 'http://localhost:8000/notes';
       const params = [];
       if (currentStepId) params.push(`stepId=${currentStepId}`);
@@ -73,7 +92,6 @@ function ResrcPrecNotesLibrary({
       if (params.length) {
         url += `?${params.join('&')}`;
       }
-
       const response = await fetch(url);
       const data = await response.json();
       setNotes(data);
@@ -81,7 +99,10 @@ function ResrcPrecNotesLibrary({
       console.error('Error fetching notes:', err);
     }
   };
-  // 新增笔记
+
+  // -----------------------
+  // Create Note
+  // -----------------------
   const handleCreateNote = async () => {
     if (!noteContent.trim()) return;
     try {
@@ -95,53 +116,48 @@ function ResrcPrecNotesLibrary({
         }),
       });
       const newNote = await response.json();
-      // 加到列表里
+      // 将新笔记插入到数组末尾
       setNotes((prev) => [...prev, newNote]);
       setNoteContent('');
     } catch (err) {
       console.error('Error creating note:', err);
     }
   };
-  if (!isOpen) return null; // 如果isOpen=false，不渲染面板
 
+  // 如果面板关闭则不渲染
+  if (!isOpen) return null;
+
+  // -----------------------
+  // Resource / Precedent 的“Attach”按钮演示
+  // -----------------------
+  function handleAttachResource(resource) {
+    console.log('Attach this resource to current step and task', resource);
+    // TODO: 你可以将选中的资源信息传递到父组件
+    // 或者在全局状态中记录，这里只是示例
+  }
+
+  function handleAttachPrecedent(precedent) {
+    console.log('Attach precedent', precedent);
+  }
+
+  // -----------------------
+  // 渲染
+  // -----------------------
   return (
-    <div className="resource-library-overlay">
-      <div className="resource-library-panel">
+    <div className="resrc-prec-notes-overlay">
+      <div className="resrc-prec-notes-panel">
         <button className="close-btn" onClick={onClose}>
           ×
         </button>
 
-        {/* Tabs: 切换"Resources"和"Precedents" */}
-        <div className="tabs">
-          <button
-            className={activeTab === 'resources' ? 'active' : ''}
-            onClick={() => setActiveTab('resources')}
-          >
-            Resources
-          </button>
-          <button
-            className={activeTab === 'precedents' ? 'active' : ''}
-            onClick={() => setActiveTab('precedents')}
-          >
-            Precedents
-          </button>
-          <button
-            className={activeTab === 'notes' ? 'active' : ''}
-            onClick={() => setActiveTab('notes')}
-          >
-            Notes
-          </button>
-        </div>
-
-        {/* Filter Panel */}
+        {/* 全局筛选器 (让Resource和Precedent共用) */}
         <div className="filters">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Search Resource/Precedent..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {/* 示例: 下拉菜单选择Hazard */}
           <select
             value={hazardFilter}
             onChange={(e) => setHazardFilter(e.target.value)}
@@ -151,45 +167,58 @@ function ResrcPrecNotesLibrary({
             <option value="earthquake">Earthquake</option>
             <option value="hurricane">Hurricane</option>
           </select>
-
-          {/* 同理可加更多过滤器，如 Building Type 等 */}
+          {/* 如果需要 buildingType */}
+          {/* <select
+            value={buildingType}
+            onChange={(e) => setBuildingType(e.target.value)}
+          >
+            <option value="">Any Building Type</option>
+            <option value="residential">Residential</option>
+            <option value="commercial">Commercial</option>
+          </select> */}
         </div>
 
-        {/* Content Area */}
-        {activeTab === 'resources' && (
-          <div className="resource-list">
-            {resources.map((res) => (
-              <div key={res.id} className="resource-item">
-                <h4>{res.title}</h4>
-                <p>{res.description}</p>
-                <button onClick={() => handleAttachResource(res)}>
-                  Navigate
-                </button>
-              </div>
-            ))}
+        {/* 3列布局 */}
+        <div className="library-panels-container">
+          {/* ------------------ RESOURCE SUBPANEL ------------------ */}
+          <div className="subpanel resource-subpanel">
+            <h3>Resources</h3>
+            <div className="resource-list">
+              {resources.map((res) => (
+                <div key={res.id} className="resource-item">
+                  <h4>{res.title}</h4>
+                  <p>{res.description}</p>
+                  <button onClick={() => handleAttachResource(res)}>
+                    Attach
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
 
-        {activeTab === 'precedents' && (
-          <div className="precedent-list">
-            {precedents.map((pre) => (
-              <div key={pre.id} className="precedent-item">
-                <h4>{pre.title}</h4>
-                <p>{pre.description}</p>
-                <button onClick={() => handleAttachPrecedent(pre)}>
-                  Explore
-                </button>
-              </div>
-            ))}
+          {/* ------------------ PRECEDENT SUBPANEL ------------------ */}
+          <div className="subpanel precedent-subpanel">
+            <h3>Precedents</h3>
+            <div className="precedent-list">
+              {precedents.map((pre) => (
+                <div key={pre.id} className="precedent-item">
+                  <h4>{pre.title}</h4>
+                  <p>{pre.description}</p>
+                  <button onClick={() => handleAttachPrecedent(pre)}>
+                    Attach
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
 
-        {activeTab === 'notes' && (
-          <div className="notes-container">
-            <h4>
+          {/* ------------------ NOTES SUBPANEL ------------------ */}
+          <div className="subpanel notes-subpanel">
+            <h3>Notes</h3>
+            <p>
               Current Step: {currentStepId ?? 'None'}, Task:{' '}
               {currentTaskId ?? 'None'}
-            </h4>
+            </p>
             <div className="notes-list">
               {notes.map((note) => (
                 <div key={note.id} className="notes-item">
@@ -211,22 +240,10 @@ function ResrcPrecNotesLibrary({
               <button onClick={handleCreateNote}>Save Note</button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
-
-  function handleAttachResource(resource) {
-    // TODO: 你可以在这里将选中的资源信息发送到调用者（比如WorkflowTaskPage）
-    // 最简单的实现：把 resource 通过回调函数传回去
-    // 或者用全局状态管理(Redux/Context)给当前任务添加引用
-    console.log('Attach resource', resource);
-  }
-
-  function handleAttachPrecedent(precedent) {
-    // 同理处理先例
-    console.log('Attach precedent', precedent);
-  }
 }
 
 export default ResrcPrecNotesLibrary;
