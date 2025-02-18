@@ -62,10 +62,10 @@ const WorkflowTaskPage = () => {
 
       {/* 右侧主区 */}
       <div className="task-exec-container">
-        <h1>Executing Task</h1>
-        <p>
+        {/* <h1>Executing Task</h1> */}
+        <h1 style={{ color: 'grey' }}>
           Step {step.id}: {step.stepTitle}
-        </p>
+        </h1>
         <h2>Task: {task.title}</h2>
         <p>{task.detail}</p>
         {/* 打开资源/先例/笔记面板 */}

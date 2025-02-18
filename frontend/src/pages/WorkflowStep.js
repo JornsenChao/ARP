@@ -82,9 +82,6 @@ const WorkflowStep = () => {
         <h1>
           Step {step.id}: {step.stepTitle}
         </h1>
-        <p>
-          <strong>Deliverable:</strong> {step.deliverable}
-        </p>
 
         {/* Step中的Tasks */}
         <div className="task-cards-container">
@@ -102,6 +99,9 @@ const WorkflowStep = () => {
             </div>
           ))}
         </div>
+        <h3>
+          <strong>Deliverable:</strong> {step.deliverable}
+        </h3>
         <h2>Resources, Precedents, and Notes</h2>
         <button onClick={openResourceLibrary}>Open Resource/Prec/Notes</button>
         {/* 这里是核心：条件渲染侧边面板 */}
