@@ -1,5 +1,14 @@
 // src/pages/NotesOverview.js
 import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  List,
+  ListItem,
+  ListItemText,
+  Button,
+  Paper,
+} from '@mui/material';
 
 const NotesOverview = () => {
   const [notes, setNotes] = useState([]);
@@ -31,23 +40,43 @@ const NotesOverview = () => {
   };
 
   return (
-    <div>
-      <h1>All Notes</h1>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        All Notes
+      </Typography>
+
       {notes.length === 0 ? (
-        <p>No notes yet.</p>
+        <Typography>No notes yet.</Typography>
       ) : (
-        <ul>
-          {notes.map((n) => (
-            <li key={n.id}>
-              <p>
-                [Step {n.stepId}, Task {n.taskId ?? 'N/A'}] - {n.content}
-              </p>
-              <button onClick={() => handleDelete(n.id)}>Delete</button>
-            </li>
-          ))}
-        </ul>
+        <Paper sx={{ p: 2 }}>
+          <List>
+            {notes.map((n) => (
+              <ListItem
+                key={n.id}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <ListItemText
+                  primary={`[Step ${n.stepId}, Task ${n.taskId ?? 'N/A'}]`}
+                  secondary={n.content}
+                />
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleDelete(n.id)}
+                  sx={{ mt: 1 }}
+                >
+                  Delete
+                </Button>
+              </ListItem>
+            ))}
+          </List>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 

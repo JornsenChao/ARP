@@ -1,49 +1,79 @@
 // src/components/SidebarNavigation.js
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import Drawer from '@mui/material/Drawer';
+import List from '@mui/material/List';
+import ListItemButton from '@mui/material/ListItemButton';
+import ListItemText from '@mui/material/ListItemText';
+import Typography from '@mui/material/Typography';
+import { styled } from '@mui/system';
 import workflowData from '../WorkflowData';
-import './SidebarNavigation.css';
+
+// 固定宽度的 Drawer
+const drawerWidth = 240;
+
+// 自定义一个容器，用于包裹 <Drawer> 内部内容
+const DrawerHeader = styled('div')(({ theme }) => ({
+  ...theme.mixins.toolbar,
+  display: 'flex',
+  alignItems: 'center',
+  paddingLeft: theme.spacing(2),
+}));
 
 const SidebarNavigation = ({ currentStepId, currentTaskId }) => {
-  const navigate = useNavigate();
-
   return (
-    <div className="sidebar-nav">
-      <h3>Workflow Steps</h3>
-      <ul className="sidebar-step-list">
-        {workflowData.map((step) => (
-          <li key={step.id}>
-            {/* Step 链接 */}
-            <Link
-              to={`/workflow/step/${step.id}`}
-              className={step.id === currentStepId ? 'active-step-link' : ''}
-            >
-              Step {step.id}: {step.stepTitle}
-            </Link>
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: drawerWidth,
+        flexShrink: 0,
+        [`& .MuiDrawer-paper`]: {
+          width: drawerWidth,
+          boxSizing: 'border-box',
+          mt: '64px',
+        },
+      }}
+    >
+      <DrawerHeader>
+        <Typography variant="h6">Workflow Steps</Typography>
+      </DrawerHeader>
 
-            {/* 如果 step 里有 tasks，就列出来 */}
-            {step.tasks && step.tasks.length > 0 && (
-              <ul className="sidebar-task-list">
-                {step.tasks.map((task) => (
-                  <li key={task.id}>
-                    <Link
-                      to={`/workflow/step/${step.id}/task/${task.id}`}
-                      className={
-                        step.id === currentStepId && task.id === currentTaskId
-                          ? 'active-task-link'
-                          : ''
-                      }
-                    >
-                      {task.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
+      <List>
+        {workflowData.map((step) => (
+          <div key={step.id}>
+            <ListItemButton
+              component={Link}
+              to={`/workflow/step/${step.id}`}
+              selected={step.id === currentStepId}
+            >
+              <ListItemText
+                primary={`Step ${step.id}: ${step.stepTitle}`}
+                primaryTypographyProps={{ noWrap: true }}
+              />
+            </ListItemButton>
+
+            {/* 如果 step 有 tasks */}
+            {step.tasks &&
+              step.tasks.map((task) => (
+                <ListItemButton
+                  key={task.id}
+                  sx={{ pl: 4 }} // 缩进让层次分明
+                  component={Link}
+                  to={`/workflow/step/${step.id}/task/${task.id}`}
+                  selected={
+                    step.id === currentStepId && task.id === currentTaskId
+                  }
+                >
+                  <ListItemText
+                    primary={task.title}
+                    primaryTypographyProps={{ noWrap: true }}
+                  />
+                </ListItemButton>
+              ))}
+          </div>
         ))}
-      </ul>
-    </div>
+      </List>
+    </Drawer>
   );
 };
 

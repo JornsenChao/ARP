@@ -1,5 +1,7 @@
+// src/pages/TaskDetails.js
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Box, Typography, Button, Paper } from '@mui/material';
 
 const TaskDetails = () => {
   const { taskId } = useParams();
@@ -13,18 +15,24 @@ const TaskDetails = () => {
   }, [taskId]);
 
   return (
-    <div>
-      <h1>Task Details</h1>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        Task Details
+      </Typography>
       {task ? (
-        <div>
-          <h2>{task.title}</h2>
-          <p>{task.description}</p>
-          <Link to="/tasks">Back to Tasks</Link>
-        </div>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h5">{task.title}</Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            {task.description}
+          </Typography>
+          <Button component={Link} to="/tasks" variant="outlined">
+            Back to Tasks
+          </Button>
+        </Paper>
       ) : (
-        <p>Loading task details...</p>
+        <Typography>Loading task details...</Typography>
       )}
-    </div>
+    </Box>
   );
 };
 

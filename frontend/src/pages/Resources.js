@@ -1,12 +1,21 @@
+// src/pages/Resources.js
 import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+} from '@mui/material';
 
 const Resources = () => {
   const [resources, setResources] = useState([]);
   const [query, setQuery] = useState('');
 
-  // 获取静态示例资源数据
   const fetchResources = (searchQuery = '') => {
-    // 暂不使用 searchQuery，直接返回全部示例数据
     fetch('http://localhost:8000/resources')
       .then((response) => response.json())
       .then((data) => setResources(data))
@@ -19,36 +28,50 @@ const Resources = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // 当前仅打印搜索词，并重新调用 fetchResources（返回静态数据）
     console.log('Search query:', query);
     fetchResources(query);
   };
 
   return (
-    <div>
-      <h1>Resources</h1>
-      <form onSubmit={handleSearch}>
-        <input
-          type="text"
-          placeholder="Search resources..."
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        Resources
+      </Typography>
+
+      <Box
+        component="form"
+        onSubmit={handleSearch}
+        sx={{ display: 'flex', gap: 1, mb: 2 }}
+      >
+        <TextField
+          label="Search resources..."
+          variant="outlined"
+          size="small"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="submit">Search</button>
-      </form>
+        <Button type="submit" variant="contained">
+          Search
+        </Button>
+      </Box>
+
       {resources.length === 0 ? (
-        <p>Loading resources...</p>
+        <Typography>Loading resources...</Typography>
       ) : (
-        <ul>
-          {resources.map((resource) => (
-            <li key={resource.id}>
-              <h3>{resource.title}</h3>
-              <p>{resource.description}</p>
-            </li>
-          ))}
-        </ul>
+        <Paper sx={{ p: 2 }}>
+          <List>
+            {resources.map((resource) => (
+              <ListItem key={resource.id} alignItems="flex-start">
+                <ListItemText
+                  primary={resource.title}
+                  secondary={resource.description}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 

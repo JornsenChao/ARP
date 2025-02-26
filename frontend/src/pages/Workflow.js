@@ -1,6 +1,7 @@
 // src/pages/Workflow.js
 import React, { useState } from 'react';
 import workflowData from '../WorkflowData';
+import { Box } from '@mui/material';
 import './Workflow.css';
 
 const Workflow = () => {

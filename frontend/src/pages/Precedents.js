@@ -1,12 +1,21 @@
+// src/pages/Precedents.js
 import React, { useEffect, useState } from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+  List,
+  ListItem,
+  ListItemText,
+} from '@mui/material';
 
 const Precedents = () => {
   const [precedents, setPrecedents] = useState([]);
   const [query, setQuery] = useState('');
 
-  // 获取静态示例资源数据
   const fetchPrecedents = (searchQuery = '') => {
-    // 暂不使用 searchQuery，直接返回全部示例数据
     fetch('http://localhost:8000/precedents')
       .then((response) => response.json())
       .then((data) => setPrecedents(data))
@@ -19,36 +28,51 @@ const Precedents = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // 当前仅打印搜索词，并重新调用 fetchPrecedents（返回静态数据）
     console.log('Search query:', query);
+    // 这里如果后端支持 query，可传递；当前示例直接 fetchPrecedents(query)
     fetchPrecedents(query);
   };
 
   return (
-    <div>
-      <h1>Precedents</h1>
-      <form onSubmit={handleSearch}>
-        <input
-          type="text"
-          placeholder="Search precedents..."
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        Precedents
+      </Typography>
+
+      <Box
+        component="form"
+        onSubmit={handleSearch}
+        sx={{ display: 'flex', gap: 1, mb: 2 }}
+      >
+        <TextField
+          label="Search precedents..."
+          variant="outlined"
+          size="small"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button type="submit">Search</button>
-      </form>
+        <Button type="submit" variant="contained">
+          Search
+        </Button>
+      </Box>
+
       {precedents.length === 0 ? (
-        <p>Loading precedents...</p>
+        <Typography>No precedents found.</Typography>
       ) : (
-        <ul>
-          {precedents.map((precedent) => (
-            <li key={precedent.id}>
-              <h3>{precedent.title}</h3>
-              <p>{precedent.description}</p>
-            </li>
-          ))}
-        </ul>
+        <Paper sx={{ p: 2 }}>
+          <List>
+            {precedents.map((precedent) => (
+              <ListItem key={precedent.id} alignItems="flex-start">
+                <ListItemText
+                  primary={precedent.title}
+                  secondary={precedent.description}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Paper>
       )}
-    </div>
+    </Box>
   );
 };
 

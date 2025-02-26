@@ -1,14 +1,18 @@
+// src/pages/Home.js
 import React from 'react';
+import { Box, Typography } from '@mui/material';
 
 const Home = () => {
   return (
-    <div>
-      <h1>Welcome to the Resilience Design Workflow Platform</h1>
-      <p>
+    <Box sx={{ p: 2 }}>
+      <Typography variant="h4" gutterBottom>
+        Welcome to the Resilience Design Workflow Platform
+      </Typography>
+      <Typography variant="body1">
         This demo shows basic navigation, task interaction, and resource search
         functionality.
-      </p>
-    </div>
+      </Typography>
+    </Box>
   );
 };
 
