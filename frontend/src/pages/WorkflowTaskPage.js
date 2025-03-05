@@ -1,11 +1,16 @@
 // src/pages/WorkflowTaskPage.js
-
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import workflowData from '../WorkflowData';
+import SidebarNavigation from '../components/SidebarNavigation';
 import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
-import SidebarNavigation from '../components/SidebarNavigation'; // 新增
-import './WorkflowTaskPage.css';
+
+// 引入我们新建的5个子任务组件
+import ExposureToHazardsTask from './step4/ExposureToHazardsTask';
+import EvaluateImpactTask from './step4/EvaluateImpactTask';
+import AnalyzeLikelihoodTask from './step4/AnalyzeLikelihoodTask';
+import RiskPrioritizationTask from './step4/RiskPrioritizationTask';
+import ConsiderStressShockTask from './step4/ConsiderStressShockTask';
 
 const WorkflowTaskPage = () => {
   const { stepId, taskId } = useParams();
@@ -14,6 +19,7 @@ const WorkflowTaskPage = () => {
   const navigate = useNavigate();
   const [libraryOpen, setLibraryOpen] = useState(false);
 
+  // 找到当前 step / task 的元信息
   const step = workflowData.find((s) => s.id === stepNum);
   if (!step) {
     return <div>Step not found.</div>;
@@ -22,74 +28,93 @@ const WorkflowTaskPage = () => {
   if (!task) {
     return <div>Task not found.</div>;
   }
-  // ---------------------------------------
-  // 侧边导航
-  // ---------------------------------------
-  // 在 Task 页面，就把 currentStepId = step.id， currentTaskId = task.id
-  // 这样导航栏会高亮对应 step / task
-  // ---------------------------------------
 
-  // 控制资源/先例/笔记面板
-  const openResourceLibrary = () => setLibraryOpen(true);
-  const closeResourceLibrary = () => setLibraryOpen(false);
-
-  // ---------------------------------------
-  // Prev / Next Task (在同一个 Step 内)
-  // ---------------------------------------
-  const tasksOfStep = step.tasks; // 该 Step 下所有 tasks
-  // 找出当前task在 tasksOfStep 数组中的位置
+  // 处理上一任务/下一任务 跳转 (可选)
+  const tasksOfStep = step.tasks;
   const currentTaskIndex = tasksOfStep.findIndex((tk) => tk.id === tId);
   const isFirstTask = currentTaskIndex === 0;
   const isLastTask = currentTaskIndex === tasksOfStep.length - 1;
 
   const handlePrevTask = () => {
     if (!isFirstTask) {
-      const prevTaskId = tasksOfStep[currentTaskIndex - 1].id;
-      navigate(`/workflow/step/${stepNum}/task/${prevTaskId}`);
+      const prevId = tasksOfStep[currentTaskIndex - 1].id;
+      navigate(`/workflow/step/${stepNum}/task/${prevId}`);
     }
   };
+
   const handleNextTask = () => {
     if (!isLastTask) {
-      const nextTaskId = tasksOfStep[currentTaskIndex + 1].id;
-      navigate(`/workflow/step/${stepNum}/task/${nextTaskId}`);
+      const nextId = tasksOfStep[currentTaskIndex + 1].id;
+      navigate(`/workflow/step/${stepNum}/task/${nextId}`);
     }
   };
 
+  // 根据 stepId / taskId 动态渲染实际组件
+  let TaskComponent = <div>Default or Old Logic</div>;
+  if (stepNum === 4) {
+    switch (tId) {
+      case 401:
+        TaskComponent = <ExposureToHazardsTask />;
+        break;
+      case 402:
+        TaskComponent = <EvaluateImpactTask />;
+        break;
+      case 403:
+        TaskComponent = <AnalyzeLikelihoodTask />;
+        break;
+      case 404:
+        TaskComponent = <RiskPrioritizationTask />;
+        break;
+      case 405:
+        TaskComponent = <ConsiderStressShockTask />;
+        break;
+      default:
+        TaskComponent = <div>Unknown Sub-Task in Step 4</div>;
+        break;
+    }
+  }
+
   return (
-    <div className="task-page-layout">
-      {/* 左侧导航 */}
+    <div style={{ display: 'flex', width: '100%' }}>
+      {/* 左侧导航 (Permanent Drawer) */}
       <SidebarNavigation currentStepId={step.id} currentTaskId={task.id} />
 
-      {/* 右侧主区 */}
-      <div className="task-exec-container">
-        {/* <h1>Executing Task</h1> */}
-        <h1 style={{ color: 'grey' }}>
+      {/* 右侧主容器 */}
+      <div style={{ flex: 1, padding: '1rem' }}>
+        <h1>Executing Task</h1>
+        <p>
           Step {step.id}: {step.stepTitle}
-        </h1>
+        </p>
         <h2>Task: {task.title}</h2>
         <p>{task.detail}</p>
-        {/* 打开资源/先例/笔记面板 */}
-        <button onClick={openResourceLibrary}>Open Resource/Prec/Notes</button>
+
+        {/* 这里渲染真正的子组件 */}
+        {TaskComponent}
+
+        {/* 打开右侧资源/先例/笔记抽屉 */}
+        <button onClick={() => setLibraryOpen(true)}>
+          Open Resource/Prec/Notes
+        </button>
         <ResrcPrecNotesLibrary
           isOpen={libraryOpen}
-          onClose={closeResourceLibrary}
+          onClose={() => setLibraryOpen(false)}
           currentStepId={step.id}
           currentTaskId={task.id}
         />
-        <p>
-          Here you can implement the actual process for completing this task...
-        </p>
 
-        <div className="task-nav-buttons">
+        {/* Prev/Next Task */}
+        <div style={{ marginTop: '1rem' }}>
           {!isFirstTask && (
-            <button onClick={handlePrevTask}>Previous Task</button>
+            <button onClick={handlePrevTask} style={{ marginRight: '1rem' }}>
+              Previous Task
+            </button>
           )}
           {!isLastTask && <button onClick={handleNextTask}>Next Task</button>}
         </div>
 
-        <Link to={`/workflow/step/${step.id}`}>
-          <button>Back to Step {step.id}</button>
-        </Link>
+        <p style={{ marginTop: '1rem' }}>
+          <Link to={`/workflow/step/${step.id}`}>Back to Step {step.id}</Link>
+        </p>
       </div>
     </div>
   );
