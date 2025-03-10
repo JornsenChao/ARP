@@ -12,7 +12,7 @@ import NotesOverview from './pages/NotesOverview';
 import WorkflowHome from './pages/WorkflowHome';
 import WorkflowStep from './pages/WorkflowStep';
 import WorkflowTaskPage from './pages/WorkflowTaskPage';
-import { Step4DataProvider } from './Step4Context';
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -28,28 +28,26 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Step4DataProvider>
-        <Router>
-          {/* 全局的顶部导航栏 */}
-          <NavBar />
+      <Router>
+        {/* 全局的顶部导航栏 */}
+        <NavBar />
 
-          {/* 路由切换区域 */}
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/tasks" element={<Tasks />} />
-            <Route path="/tasks/:taskId" element={<TaskDetails />} />
-            <Route path="/workflow" element={<WorkflowHome />} />
-            <Route path="/workflow/step/:stepId" element={<WorkflowStep />} />
-            <Route
-              path="/workflow/step/:stepId/task/:taskId"
-              element={<WorkflowTaskPage />}
-            />
-            <Route path="/notes" element={<NotesOverview />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/precedents" element={<Precedents />} />
-          </Routes>
-        </Router>
-      </Step4DataProvider>
+        {/* 路由切换区域 */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/tasks/:taskId" element={<TaskDetails />} />
+          <Route path="/workflow" element={<WorkflowHome />} />
+          <Route path="/workflow/step/:stepId" element={<WorkflowStep />} />
+          <Route
+            path="/workflow/step/:stepId/task/:taskId"
+            element={<WorkflowTaskPage />}
+          />
+          <Route path="/notes" element={<NotesOverview />} />
+          <Route path="/resources" element={<Resources />} />
+          <Route path="/precedents" element={<Precedents />} />
+        </Routes>
+      </Router>
     </ThemeProvider>
   );
 }

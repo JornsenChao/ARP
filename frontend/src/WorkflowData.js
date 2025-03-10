@@ -70,28 +70,22 @@ const workflowData = [
     tasks: [
       {
         id: 401,
-        title: 'Exposure to Hazards',
-        detail: 'Yes/No + Rationale for each hazard.',
+        title: 'Evaluate vulnerability',
+        detail: 'Determine who/what is most susceptible to hazards.',
       },
       {
         id: 402,
-        title: 'Evaluate Impact',
-        detail:
-          'Determine who/what is most susceptible to hazards. Assess consequences on various systems.',
-      },
-      {
-        id: 403,
         title: 'Analyze likelihood & consequence',
         detail: 'Assess hazard probability and potential impact severity.',
       },
       {
-        id: 404,
+        id: 403,
         title: 'Risk prioritization',
         detail:
           'Use risk matrix (Exposure × Consequence × Likelihood) to rank hazards.',
       },
       {
-        id: 405,
+        id: 404,
         title: 'Consider stress vs. shock',
         detail: 'Include future scenarios and compounding/ cascading effects.',
       },
