@@ -1,97 +1,133 @@
-// src/pages/WorkflowTaskPage.js
-
-import React, { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import workflowData from '../WorkflowData';
+import React, { useContext, useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { Box, Typography, Button, Toolbar } from '@mui/material';
+import { WorkflowContext } from '../WorkflowContext';
+import SidebarNavigation from '../components/SidebarNavigation';
 import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
-import SidebarNavigation from '../components/SidebarNavigation'; // 新增
-import './WorkflowTaskPage.css';
+
+const drawerWidth = 240;
 
 const WorkflowTaskPage = () => {
   const { stepId, taskId } = useParams();
-  const stepNum = parseInt(stepId, 10);
-  const tId = parseInt(taskId, 10);
   const navigate = useNavigate();
+  const { workflow, markTaskAsComplete } = useContext(WorkflowContext);
+
   const [libraryOpen, setLibraryOpen] = useState(false);
 
-  const step = workflowData.find((s) => s.id === stepNum);
-  if (!step) {
-    return <div>Step not found.</div>;
+  const sId = parseInt(stepId, 10);
+  const tId = parseInt(taskId, 10);
+
+  // 找到当前 Step
+  const stepIndex = workflow.findIndex((s) => s.id === sId);
+  if (stepIndex < 0) {
+    return <Typography sx={{ mt: 8, ml: 2 }}>Step not found</Typography>;
   }
-  const task = step.tasks.find((tk) => tk.id === tId);
-  if (!task) {
-    return <div>Task not found.</div>;
+  const step = workflow[stepIndex];
+
+  // 找到当前任务
+  const taskIndex = step.tasks.findIndex((tk) => tk.id === tId);
+  if (taskIndex < 0) {
+    return <Typography sx={{ mt: 8, ml: 2 }}>Task not found</Typography>;
   }
-  // ---------------------------------------
-  // 侧边导航
-  // ---------------------------------------
-  // 在 Task 页面，就把 currentStepId = step.id， currentTaskId = task.id
-  // 这样导航栏会高亮对应 step / task
-  // ---------------------------------------
+  const task = step.tasks[taskIndex];
 
-  // 控制资源/先例/笔记面板
-  const openResourceLibrary = () => setLibraryOpen(true);
-  const closeResourceLibrary = () => setLibraryOpen(false);
+  // 判断该任务是否是 Step 内的最后一个
+  const isLastTask = taskIndex === step.tasks.length - 1;
 
-  // ---------------------------------------
-  // Prev / Next Task (在同一个 Step 内)
-  // ---------------------------------------
-  const tasksOfStep = step.tasks; // 该 Step 下所有 tasks
-  // 找出当前task在 tasksOfStep 数组中的位置
-  const currentTaskIndex = tasksOfStep.findIndex((tk) => tk.id === tId);
-  const isFirstTask = currentTaskIndex === 0;
-  const isLastTask = currentTaskIndex === tasksOfStep.length - 1;
+  // 标记完成并跳转
+  const handleMarkComplete = () => {
+    // 1) 更新状态：当前 task => finished, 下一个 upcoming => current
+    markTaskAsComplete(sId, tId);
 
+    // 2) 跳转逻辑：
+    if (isLastTask) {
+      // 如果这是本 Step 最后一个任务，完成后回到 Step 概览
+      navigate(`/workflow/step/${sId}`);
+    } else {
+      // 否则自动前往下一个任务(新的 current)
+      const nextTask = step.tasks[taskIndex + 1];
+      navigate(`/workflow/step/${sId}/task/${nextTask.id}`);
+    }
+  };
+
+  // 同一个 step 下的前/后任务
+  const isFirstTask = taskIndex === 0;
   const handlePrevTask = () => {
     if (!isFirstTask) {
-      const prevTaskId = tasksOfStep[currentTaskIndex - 1].id;
-      navigate(`/workflow/step/${stepNum}/task/${prevTaskId}`);
+      const prevTask = step.tasks[taskIndex - 1];
+      navigate(`/workflow/step/${sId}/task/${prevTask.id}`);
     }
   };
   const handleNextTask = () => {
     if (!isLastTask) {
-      const nextTaskId = tasksOfStep[currentTaskIndex + 1].id;
-      navigate(`/workflow/step/${stepNum}/task/${nextTaskId}`);
+      const nextTask = step.tasks[taskIndex + 1];
+      navigate(`/workflow/step/${sId}/task/${nextTask.id}`);
     }
   };
 
   return (
-    <div className="task-page-layout">
-      {/* 左侧导航 */}
-      <SidebarNavigation currentStepId={step.id} currentTaskId={task.id} />
+    <Box sx={{ display: 'flex' }}>
+      <SidebarNavigation currentStepId={sId} currentTaskId={tId} />
+      <Box component="main" sx={{ flexGrow: 1, ml: `${drawerWidth}px` }}>
+        <Toolbar />
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h5" gutterBottom>
+            Task {taskId}: {task.title}
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            {task.detail}
+          </Typography>
 
-      {/* 右侧主区 */}
-      <div className="task-exec-container">
-        {/* <h1>Executing Task</h1> */}
-        <h1 style={{ color: 'grey' }}>
-          Step {step.id}: {step.stepTitle}
-        </h1>
-        <h2>Task: {task.title}</h2>
-        <p>{task.detail}</p>
-        {/* 打开资源/先例/笔记面板 */}
-        <button onClick={openResourceLibrary}>Open Resource/Prec/Notes</button>
-        <ResrcPrecNotesLibrary
-          isOpen={libraryOpen}
-          onClose={closeResourceLibrary}
-          currentStepId={step.id}
-          currentTaskId={task.id}
-        />
-        <p>
-          Here you can implement the actual process for completing this task...
-        </p>
+          <Button
+            variant="contained"
+            onClick={handleMarkComplete}
+            sx={{ mr: 2 }}
+          >
+            Mark as Complete
+          </Button>
 
-        <div className="task-nav-buttons">
+          {/* 在同一 Step 内的 上/下一任务按钮 (可选) */}
           {!isFirstTask && (
-            <button onClick={handlePrevTask}>Previous Task</button>
+            <Button variant="outlined" onClick={handlePrevTask} sx={{ mr: 1 }}>
+              Previous Task
+            </Button>
           )}
-          {!isLastTask && <button onClick={handleNextTask}>Next Task</button>}
-        </div>
+          {!isLastTask && (
+            <Button variant="outlined" onClick={handleNextTask}>
+              Next Task
+            </Button>
+          )}
 
-        <Link to={`/workflow/step/${step.id}`}>
-          <button>Back to Step {step.id}</button>
-        </Link>
-      </div>
-    </div>
+          {/* 打开 Library 的按钮 */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+              Need resources, precedents, or notes for this task?
+            </Typography>
+            <Button variant="contained" onClick={() => setLibraryOpen(true)}>
+              Open Library
+            </Button>
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="text"
+              component={Link}
+              to={`/workflow/step/${sId}`}
+            >
+              Back to Step {step.id}
+            </Button>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* 右侧抽屉：Resource/Precedent/Notes */}
+      <ResrcPrecNotesLibrary
+        isOpen={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        currentStepId={sId}
+        currentTaskId={tId} // 在任务页面，传入taskId
+      />
+    </Box>
   );
 };
 

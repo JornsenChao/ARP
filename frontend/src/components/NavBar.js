@@ -11,12 +11,9 @@ const NavBar = () => {
   return (
     <AppBar position="static">
       <Toolbar>
-        {/* 左侧标题 */}
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Resilience Platform
         </Typography>
-
-        {/* 右侧链接菜单 */}
         <Box>
           <Button color="inherit" component={Link} to="/">
             Home

@@ -1,26 +1,20 @@
 // src/components/SidebarNavigation.js
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
-import Drawer from '@mui/material/Drawer';
-import List from '@mui/material/List';
-import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
-import Typography from '@mui/material/Typography';
-import { styled } from '@mui/system';
-import workflowData from '../WorkflowData';
+import {
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from '@mui/material';
+import { WorkflowContext } from '../WorkflowContext';
 
-// 固定宽度的 Drawer
 const drawerWidth = 240;
 
-// 自定义一个容器，用于包裹 <Drawer> 内部内容
-const DrawerHeader = styled('div')(({ theme }) => ({
-  ...theme.mixins.toolbar,
-  display: 'flex',
-  alignItems: 'center',
-  paddingLeft: theme.spacing(2),
-}));
-
 const SidebarNavigation = ({ currentStepId, currentTaskId }) => {
+  const { workflow } = useContext(WorkflowContext);
+
   return (
     <Drawer
       variant="permanent"
@@ -30,46 +24,47 @@ const SidebarNavigation = ({ currentStepId, currentTaskId }) => {
         [`& .MuiDrawer-paper`]: {
           width: drawerWidth,
           boxSizing: 'border-box',
+          // 让它位于 AppBar (64px) 之下
           mt: '64px',
         },
       }}
     >
-      <DrawerHeader>
-        <Typography variant="h6">Workflow Steps</Typography>
-      </DrawerHeader>
-
-      <List>
-        {workflowData.map((step) => (
+      <List disablePadding>
+        <ListItemText
+          primary={
+            <Typography variant="h6" sx={{ px: 2, py: 1 }}>
+              Workflow Steps
+            </Typography>
+          }
+        />
+        {workflow.map((step) => (
           <div key={step.id}>
+            {/* Step行 */}
             <ListItemButton
               component={Link}
               to={`/workflow/step/${step.id}`}
               selected={step.id === currentStepId}
             >
-              <ListItemText
-                primary={`Step ${step.id}: ${step.stepTitle}`}
-                primaryTypographyProps={{ noWrap: true }}
-              />
+              <ListItemText primary={`Step ${step.id}: ${step.stepTitle}`} />
             </ListItemButton>
 
-            {/* 如果 step 有 tasks */}
-            {step.tasks &&
-              step.tasks.map((task) => (
-                <ListItemButton
-                  key={task.id}
-                  sx={{ pl: 4 }} // 缩进让层次分明
-                  component={Link}
-                  to={`/workflow/step/${step.id}/task/${task.id}`}
-                  selected={
-                    step.id === currentStepId && task.id === currentTaskId
-                  }
-                >
-                  <ListItemText
-                    primary={task.title}
-                    primaryTypographyProps={{ noWrap: true }}
-                  />
-                </ListItemButton>
-              ))}
+            {/* Step 下的 Tasks 列表 */}
+            {/* {step.tasks.map((task) => (
+              <ListItemButton
+                key={task.id}
+                component={Link}
+                to={`/workflow/step/${step.id}/task/${task.id}`}
+                selected={
+                  step.id === currentStepId && task.id === currentTaskId
+                }
+                sx={{ pl: 4 }}
+              >
+                <ListItemText
+                  primary={task.title}
+                  secondary={task.status.toUpperCase()}
+                />
+              </ListItemButton>
+            ))} */}
           </div>
         ))}
       </List>

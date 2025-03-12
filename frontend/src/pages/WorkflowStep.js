@@ -1,159 +1,259 @@
-// src/pages/WorkflowStep.js
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Box,
+  Toolbar,
   Typography,
   Button,
-  Card,
-  CardContent,
-  Stack,
   Paper,
+  Stack,
+  Tooltip,
 } from '@mui/material';
-
-import workflowData from '../WorkflowData';
-import WorkflowTaskModal from './WorkflowTaskModal';
-import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
+import { WorkflowContext } from '../WorkflowContext';
 import SidebarNavigation from '../components/SidebarNavigation';
+import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary'; // 引入库抽屉
+
+const statusColors = {
+  finished: 'text.disabled',
+  current: 'primary.main',
+  upcoming: 'text.secondary',
+};
+
+const drawerWidth = 240;
 
 const WorkflowStep = () => {
   const { stepId } = useParams();
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
-
   const navigate = useNavigate();
+  const { workflow, setWorkflow } = useContext(WorkflowContext);
+
+  // 用于控制资源/先例/笔记抽屉
+  const [libraryOpen, setLibraryOpen] = useState(false);
+
   const stepNum = parseInt(stepId, 10);
-  const step = workflowData.find((s) => s.id === stepNum);
-
-  if (!step) {
-    return (
-      <Typography variant="h6" sx={{ m: 2 }}>
-        Step not found.
-      </Typography>
-    );
+  const stepIndex = workflow.findIndex((s) => s.id === stepNum);
+  if (stepIndex < 0) {
+    return <Typography sx={{ mt: 8, ml: 2 }}>Step not found.</Typography>;
   }
+  const step = workflow[stepIndex];
 
-  // 当前 step 在 workflowData 中的索引
-  const totalSteps = workflowData.length;
-  const currentIndex = workflowData.findIndex((s) => s.id === stepNum);
-  const isFirstStep = currentIndex === 0;
-  const isLastStep = currentIndex === totalSteps - 1;
+  const isFirstStep = stepIndex === 0;
+  const isLastStep = stepIndex === workflow.length - 1;
 
   const handlePrevStep = () => {
     if (!isFirstStep) {
-      const prevStepId = workflowData[currentIndex - 1].id;
-      navigate(`/workflow/step/${prevStepId}`);
+      const prevId = workflow[stepIndex - 1].id;
+      navigate(`/workflow/step/${prevId}`);
     }
   };
-
   const handleNextStep = () => {
     if (!isLastStep) {
-      const nextStepId = workflowData[currentIndex + 1].id;
-      navigate(`/workflow/step/${nextStepId}`);
+      const nextId = workflow[stepIndex + 1].id;
+      navigate(`/workflow/step/${nextId}`);
     }
   };
 
-  const handleSeeDetails = (task) => {
-    setSelectedTask(task);
-    setModalOpen(true);
+  // 找当前task
+  const currentTask = step.tasks.find((t) => t.status === 'current');
+  // 是否所有完成
+  const allFinished = step.tasks.every((t) => t.status === 'finished');
+  // 是否有未开始
+  const hasUpcoming = step.tasks.some((t) => t.status === 'upcoming');
+
+  // 若没有currentTask但有upcoming => 可以手动启动
+  const handleStartFirstUpcoming = () => {
+    const upcomingIndex = step.tasks.findIndex((t) => t.status === 'upcoming');
+    if (upcomingIndex < 0) return;
+
+    const upcomingTaskId = step.tasks[upcomingIndex].id;
+    // 把它设为 current
+    const newWorkflow = [...workflow];
+    const stepCopy = { ...newWorkflow[stepIndex] };
+    const tasksCopy = stepCopy.tasks.map((task, i) => {
+      if (i === upcomingIndex) {
+        return { ...task, status: 'current' };
+      }
+      return task;
+    });
+    stepCopy.tasks = tasksCopy;
+    newWorkflow[stepIndex] = stepCopy;
+    setWorkflow(newWorkflow);
+
+    // 导航过去
+    navigate(`/workflow/step/${step.id}/task/${upcomingTaskId}`);
   };
 
-  const handleCloseModal = () => {
-    setModalOpen(false);
-    setSelectedTask(null);
+  // 如果有 currentTask，顶部“Start”按钮点击
+  const handleStartCurrentTask = () => {
+    if (currentTask) {
+      navigate(`/workflow/step/${step.id}/task/${currentTask.id}`);
+    }
   };
 
-  const handleStartTask = (taskId) => {
-    navigate(`/workflow/step/${stepId}/task/${taskId}`);
+  // 回到当前任务
+  const goBackToCurrentTask = () => {
+    if (currentTask) {
+      navigate(`/workflow/step/${step.id}/task/${currentTask.id}`);
+    }
   };
 
   return (
     <Box sx={{ display: 'flex' }}>
-      {/* 左侧永久抽屉 */}
-      <SidebarNavigation currentStepId={stepNum} currentTaskId={null} />
+      <SidebarNavigation currentStepId={step.id} currentTaskId={null} />
+      <Box component="main" sx={{ flexGrow: 1, ml: `${drawerWidth}px` }}>
+        <Toolbar />
 
-      {/* 右侧主内容区域 */}
-
-      <Box sx={{ flex: 1, p: 2 }}>
-        <Typography variant="h4" gutterBottom>
-          Step {step.id}: {step.stepTitle}
-        </Typography>
-        <Typography variant="body1" gutterBottom>
-          <strong>Deliverable:</strong> {step.deliverable}
-        </Typography>
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Available Tasks
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h4" gutterBottom>
+            Step {step.id}: {step.stepTitle}
           </Typography>
 
-          {/* 用 Paper 包一下，让列表更有分隔感 */}
+          {/* Expected Deliverable + tooltip */}
+          <Tooltip title={step.deliverableDetail} arrow enterDelay={200}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+              {step.deliverable}
+            </Typography>
+          </Tooltip>
+
+          {/* 顶部显示当前任务及 Start 按钮 */}
+          {currentTask ? (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                Current Task: {currentTask.title}
+              </Typography>
+              <Button variant="contained" onClick={handleStartCurrentTask}>
+                Start {currentTask.title}
+              </Button>
+            </Box>
+          ) : allFinished ? (
+            <Typography
+              variant="subtitle1"
+              sx={{ color: 'text.disabled', mb: 3 }}
+            >
+              All tasks in this step are completed.
+            </Typography>
+          ) : (
+            hasUpcoming && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                  No task is currently active. You can start this step by
+                  launching the first upcoming task.
+                </Typography>
+                <Button variant="contained" onClick={handleStartFirstUpcoming}>
+                  Start the first upcoming Task
+                </Button>
+              </Box>
+            )
+          )}
+
+          {/* 打开资源/先例/笔记抽屉 */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+              Need references or notes for this step?
+            </Typography>
+            <Button variant="contained" onClick={() => setLibraryOpen(true)}>
+              Open Library
+            </Button>
+          </Box>
+
+          {/* 列出所有任务(无 Start 按钮) */}
           <Paper sx={{ p: 2 }}>
-            <Stack direction="column" spacing={2} sx={{ flexWrap: 'wrap' }}>
-              {step.tasks.map((task) => (
-                <Card key={task.id} sx={{ width: 300 }}>
-                  <CardContent>
-                    <Typography variant="subtitle1" gutterBottom>
-                      {task.title}
+            <Typography variant="h6" gutterBottom>
+              All Tasks in Step {step.id}
+            </Typography>
+            <Stack spacing={2}>
+              {step.tasks.map((task) => {
+                const color = statusColors[task.status] || 'text.secondary';
+                return (
+                  <Box
+                    key={task.id}
+                    sx={{
+                      p: 2,
+                      border: '1px solid #ccc',
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Typography variant="subtitle1" sx={{ color, mb: 1 }}>
+                      {task.title} ({task.status.toUpperCase()})
                     </Typography>
-                    <Stack direction="row" spacing={1}>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                      {task.detail}
+                    </Typography>
+
+                    {task.status === 'finished' && (
+                      <Button variant="outlined" disabled>
+                        View (Finished)
+                      </Button>
+                    )}
+                    {task.status === 'current' && (
                       <Button
                         variant="outlined"
-                        onClick={() => handleSeeDetails(task)}
+                        onClick={() =>
+                          navigate(`/workflow/step/${step.id}/task/${task.id}`)
+                        }
                       >
-                        Details
+                        View
                       </Button>
+                    )}
+                    {task.status === 'upcoming' && (
                       <Button
-                        variant="contained"
-                        onClick={() => handleStartTask(task.id)}
+                        variant="outlined"
+                        onClick={() =>
+                          navigate(`/workflow/step/${step.id}/task/${task.id}`)
+                        }
                       >
-                        Start
+                        View
                       </Button>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              ))}
+                    )}
+                  </Box>
+                );
+              })}
             </Stack>
           </Paper>
-        </Box>
 
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="h6">Resources, Precedents, and Notes</Typography>
-          <Paper sx={{ p: 2 }}>
-            <Button variant="contained" onClick={() => setLibraryOpen(true)}>
-              Open Resource & Precedent Library
-            </Button>
-          </Paper>
-        </Box>
+          {/* 底部导航按钮 */}
+          <Box sx={{ mt: 3 }}>
+            {!isFirstStep && (
+              <Button
+                variant="outlined"
+                onClick={handlePrevStep}
+                sx={{ mr: 1 }}
+              >
+                Previous Step
+              </Button>
+            )}
+            {!isLastStep && (
+              <Button variant="outlined" onClick={handleNextStep}>
+                Next Step
+              </Button>
+            )}
+          </Box>
 
-        {/* 抽屉面板 */}
-        <ResrcPrecNotesLibrary
-          isOpen={libraryOpen}
-          onClose={() => setLibraryOpen(false)}
-        />
-
-        {/* 任务详情Modal */}
-        {modalOpen && selectedTask && (
-          <WorkflowTaskModal task={selectedTask} onClose={handleCloseModal} />
-        )}
-
-        {/* 上一步 / 下一步 */}
-        <Box sx={{ mt: 2 }}>
-          {!isFirstStep && (
-            <Button variant="outlined" onClick={handlePrevStep} sx={{ mr: 1 }}>
-              Previous Step
-            </Button>
+          {/* 如果有 currentTask，提供回到当前任务按钮 */}
+          {currentTask && (
+            <Box sx={{ mt: 2 }}>
+              <Button variant="text" onClick={goBackToCurrentTask}>
+                Go back to current task
+              </Button>
+            </Box>
           )}
-          {!isLastStep && (
-            <Button variant="outlined" onClick={handleNextStep}>
-              Next Step
+
+          {/* 返回总览 */}
+          <Box sx={{ mt: 2 }}>
+            <Button variant="text" component={Link} to="/workflow">
+              Back to Workflow Overview
             </Button>
-          )}
-          <Button component={Link} to="/workflow" variant="outlined">
-            Back to Workflow Home
-          </Button>
+          </Box>
         </Box>
       </Box>
+
+      {/* 右侧抽屉：Resource/Precedent/Notes */}
+      <ResrcPrecNotesLibrary
+        isOpen={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        currentStepId={step.id}
+        // 当前不在任务页面，所以可以把 currentTaskId 传 null，或省略
+        currentTaskId={null}
+      />
     </Box>
   );
 };
