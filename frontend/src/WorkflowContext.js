@@ -7,75 +7,98 @@ export const WorkflowContext = createContext(null);
 
 export const WorkflowProvider = ({ children }) => {
   const [workflow, setWorkflow] = useState(() => {
-    // 初始时尝试从 localStorage 恢复
     const saved = localStorage.getItem('workflowState');
-    if (saved) {
-      return JSON.parse(saved);
-    }
+    if (saved) return JSON.parse(saved);
     return initialData;
   });
 
-  // 每次 workflow 改变时，存入 localStorage
   useEffect(() => {
     localStorage.setItem('workflowState', JSON.stringify(workflow));
   }, [workflow]);
 
-  // 根据 stepId / taskId 标记任务完成
+  // 更新某个task的notes
+  const updateTaskNotes = (stepId, taskId, newNotes) => {
+    setWorkflow((prev) => {
+      const newData = [...prev];
+      const stepIndex = newData.findIndex((s) => s.id === stepId);
+      if (stepIndex < 0) return newData;
+
+      const stepCopy = { ...newData[stepIndex] };
+      stepCopy.tasks = stepCopy.tasks.map((task) => {
+        if (task.id === taskId) {
+          return { ...task, notes: newNotes };
+        }
+        return task;
+      });
+      newData[stepIndex] = stepCopy;
+      return newData;
+    });
+  };
+
+  // Mark a single task as complete
   const markTaskAsComplete = (stepId, taskId) => {
     setWorkflow((prev) => {
       const newData = [...prev];
       const stepIndex = newData.findIndex((s) => s.id === stepId);
       if (stepIndex < 0) return newData;
 
-      const step = { ...newData[stepIndex] };
-      const tasks = step.tasks.map((task, i) => {
-        if (task.id === taskId) {
-          // 当前任务设为 finished
-          return { ...task, status: 'finished' };
-        }
-        return task;
-      });
+      const stepCopy = { ...newData[stepIndex] };
+      // 找到这个 task
+      const taskIndex = stepCopy.tasks.findIndex((t) => t.id === taskId);
+      if (taskIndex < 0) return newData;
 
-      // 让下一个 upcoming 的任务变为 current
-      let nextTaskIndex = tasks.findIndex((t) => t.status === 'upcoming');
-      if (nextTaskIndex >= 0) {
-        tasks[nextTaskIndex] = {
-          ...tasks[nextTaskIndex],
+      // 1) 当前task => finished
+      const tasksCopy = [...stepCopy.tasks];
+      tasksCopy[taskIndex] = {
+        ...tasksCopy[taskIndex],
+        status: 'finished',
+      };
+
+      // 2) 找下一个 upcoming => current
+      const nextUpcomingIndex = tasksCopy.findIndex(
+        (t) => t.status === 'upcoming'
+      );
+      if (nextUpcomingIndex >= 0) {
+        tasksCopy[nextUpcomingIndex] = {
+          ...tasksCopy[nextUpcomingIndex],
           status: 'current',
         };
       } else {
-        // 如果没有 upcoming，说明这个 step 下所有任务都完成了
-        // 可在此处做“自动跳转下一个Step”的处理，但跳转逻辑也可在组件中写
+        // 没有下一个任务 => 说明本step所有任务都完成
+        // => mark this step as finished, unlock the next step
+        stepCopy.status = 'finished';
+
+        // 解锁下一个step
+        const nextStepIndex = stepIndex + 1;
+        if (nextStepIndex < newData.length) {
+          // 如果还有后续 step
+          const nextStep = { ...newData[nextStepIndex] };
+          // 如果是 upcoming，则变成 current
+          if (nextStep.status === 'upcoming') {
+            nextStep.status = 'current';
+            // 其第一个任务也要从 upcoming => current
+            if (nextStep.tasks.length > 0) {
+              nextStep.tasks = nextStep.tasks.map((tk, i) => {
+                if (i === 0) return { ...tk, status: 'current' };
+                return tk;
+              });
+            }
+          }
+          newData[nextStepIndex] = nextStep;
+        }
       }
 
-      step.tasks = tasks;
-      newData[stepIndex] = step;
+      stepCopy.tasks = tasksCopy;
+      newData[stepIndex] = stepCopy;
       return newData;
     });
-  };
-
-  // 辅助：获取指定 Step 的下一个 stepId，用于自动跳转
-  const getNextStepId = (stepId) => {
-    const index = workflow.findIndex((s) => s.id === stepId);
-    if (index >= 0 && index < workflow.length - 1) {
-      return workflow[index + 1].id;
-    }
-    return null; // 没有下一个 step
-  };
-
-  // 辅助：判断某个 Step 是否所有 task 都 finished
-  const isStepAllFinished = (stepId) => {
-    const step = workflow.find((s) => s.id === stepId);
-    if (!step) return false;
-    return step.tasks.every((t) => t.status === 'finished');
   };
 
   const value = {
     workflow,
     setWorkflow,
+    updateTaskNotes,
     markTaskAsComplete,
-    getNextStepId,
-    isStepAllFinished,
   };
 
   return (

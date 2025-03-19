@@ -3,18 +3,21 @@
 const workflowData = [
   {
     id: 1,
+    status: 'current', // 第一个 Step 默认 current
     stepTitle: 'Define Scope',
     deliverable:
       'An agreed resilience scope with the client. (Hover to see more...)',
     deliverableDetail:
-      '在本步骤与客户沟通，明确对韧性的理解、重要性、参考案例、成本与回报等，并最终确定项目韧性目标范围。',
+      'Specify resilience scope with the client, including case study, understanding of resilience, expected deliverables, hazards, assets, and stakeholders.',
     tasks: [
       {
         id: 101,
-        title: 'Identify client expectation & deliverables',
+        title: 'Identify client expectation',
         detail:
-          'Clarify the client’s understanding of resilience, the importance, examples, cost, return, etc.',
-        status: 'current', // 第一个任务设为 current
+          'Clarify the client’s understanding of resilience, examples, cost, etc.',
+        status: 'current', // 第一个设为 current
+        locked: false, // current => unlocked
+        inputText: '', // 用户可输入的内容
       },
       {
         id: 102,
@@ -22,16 +25,19 @@ const workflowData = [
         detail:
           'Discuss with the client about real-world resilience cases, adoption feasibility, and ROI.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },
   {
     id: 2,
+    status: 'upcoming',
     stepTitle: 'Build Team',
     deliverable:
       'Resilient design workplan & coordination. (Hover to see more)',
     deliverableDetail:
-      '组建多学科团队，引入必要的专家顾问，明确角色与责任，形成初步协调方案。',
+      'Build a multi-disciplinary team, gather expertise from architecture, landscape, engineering, MEP, etc., confirm responsibilities, set up workshops and documentation procedures',
     tasks: [
       {
         id: 201,
@@ -39,6 +45,8 @@ const workflowData = [
         detail:
           'Gather expertise from architecture, landscape, engineering, MEP, etc.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 202,
@@ -46,15 +54,18 @@ const workflowData = [
         detail:
           'Confirm responsibilities, set up workshops and documentation procedures.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },
   {
     id: 3,
+    status: 'upcoming',
     stepTitle: 'Identify Who & What',
     deliverable:
       'Documentation: [hazard] -> [asset and stakeholder] mapping. (Hover to see more)',
-    deliverableDetail: '确定主要利益相关方和资产，并列举潜在危险类型。',
+    deliverableDetail: ' Specify hazards, assets, and stakeholders.',
     tasks: [
       {
         id: 301,
@@ -62,6 +73,8 @@ const workflowData = [
         detail:
           'List primary and secondary stakeholders, their roles, and interests.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 302,
@@ -69,6 +82,8 @@ const workflowData = [
         detail:
           'Outline potential hazards like floods, earthquakes, storms, etc.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 303,
@@ -76,27 +91,35 @@ const workflowData = [
         detail:
           'Clarify performance criteria, building codes, and resilience objectives.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },
   {
     id: 4,
+    status: 'upcoming',
     stepTitle: 'Assess Vulnerability & Risk',
     deliverable:
       'Identified hazards & prioritized risk matrix for each stakeholder & asset. (Hover to see more)',
-    deliverableDetail: '评估脆弱性与风险优先级，考虑可叠加的未来情景。',
+    deliverableDetail:
+      'Evaluate vulnerability & risk, prioritize them, and consider future scenarios.  ',
     tasks: [
       {
         id: 401,
         title: 'Evaluate vulnerability',
         detail: 'Determine who/what is most susceptible to hazards.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 402,
         title: 'Analyze likelihood & consequence',
         detail: 'Assess hazard probability and potential impact severity.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 403,
@@ -104,15 +127,17 @@ const workflowData = [
         detail:
           'Use risk matrix (Exposure × Consequence × Likelihood) to rank hazards.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },
   {
     id: 5,
+    status: 'upcoming',
     stepTitle: 'Develop Strategy',
     deliverable: 'Outlined design strategy repository. (Hover to see more)',
-    deliverableDetail:
-      '针对优先风险提出可能的结构与非结构性策略，并归纳到策略库。',
+    deliverableDetail: 'Prepare a strategy library',
     tasks: [
       {
         id: 501,
@@ -120,6 +145,8 @@ const workflowData = [
         detail:
           'Identify critical building performance aspects for each hazard.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 502,
@@ -127,15 +154,19 @@ const workflowData = [
         detail:
           'List potential structural and non-structural measures in a strategy library.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },
   {
     id: 6,
+    status: 'upcoming',
     stepTitle: 'Evaluate & Select Strategy: CBA, BCA',
     deliverable:
       'Optimal strategy combination for the owner. (Hover to see more)',
-    deliverableDetail: '对比多种韧性方案的成本与收益，筛选最优组合。',
+    deliverableDetail:
+      'Compare multiple strategies, based on cost-effectiveness. Select the best combination. ',
     tasks: [
       {
         id: 601,
@@ -143,6 +174,8 @@ const workflowData = [
         detail:
           'Quantify avoided damages vs. the cost of implementing protective strategies.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 602,
@@ -150,15 +183,18 @@ const workflowData = [
         detail:
           'Rank feasibility, sustainability, cost, ROI, etc. to select the best strategy.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },
   {
     id: 7,
+    status: 'upcoming',
     stepTitle: 'Evaluate After Construction',
     deliverable:
       'Refined insights & lessons learned for resilience performance. (Hover to see more)',
-    deliverableDetail: '对建成项目进行入住后评估，收集数据与反馈，并持续改进。',
+    deliverableDetail: 'POE',
     tasks: [
       {
         id: 701,
@@ -166,6 +202,8 @@ const workflowData = [
         detail:
           'Collect feedback from building users; measure satisfaction and performance.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
       {
         id: 702,
@@ -173,6 +211,8 @@ const workflowData = [
         detail:
           'Observe actual performance vs. predicted resilience outcomes for future updates.',
         status: 'upcoming',
+        locked: true,
+        inputText: '',
       },
     ],
   },

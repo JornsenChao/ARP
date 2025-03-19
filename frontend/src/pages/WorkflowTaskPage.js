@@ -1,6 +1,8 @@
+// src/pages/WorkflowTaskPage.js
+
 import React, { useContext, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Box, Typography, Button, Toolbar } from '@mui/material';
+import { Box, Typography, Button, Toolbar, TextField } from '@mui/material';
 import { WorkflowContext } from '../WorkflowContext';
 import SidebarNavigation from '../components/SidebarNavigation';
 import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
@@ -10,48 +12,53 @@ const drawerWidth = 240;
 const WorkflowTaskPage = () => {
   const { stepId, taskId } = useParams();
   const navigate = useNavigate();
-  const { workflow, markTaskAsComplete } = useContext(WorkflowContext);
+
+  const { workflow, markTaskAsComplete, updateTaskNotes } =
+    useContext(WorkflowContext);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
 
   const sId = parseInt(stepId, 10);
   const tId = parseInt(taskId, 10);
 
-  // 找到当前 Step
+  // 找到 Step
   const stepIndex = workflow.findIndex((s) => s.id === sId);
   if (stepIndex < 0) {
     return <Typography sx={{ mt: 8, ml: 2 }}>Step not found</Typography>;
   }
   const step = workflow[stepIndex];
 
-  // 找到当前任务
+  // 如果 step.status !== 'current' => 整个任务页面只读
+  const stepLocked = step.status !== 'current';
+
+  // 找到 Task
   const taskIndex = step.tasks.findIndex((tk) => tk.id === tId);
   if (taskIndex < 0) {
     return <Typography sx={{ mt: 8, ml: 2 }}>Task not found</Typography>;
   }
   const task = step.tasks[taskIndex];
 
-  // 判断该任务是否是 Step 内的最后一个
+  // 如果 step 已锁定, 则无论task是啥状态都只读
+  // 否则再看 task.status 是否 current
+  const isTaskLocked = stepLocked || task.status !== 'current';
+
   const isLastTask = taskIndex === step.tasks.length - 1;
+  const isFirstTask = taskIndex === 0;
 
-  // 标记完成并跳转
   const handleMarkComplete = () => {
-    // 1) 更新状态：当前 task => finished, 下一个 upcoming => current
     markTaskAsComplete(sId, tId);
-
-    // 2) 跳转逻辑：
+    // 如果这是最后一个 task, markStepAsComplete => 下一个 step
+    // 已在 context 里处理
     if (isLastTask) {
-      // 如果这是本 Step 最后一个任务，完成后回到 Step 概览
+      // 跳回Step
       navigate(`/workflow/step/${sId}`);
     } else {
-      // 否则自动前往下一个任务(新的 current)
+      // 下一个
       const nextTask = step.tasks[taskIndex + 1];
       navigate(`/workflow/step/${sId}/task/${nextTask.id}`);
     }
   };
 
-  // 同一个 step 下的前/后任务
-  const isFirstTask = taskIndex === 0;
   const handlePrevTask = () => {
     if (!isFirstTask) {
       const prevTask = step.tasks[taskIndex - 1];
@@ -65,6 +72,11 @@ const WorkflowTaskPage = () => {
     }
   };
 
+  const handleChangeNotes = (e) => {
+    if (isTaskLocked) return; // locked => 不更新
+    updateTaskNotes(sId, tId, e.target.value);
+  };
+
   return (
     <Box sx={{ display: 'flex' }}>
       <SidebarNavigation currentStepId={sId} currentTaskId={tId} />
@@ -74,19 +86,43 @@ const WorkflowTaskPage = () => {
           <Typography variant="h5" gutterBottom>
             Task {taskId}: {task.title}
           </Typography>
-          <Typography variant="body1" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
             {task.detail}
           </Typography>
 
-          <Button
-            variant="contained"
-            onClick={handleMarkComplete}
-            sx={{ mr: 2 }}
-          >
-            Mark as Complete
-          </Button>
+          {/* 如果 step 是 locked, 显示提示 */}
+          {stepLocked && (
+            <Typography sx={{ color: 'text.disabled', mb: 2 }}>
+              This step is not active, so tasks are read-only.
+            </Typography>
+          )}
 
-          {/* 在同一 Step 内的 上/下一任务按钮 (可选) */}
+          {/* 笔记文本框 */}
+          <TextField
+            label="Notes"
+            multiline
+            rows={4}
+            value={task.notes}
+            onChange={handleChangeNotes}
+            fullWidth
+            InputProps={{
+              readOnly: isTaskLocked,
+            }}
+            sx={{ mb: 3 }}
+          />
+
+          {/* Mark as Complete 只有在 step = current 且 task = current 才显示 */}
+          {!isTaskLocked && (
+            <Button
+              variant="contained"
+              onClick={handleMarkComplete}
+              sx={{ mr: 2 }}
+            >
+              Mark as Complete
+            </Button>
+          )}
+
+          {/* 上/下一任务 */}
           {!isFirstTask && (
             <Button variant="outlined" onClick={handlePrevTask} sx={{ mr: 1 }}>
               Previous Task
@@ -98,16 +134,14 @@ const WorkflowTaskPage = () => {
             </Button>
           )}
 
-          {/* 打开 Library 的按钮 */}
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-              Need resources, precedents, or notes for this task?
-            </Typography>
+          {/* 打开资源抽屉 */}
+          <Box sx={{ mt: 3 }}>
             <Button variant="contained" onClick={() => setLibraryOpen(true)}>
               Open Library
             </Button>
           </Box>
 
+          {/* 返回step */}
           <Box sx={{ mt: 2 }}>
             <Button
               variant="text"
@@ -120,12 +154,11 @@ const WorkflowTaskPage = () => {
         </Box>
       </Box>
 
-      {/* 右侧抽屉：Resource/Precedent/Notes */}
       <ResrcPrecNotesLibrary
         isOpen={libraryOpen}
         onClose={() => setLibraryOpen(false)}
         currentStepId={sId}
-        currentTaskId={tId} // 在任务页面，传入taskId
+        currentTaskId={tId}
       />
     </Box>
   );
