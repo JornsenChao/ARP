@@ -2,7 +2,13 @@
 
 import React, { useContext, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Box, Typography, Button, Toolbar, TextField } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Button,
+  Toolbar,
+  TextField,
+} from '@mui/material';
 import { WorkflowContext } from '../WorkflowContext';
 import SidebarNavigation from '../components/SidebarNavigation';
 import ResrcPrecNotesLibrary from '../components/ResrcPrecNotesLibrary/ResrcPrecNotesLibrary';
@@ -13,8 +19,11 @@ const WorkflowTaskPage = () => {
   const { stepId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const { workflow, markTaskAsComplete, updateTaskNotes } =
-    useContext(WorkflowContext);
+  const {
+    workflow,
+    markTaskAsComplete,
+    updateTaskNotes,
+  } = useContext(WorkflowContext);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
 
@@ -28,8 +37,8 @@ const WorkflowTaskPage = () => {
   }
   const step = workflow[stepIndex];
 
-  // 如果 step.status !== 'current' => 整个任务页面只读
-  const stepLocked = step.status !== 'current';
+  // 如果 step.status !== 'current' => stepLocked
+  const stepLocked = (step.status !== 'current');
 
   // 找到 Task
   const taskIndex = step.tasks.findIndex((tk) => tk.id === tId);
@@ -38,22 +47,17 @@ const WorkflowTaskPage = () => {
   }
   const task = step.tasks[taskIndex];
 
-  // 如果 step 已锁定, 则无论task是啥状态都只读
-  // 否则再看 task.status 是否 current
-  const isTaskLocked = stepLocked || task.status !== 'current';
+  // 若 stepLocked 或 task.status !== 'current' => taskLocked
+  const taskLocked = stepLocked || (task.status !== 'current');
 
-  const isLastTask = taskIndex === step.tasks.length - 1;
-  const isFirstTask = taskIndex === 0;
+  const isLastTask = (taskIndex === step.tasks.length - 1);
+  const isFirstTask = (taskIndex === 0);
 
   const handleMarkComplete = () => {
     markTaskAsComplete(sId, tId);
-    // 如果这是最后一个 task, markStepAsComplete => 下一个 step
-    // 已在 context 里处理
     if (isLastTask) {
-      // 跳回Step
       navigate(`/workflow/step/${sId}`);
     } else {
-      // 下一个
       const nextTask = step.tasks[taskIndex + 1];
       navigate(`/workflow/step/${sId}/task/${nextTask.id}`);
     }
@@ -73,13 +77,14 @@ const WorkflowTaskPage = () => {
   };
 
   const handleChangeNotes = (e) => {
-    if (isTaskLocked) return; // locked => 不更新
+    if (taskLocked) return;
     updateTaskNotes(sId, tId, e.target.value);
   };
 
   return (
     <Box sx={{ display: 'flex' }}>
       <SidebarNavigation currentStepId={sId} currentTaskId={tId} />
+
       <Box component="main" sx={{ flexGrow: 1, ml: `${drawerWidth}px` }}>
         <Toolbar />
         <Box sx={{ p: 2 }}>
@@ -90,14 +95,12 @@ const WorkflowTaskPage = () => {
             {task.detail}
           </Typography>
 
-          {/* 如果 step 是 locked, 显示提示 */}
           {stepLocked && (
             <Typography sx={{ color: 'text.disabled', mb: 2 }}>
-              This step is not active, so tasks are read-only.
+              This step is not active. Tasks are read-only.
             </Typography>
           )}
 
-          {/* 笔记文本框 */}
           <TextField
             label="Notes"
             multiline
@@ -106,13 +109,13 @@ const WorkflowTaskPage = () => {
             onChange={handleChangeNotes}
             fullWidth
             InputProps={{
-              readOnly: isTaskLocked,
+              readOnly: taskLocked,
             }}
             sx={{ mb: 3 }}
           />
 
-          {/* Mark as Complete 只有在 step = current 且 task = current 才显示 */}
-          {!isTaskLocked && (
+          {/* 只有当 taskUnlocked 才可以点 Mark as Complete */}
+          {!taskLocked && (
             <Button
               variant="contained"
               onClick={handleMarkComplete}
@@ -134,20 +137,15 @@ const WorkflowTaskPage = () => {
             </Button>
           )}
 
-          {/* 打开资源抽屉 */}
+          {/* 资源抽屉 */}
           <Box sx={{ mt: 3 }}>
             <Button variant="contained" onClick={() => setLibraryOpen(true)}>
               Open Library
             </Button>
           </Box>
 
-          {/* 返回step */}
           <Box sx={{ mt: 2 }}>
-            <Button
-              variant="text"
-              component={Link}
-              to={`/workflow/step/${sId}`}
-            >
+            <Button variant="text" component={Link} to={`/workflow/step/${sId}`}>
               Back to Step {step.id}
             </Button>
           </Box>

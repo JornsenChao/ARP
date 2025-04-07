@@ -36,7 +36,7 @@ const WorkflowStep = () => {
     return <Typography sx={{ mt: 8, ml: 2 }}>Step not found</Typography>;
   }
   const step = workflow[stepIndex];
-  const stepLocked = step.status !== 'current'; // Step locked unless status = current
+  const stepLocked = (step.status !== 'current'); // Step locked unless status = current
 
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === workflow.length - 1;
@@ -96,7 +96,7 @@ const WorkflowStep = () => {
 
                 // 任务的 locked 状态 = stepLocked 或 task.status !== 'current'
                 // 但是这里仅用于区分UI; "View"或 hover
-                const taskLocked = stepLocked || task.status !== 'current';
+                const taskLocked = stepLocked || (task.status !== 'current');
 
                 return (
                   <Box
@@ -160,11 +160,7 @@ const WorkflowStep = () => {
           {/* 底部 step导航 */}
           <Box sx={{ mt: 3 }}>
             {!isFirstStep && (
-              <Button
-                variant="outlined"
-                onClick={handlePrevStep}
-                sx={{ mr: 1 }}
-              >
+              <Button variant="outlined" onClick={handlePrevStep} sx={{ mr: 1 }}>
                 Previous Step
               </Button>
             )}
