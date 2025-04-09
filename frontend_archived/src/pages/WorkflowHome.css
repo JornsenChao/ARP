@@ -1,0 +1,86 @@
+/* src/pages/WorkflowHome.css */
+
+/* 
+让这个组件占满可视区，如果NavBar是固定高度(例如60px),
+可用calc(100vh - 60px)避免被NavBar覆盖
+*/
+.workflow-fullscreen {
+  position: relative;
+  width: 100vw;
+  height: calc(100vh - 60px);
+  /* 如果NavBar不是fixed，就直接100vh */
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: #f7f7f7;
+  white-space: nowrap; /* 子元素水平排列 */
+  padding-top: 0.5rem;
+}
+
+/* 水平排列卡片 */
+.steps-scroller {
+  display: inline-flex;
+  position: relative;
+  margin-left: 1rem;
+  margin-right: 1rem;
+  align-items: center;
+}
+
+/* 顶部连线 */
+.steps-line {
+  position: absolute;
+  top: 70px; /* 调整让线穿过卡片顶部 */
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #ccc;
+  z-index: 1;
+}
+
+/* 统一大小的卡片 */
+.step-card {
+  position: relative;
+  width: 350px; /* 你想要多宽 */
+  height: 300px; /* 你想要多高 */
+  background: #fff;
+  margin-right: 2rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow-wrap: break-word; /* 允许文本换行 */
+  word-wrap: break-word;
+  white-space: normal; /* 多行文本 */
+}
+
+.step-card h2 {
+  margin: 0.3rem 0 0;
+  font-size: 1.1rem;
+  text-align: center;
+}
+.step-card h4 {
+  margin: 0.2rem 0 0.5rem;
+  text-align: center;
+  color: #666;
+  font-weight: normal;
+}
+
+/* Bullet列表 */
+.step-card ul {
+  list-style-type: disc;
+  padding-left: 1.2rem;
+  margin: 0;
+  max-height: 220px; /* 避免内容挤出卡片，溢出可加scroll */
+  overflow-y: auto;
+}
+.step-card li {
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+}
+
+/* hover 效果 */
+.step-card:hover {
+  background: #fefefe;
+  transition: 0.2s;
+}
