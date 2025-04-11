@@ -7,9 +7,18 @@ let workflowState = {
     isCompleted: false,
   },
   step2: {
-    exposureData: {},
-    impactData: {},
-    riskData: {},
+    // 下面是我们在此示例中使用的字段
+    baselineCategories: [
+      'Architectural Systems',
+      'Structural Systems',
+      'Mechanical/Electrical/Plumbing (MEP)',
+      'Landscape',
+      'Civil Infrastructure',
+    ],
+    userCategories: [], // 用户自定义系统
+    impactData: [], // [{ hazard, system, impactRating }]
+    likelihoodData: [], // [{ hazard, likelihoodRating }]
+    riskResult: [], // [{ hazard, system, impactRating, likelihoodRating, riskScore }]
     isCompleted: false,
   },
   step3: {
