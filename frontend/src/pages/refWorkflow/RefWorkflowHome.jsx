@@ -3,14 +3,14 @@ import { Link } from 'react-router-dom';
 import { Box, Toolbar } from '@mui/material';
 
 // Import your WorkflowContext so we can get the workflow data
-import { WorkflowContext } from '../contexts/WorkflowContext';
+import { RefWorkflowContext } from '../../contexts/RefWorkflowContext';
 
 // Import the old CSS you used for the horizontal scroller
-import './WorkflowHome.css';
+import './RefWorkflowHome.css';
 
-function WorkflowHome() {
+function RefWorkflowHome() {
   // Access workflow array from context
-  const { workflow } = useContext(WorkflowContext);
+  const { workflow } = useContext(RefWorkflowContext);
 
   return (
     // We wrap everything in a Box so that we can offset the NavBar (fixed at top)
@@ -29,7 +29,10 @@ function WorkflowHome() {
             <div key={step.id} className="step-card">
               <h4>Step {step.id}</h4>
               {/* Link to the detailed step page */}
-              <Link to={`/workflow/step/${step.id}`} className="step-card-link">
+              <Link
+                to={`/ref-workflow/step/${step.id}`}
+                className="step-card-link"
+              >
                 <h2>{step.stepTitle}</h2>
               </Link>
 
@@ -49,4 +52,4 @@ function WorkflowHome() {
   );
 }
 
-export default WorkflowHome;
+export default RefWorkflowHome;

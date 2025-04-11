@@ -3,9 +3,9 @@
 import React, { createContext, useState, useEffect } from 'react';
 import initialData from '../data/WorkflowData';
 
-export const WorkflowContext = createContext(null);
+export const RefWorkflowContext = createContext(null);
 
-export const WorkflowProvider = ({ children }) => {
+export const RefWorkflowProvider = ({ children }) => {
   const [workflow, setWorkflow] = useState(() => {
     const saved = localStorage.getItem('workflowState');
     if (saved) return JSON.parse(saved);
@@ -53,7 +53,9 @@ export const WorkflowProvider = ({ children }) => {
       tasksCopy[taskIndex] = { ...tasksCopy[taskIndex], status: 'finished' };
 
       // 2) find next upcoming => current
-      const nextUpcomingIndex = tasksCopy.findIndex((t) => t.status === 'upcoming');
+      const nextUpcomingIndex = tasksCopy.findIndex(
+        (t) => t.status === 'upcoming'
+      );
       if (nextUpcomingIndex >= 0) {
         tasksCopy[nextUpcomingIndex] = {
           ...tasksCopy[nextUpcomingIndex],
@@ -93,8 +95,8 @@ export const WorkflowProvider = ({ children }) => {
   };
 
   return (
-    <WorkflowContext.Provider value={value}>
+    <RefWorkflowContext.Provider value={value}>
       {children}
-    </WorkflowContext.Provider>
+    </RefWorkflowContext.Provider>
   );
 };

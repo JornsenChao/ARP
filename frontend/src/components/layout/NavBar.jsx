@@ -19,8 +19,12 @@ const NavBar = () => {
           <Button color="inherit" component={Link} to="/">
             Home
           </Button>
+          <Button color="inherit" component={Link} to="/ref-workflow">
+            Reference Workflow
+          </Button>
+          {/* Essential Workflow */}
           <Button color="inherit" component={Link} to="/workflow">
-            Workflow
+            Essential Workflow
           </Button>
           <Button color="inherit" component={Link} to="/resources">
             Resources

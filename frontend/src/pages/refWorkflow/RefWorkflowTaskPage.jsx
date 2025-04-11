@@ -2,28 +2,19 @@
 
 import React, { useContext, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Button,
-  Toolbar,
-  TextField,
-} from '@mui/material';
-import { WorkflowContext } from '../contexts/WorkflowContext';
-import SidebarNavigation from '../components/layout/SidebarNavigation';
-import ResrcPrecNotesLibrary from '../components/library/ResrcPrecNotesLibrary';
+import { Box, Typography, Button, Toolbar, TextField } from '@mui/material';
+import { RefWorkflowContext } from '../../contexts/RefWorkflowContext';
+import SidebarNavigation from '../../components/layout/SidebarNavigation';
+import ResrcPrecNotesLibrary from '../../components/library/ResrcPrecNotesLibrary';
 
 const drawerWidth = 240;
 
-const WorkflowTaskPage = () => {
+const RefWorkflowTaskPage = () => {
   const { stepId, taskId } = useParams();
   const navigate = useNavigate();
 
-  const {
-    workflow,
-    markTaskAsComplete,
-    updateTaskNotes,
-  } = useContext(WorkflowContext);
+  const { workflow, markTaskAsComplete, updateTaskNotes } =
+    useContext(RefWorkflowContext);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
 
@@ -46,34 +37,34 @@ const WorkflowTaskPage = () => {
   }
   const task = step.tasks[taskIndex];
   // Task locked if step locked OR task not 'current'
-  const taskLocked = stepLocked || (task.status !== 'current');
+  const taskLocked = stepLocked || task.status !== 'current';
 
-  const isLastTask = (taskIndex === step.tasks.length - 1);
-  const isFirstTask = (taskIndex === 0);
+  const isLastTask = taskIndex === step.tasks.length - 1;
+  const isFirstTask = taskIndex === 0;
 
   const handleMarkComplete = () => {
     markTaskAsComplete(sId, tId);
     if (isLastTask) {
       // Go back to step page
-      navigate(`/workflow/step/${sId}`);
+      navigate(`/ref-workflow/step/${sId}`);
     } else {
       // Move on to next task
       const nextTask = step.tasks[taskIndex + 1];
-      navigate(`/workflow/step/${sId}/task/${nextTask.id}`);
+      navigate(`/ref-workflow/step/${sId}/task/${nextTask.id}`);
     }
   };
 
   const handlePrevTask = () => {
     if (!isFirstTask) {
       const prevTask = step.tasks[taskIndex - 1];
-      navigate(`/workflow/step/${sId}/task/${prevTask.id}`);
+      navigate(`/ref-workflow/step/${sId}/task/${prevTask.id}`);
     }
   };
 
   const handleNextTask = () => {
     if (!isLastTask) {
       const nextTask = step.tasks[taskIndex + 1];
-      navigate(`/workflow/step/${sId}/task/${nextTask.id}`);
+      navigate(`/ref-workflow/step/${sId}/task/${nextTask.id}`);
     }
   };
 
@@ -142,7 +133,11 @@ const WorkflowTaskPage = () => {
           </Box>
 
           <Box sx={{ mt: 2 }}>
-            <Button variant="text" component={Link} to={`/workflow/step/${sId}`}>
+            <Button
+              variant="text"
+              component={Link}
+              to={`/ref-workflow/step/${sId}`}
+            >
               Back to Step {step.id}
             </Button>
           </Box>
@@ -159,4 +154,4 @@ const WorkflowTaskPage = () => {
   );
 };
 
-export default WorkflowTaskPage;
+export default RefWorkflowTaskPage;

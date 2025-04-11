@@ -2,13 +2,19 @@
 
 import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { Drawer, List, ListItemButton, ListItemText, Typography } from '@mui/material';
-import { WorkflowContext } from '../../contexts/WorkflowContext';
+import {
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from '@mui/material';
+import { RefWorkflowContext } from '../../contexts/RefWorkflowContext';
 
 const drawerWidth = 240;
 
 const SidebarNavigation = ({ currentStepId, currentTaskId }) => {
-  const { workflow } = useContext(WorkflowContext);
+  const { workflow } = useContext(RefWorkflowContext);
 
   return (
     <Drawer
@@ -35,7 +41,7 @@ const SidebarNavigation = ({ currentStepId, currentTaskId }) => {
           <div key={step.id}>
             <ListItemButton
               component={Link}
-              to={`/workflow/step/${step.id}`}
+              to={`/ref-workflow/step/${step.id}`}
               selected={step.id === currentStepId}
             >
               <ListItemText primary={`Step ${step.id}: ${step.stepTitle}`} />
@@ -45,8 +51,10 @@ const SidebarNavigation = ({ currentStepId, currentTaskId }) => {
               <ListItemButton
                 key={task.id}
                 component={Link}
-                to={`/workflow/step/${step.id}/task/${task.id}`}
-                selected={step.id === currentStepId && task.id === currentTaskId}
+                to={`/ref-workflow/step/${step.id}/task/${task.id}`}
+                selected={
+                  step.id === currentStepId && task.id === currentTaskId
+                }
                 sx={{ pl: 4 }}
               >
                 <ListItemText

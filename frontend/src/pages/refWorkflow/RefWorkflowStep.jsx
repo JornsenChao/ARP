@@ -11,9 +11,9 @@ import {
   Stack,
   Tooltip,
 } from '@mui/material';
-import { WorkflowContext } from '../contexts/WorkflowContext';
-import SidebarNavigation from '../components/layout/SidebarNavigation';
-import ResrcPrecNotesLibrary from '../components/library/ResrcPrecNotesLibrary';
+import { RefWorkflowContext } from '../../contexts/RefWorkflowContext';
+import SidebarNavigation from '../../components/layout/SidebarNavigation';
+import ResrcPrecNotesLibrary from '../../components/library/ResrcPrecNotesLibrary';
 
 const statusColors = {
   finished: 'text.disabled',
@@ -23,10 +23,10 @@ const statusColors = {
 
 const drawerWidth = 240;
 
-const WorkflowStep = () => {
+const RefWorkflowStep = () => {
   const { stepId } = useParams();
   const navigate = useNavigate();
-  const { workflow } = useContext(WorkflowContext);
+  const { workflow } = useContext(RefWorkflowContext);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
 
@@ -36,7 +36,7 @@ const WorkflowStep = () => {
     return <Typography sx={{ mt: 8, ml: 2 }}>Step not found</Typography>;
   }
   const step = workflow[stepIndex];
-  const stepLocked = (step.status !== 'current');
+  const stepLocked = step.status !== 'current';
 
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === workflow.length - 1;
@@ -44,14 +44,14 @@ const WorkflowStep = () => {
   const handlePrevStep = () => {
     if (!isFirstStep) {
       const prevStepId = workflow[stepIndex - 1].id;
-      navigate(`/workflow/step/${prevStepId}`);
+      navigate(`/ref-workflow/step/${prevStepId}`);
     }
   };
 
   const handleNextStep = () => {
     if (!isLastStep) {
       const nextStepId = workflow[stepIndex + 1].id;
-      navigate(`/workflow/step/${nextStepId}`);
+      navigate(`/ref-workflow/step/${nextStepId}`);
     }
   };
 
@@ -96,7 +96,7 @@ const WorkflowStep = () => {
               {step.tasks.map((task) => {
                 const color = statusColors[task.status] || 'text.secondary';
                 // If stepLocked or task is not current => locked
-                const taskLocked = stepLocked || (task.status !== 'current');
+                const taskLocked = stepLocked || task.status !== 'current';
 
                 return (
                   <Box
@@ -142,7 +142,9 @@ const WorkflowStep = () => {
                       <Button
                         variant="outlined"
                         onClick={() =>
-                          navigate(`/workflow/step/${step.id}/task/${task.id}`)
+                          navigate(
+                            `/ref-workflow/step/${step.id}/task/${task.id}`
+                          )
                         }
                       >
                         View
@@ -156,7 +158,11 @@ const WorkflowStep = () => {
 
           <Box sx={{ mt: 3 }}>
             {!isFirstStep && (
-              <Button variant="outlined" onClick={handlePrevStep} sx={{ mr: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={handlePrevStep}
+                sx={{ mr: 1 }}
+              >
                 Previous Step
               </Button>
             )}
@@ -174,7 +180,7 @@ const WorkflowStep = () => {
           </Box>
 
           <Box sx={{ mt: 2 }}>
-            <Button variant="text" component={Link} to="/workflow">
+            <Button variant="text" component={Link} to="/ref-workflow">
               Back to Workflow Overview
             </Button>
           </Box>
@@ -191,4 +197,4 @@ const WorkflowStep = () => {
   );
 };
 
-export default WorkflowStep;
+export default RefWorkflowStep;
