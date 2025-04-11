@@ -1,6 +1,6 @@
 // src/App.jsx
 
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { createTheme, ThemeProvider, CssBaseline } from '@mui/material';
 // Context
@@ -16,12 +16,14 @@ import NotesOverview from './pages/NotesOverview';
 import RefWorkflowHome from './pages/refWorkflow/RefWorkflowHome';
 import RefWorkflowStep from './pages/refWorkflow/RefWorkflowStep';
 import RefWorkflowTaskPage from './pages/refWorkflow/RefWorkflowTaskPage';
+
 // Essential Workflow pages
 import EssentialWorkflowHome from './pages/essentialWorkflow/EssentialWorkflowHome';
 import Step1IdentifyHazard from './pages/essentialWorkflow/Step1IdentifyHazard';
 import Step2AssessRisk from './pages/essentialWorkflow/Step2AssessRisk';
 import Step3ParallelTasks from './pages/essentialWorkflow/Step3ParallelTasks';
 import Step4Summary from './pages/essentialWorkflow/Step4Summary';
+
 const theme = createTheme({
   palette: {
     primary: { main: '#1976d2' },
@@ -29,23 +31,13 @@ const theme = createTheme({
   },
 });
 
-// 临时：示例项目ID（多项目管理时可让用户选择）
-const DEMO_PROJECT_ID = 'demoProject123';
-
 function App() {
-  // 如果要切换项目，可在这里管理
-  const [projectId] = useState(DEMO_PROJECT_ID);
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <RefWorkflowProvider>
         <Router>
           <NavBar />
-          {/* 
-            If you want a left sidebar on every page, 
-            you could place it here. Or each page 
-            can have its own layout for the sidebar. 
-          */}
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/resources" element={<Resources />} />
@@ -67,7 +59,7 @@ function App() {
             <Route
               path="/workflow"
               element={
-                <EssentialWorkflowProvider projectId={projectId}>
+                <EssentialWorkflowProvider>
                   <EssentialWorkflowHome />
                 </EssentialWorkflowProvider>
               }
@@ -75,7 +67,7 @@ function App() {
             <Route
               path="/workflow/step1"
               element={
-                <EssentialWorkflowProvider projectId={projectId}>
+                <EssentialWorkflowProvider>
                   <Step1IdentifyHazard />
                 </EssentialWorkflowProvider>
               }
@@ -83,7 +75,7 @@ function App() {
             <Route
               path="/workflow/step2"
               element={
-                <EssentialWorkflowProvider projectId={projectId}>
+                <EssentialWorkflowProvider>
                   <Step2AssessRisk />
                 </EssentialWorkflowProvider>
               }
@@ -91,7 +83,7 @@ function App() {
             <Route
               path="/workflow/step3"
               element={
-                <EssentialWorkflowProvider projectId={projectId}>
+                <EssentialWorkflowProvider>
                   <Step3ParallelTasks />
                 </EssentialWorkflowProvider>
               }
@@ -99,7 +91,7 @@ function App() {
             <Route
               path="/workflow/step4"
               element={
-                <EssentialWorkflowProvider projectId={projectId}>
+                <EssentialWorkflowProvider>
                   <Step4Summary />
                 </EssentialWorkflowProvider>
               }
