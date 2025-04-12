@@ -35,6 +35,10 @@ const NavBar = () => {
           <Button color="inherit" component={Link} to="/notes">
             Notes
           </Button>
+          {/* New: File Management & Step3 RAG */}
+          <Button color="inherit" component={Link} to="/files">
+            File Management
+          </Button>
         </Box>
       </Toolbar>
     </AppBar>

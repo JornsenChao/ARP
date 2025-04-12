@@ -1,16 +1,21 @@
 // backendJS/server.js
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 
-// ====== 引入“参考工作流(Reference Workflow)”的路由 ======
 import tasksRouter from './routes/tasksRouter.js';
 import resourcesRouter from './routes/resourcesRouter.js';
 import precedentsRouter from './routes/precedentsRouter.js';
 import notesRouter from './routes/notesRouter.js';
 
-// ====== 引入“Essential Workflow”新路由 ======
 import essentialWorkflowRouter from './routes/essentialWorkflowRouter.js';
+import { fileRoutes } from './routes/fileRoutes.js';
+// import { RAGRouter } from './routes/RAGRouter.js';
+import { conversationRoutes } from './routes/conversationRoutes.js';
+import { multiRAGRoutes } from './routes/multiRAGRoutes.js';
+import { proRAGRoutes } from './routes/proRAGRoutes.js';
 
+dotenv.config();
 const app = express();
 
 // 测试用根路由
@@ -33,6 +38,16 @@ app.use('/ref-workflow/notes', notesRouter);
 
 // ============= 挂载 Essential Workflow 相关路由 =============
 app.use('/workflow', essentialWorkflowRouter);
+app.use('/files', fileRoutes);
+// app.use('/RAG', RAGRouter);
+app.use('/files', fileRoutes);
+app.use('/conversation', conversationRoutes);
+app.use('/multiRAG', multiRAGRoutes);
+app.use('/proRAG', proRAGRoutes);
+
+app.get('/', (req, res) => {
+  res.send('Server is running. Try /files or /RAG routes.');
+});
 
 // 启动服务器
 const PORT = process.env.PORT || 8000;

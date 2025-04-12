@@ -12,10 +12,17 @@
   "author": "Yongqin Zhao",
   "license": "MIT",
   "dependencies": {
+    "@huggingface/inference": "^1.8.0",
     "axios": "^1.8.4",
     "cors": "^2.8.5",
+    "d3-dsv": "^2.0.0",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
+    "langchain": "^0.0.135",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"

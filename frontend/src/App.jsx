@@ -23,6 +23,7 @@ import Step1IdentifyHazard from './pages/essentialWorkflow/Step1IdentifyHazard';
 import Step2AssessRisk from './pages/essentialWorkflow/Step2AssessRisk';
 import Step3ParallelTasks from './pages/essentialWorkflow/Step3ParallelTasks';
 import Step4Summary from './pages/essentialWorkflow/Step4Summary';
+import FileManagement from './pages/FileManagement';
 
 const theme = createTheme({
   palette: {
@@ -96,6 +97,11 @@ function App() {
                 </EssentialWorkflowProvider>
               }
             />
+            {/* New RAG-based File Management */}
+            <Route path="/files" element={<FileManagement />} />
+            {/* 如果想直接暴露 MultiRAG / ProRAG, 可加: */}
+            {/* <Route path="/multirag" element={<MultiRAG />} />
+            <Route path="/prorag" element={<ProRAG />} /> */}
           </Routes>
         </Router>
       </RefWorkflowProvider>
