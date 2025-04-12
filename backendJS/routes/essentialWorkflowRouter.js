@@ -1,10 +1,5 @@
 // backendJS/routes/essentialWorkflowRouter.js
 
-// const express = require('express');
-// const {
-//   getWorkflowState,
-//   saveWorkflowState,
-// } = require('../controllers/essentialWorkflowController');
 import { Router } from 'express';
 import {
   getWorkflowState,
@@ -20,17 +15,7 @@ import {
   calculateAndGetRisk,
   markStep2Complete,
 } from '../controllers/step2Controller.js';
-// const { getFemaHazards } = require('../controllers/femaController');
-// const {
-//   getStep2Categories,
-//   addStep2Category,
-//   setImpactRating,
-//   setLikelihoodRating,
-//   calculateAndGetRisk,
-//   markStep2Complete,
-// } = require('../controllers/step2Controller');
 
-// const router = express.Router();
 const router = Router();
 
 // 读取/写入 workflow 状态
@@ -60,5 +45,4 @@ router.get('/step2/risk', calculateAndGetRisk);
 
 router.post('/step2/complete', markStep2Complete);
 
-// module.exports = router;
 export default router;

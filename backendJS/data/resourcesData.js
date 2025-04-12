@@ -17,5 +17,3 @@ export const resourcesData = [
     description: 'Report on climate change impacts in coastal areas.',
   },
 ];
-
-// module.exports = resourcesData;

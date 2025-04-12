@@ -1,5 +1,5 @@
 // backendJS/controllers/resourcesController.js
-// const resourcesData = require('../data/resourcesData');
+
 import { resourcesData } from '../data/resourcesData.js';
 // GET /resources
 export const getAllResources = (req, res) => {
@@ -28,8 +28,3 @@ export const getResourceById = (req, res) => {
   }
   res.json(resource);
 };
-
-// module.exports = {
-//   getAllResources,
-//   getResourceById,
-// };

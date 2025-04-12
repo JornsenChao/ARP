@@ -27,5 +27,3 @@ export const notesData = [
     createTime: '2025-02-12T10:10:00Z',
   },
 ];
-
-// module.exports = notesData;

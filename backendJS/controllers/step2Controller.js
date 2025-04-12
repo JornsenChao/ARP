@@ -1,8 +1,5 @@
 // backendJS/controllers/step2Controller.js
-// const {
-//   getWorkflowState,
-//   saveWorkflowState,
-// } = require('./essentialWorkflowController');
+
 import {
   getWorkflowState,
   saveWorkflowState,
@@ -153,12 +150,3 @@ export function markStep2Complete(req, res) {
 
   res.json({ message: 'Step2 marked as completed', step2: state.step2 });
 }
-
-// module.exports = {
-//   getStep2Categories,
-//   addStep2Category,
-//   setImpactRating,
-//   setLikelihoodRating,
-//   calculateAndGetRisk,
-//   markStep2Complete,
-// };

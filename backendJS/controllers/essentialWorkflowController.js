@@ -45,8 +45,3 @@ export function getWorkflowState() {
 export function saveWorkflowState(newState) {
   workflowState = newState;
 }
-
-// module.exports = {
-//   getWorkflowState,
-//   saveWorkflowState,
-// };

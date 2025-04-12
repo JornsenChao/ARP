@@ -1,5 +1,5 @@
 // backendJS/controllers/tasksController.js
-// const tasksData = require('../data/tasksData');
+
 import { tasksData } from '../data/tasksData.js';
 // GET /tasks
 export const getAllTasks = (req, res) => {
@@ -40,9 +40,3 @@ export const createTask = (req, res) => {
 
   res.status(201).json(newTask);
 };
-
-// module.exports = {
-//   getAllTasks,
-//   getTaskById,
-//   createTask,
-// };

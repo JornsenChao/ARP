@@ -1,5 +1,5 @@
 // backendJS/controllers/precedentsController.js
-// const precedentsData = require('../data/precedentsData');
+
 import { precedentsData } from '../data/precedentsData.js';
 // GET /precedents
 export const getAllPrecedents = (req, res) => {
@@ -28,8 +28,3 @@ export const getPrecedentById = (req, res) => {
   }
   res.json(precedent);
 };
-
-// module.exports = {
-//   getAllPrecedents,
-//   getPrecedentById,
-// };

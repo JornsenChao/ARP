@@ -1,5 +1,5 @@
 // backendJS/controllers/notesController.js
-// const notesData = require('../data/notesData');
+
 import { notesData } from '../data/notesData.js';
 // GET /notes?stepId=xxx&taskId=xxx
 // 获取全部笔记，或按 stepId/taskId 做简单过滤
@@ -82,11 +82,3 @@ export const deleteNote = (req, res) => {
   const deleted = notesData.splice(noteIndex, 1);
   res.json(deleted[0]);
 };
-
-// module.exports = {
-//   getAllNotes,
-//   getNoteById,
-//   createNote,
-//   updateNote,
-//   deleteNote,
-// };

@@ -1,6 +1,5 @@
 // backendJS/controllers/femaController.js
 
-// const fetch = require('node-fetch'); // node-fetch@2.x
 import fetch from 'node-fetch';
 /**
  * GET /workflow/hazards?mode=xxx&location=...
@@ -83,7 +82,3 @@ export async function getFemaHazards(req, res) {
     res.status(500).json({ detail: 'Internal server error' });
   }
 }
-
-// module.exports = {
-//   getFemaHazards,
-// };

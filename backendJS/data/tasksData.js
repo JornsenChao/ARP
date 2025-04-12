@@ -17,5 +17,3 @@ export const tasksData = [
     description: 'Develop strategies to mitigate identified risks.',
   },
 ];
-
-// module.exports = tasksData;

@@ -23,5 +23,3 @@ export const precedentsData = [
     description: 'Pacific North West, South East',
   },
 ];
-
-// module.exports = precedentsData;
