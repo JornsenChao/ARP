@@ -1,14 +1,14 @@
 // backendJS/controllers/femaController.js
 
-const fetch = require('node-fetch'); // node-fetch@2.x
-
+// const fetch = require('node-fetch'); // node-fetch@2.x
+import fetch from 'node-fetch';
 /**
  * GET /workflow/hazards?mode=xxx&location=...
  *  - mode = "state" or "county"
  *  - location: 如果mode=state, 则 'MA' / 'WA';
  *              如果mode=county, 则 'King, WA'
  */
-async function getFemaHazards(req, res) {
+export async function getFemaHazards(req, res) {
   try {
     const { mode, location } = req.query;
     if (!mode || !location) {
@@ -84,6 +84,6 @@ async function getFemaHazards(req, res) {
   }
 }
 
-module.exports = {
-  getFemaHazards,
-};
+// module.exports = {
+//   getFemaHazards,
+// };

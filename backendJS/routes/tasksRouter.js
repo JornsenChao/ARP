@@ -1,12 +1,19 @@
 // backendJS/routes/tasksRouter.js
-const express = require('express');
-const {
+// const express = require('express');
+// const {
+//   getAllTasks,
+//   getTaskById,
+//   createTask,
+// } = require('../controllers/tasksController');
+
+import { Router } from 'express';
+import {
   getAllTasks,
   getTaskById,
   createTask,
-} = require('../controllers/tasksController');
-
-const router = express.Router();
+} from '../controllers/tasksController.js';
+// const router = express.Router();
+const router = Router();
 
 // /tasks -> GET
 router.get('/', getAllTasks);
@@ -15,4 +22,5 @@ router.get('/:taskId', getTaskById);
 // /tasks -> POST
 router.post('/', createTask);
 
-module.exports = router;
+// module.exports = router;
+export default router;

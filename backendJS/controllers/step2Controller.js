@@ -1,14 +1,17 @@
 // backendJS/controllers/step2Controller.js
-const {
+// const {
+//   getWorkflowState,
+//   saveWorkflowState,
+// } = require('./essentialWorkflowController');
+import {
   getWorkflowState,
   saveWorkflowState,
-} = require('./essentialWorkflowController');
-
+} from './essentialWorkflowController.js';
 /**
  * GET /workflow/step2/categories
  * 返回 baselineCategories + userCategories 的合并
  */
-function getStep2Categories(req, res) {
+export function getStep2Categories(req, res) {
   const state = getWorkflowState();
   const { baselineCategories, userCategories } = state.step2;
 
@@ -21,7 +24,7 @@ function getStep2Categories(req, res) {
  * Body: { categoryName: string }
  * 在 userCategories 中新增用户自定义系统分类
  */
-function addStep2Category(req, res) {
+export function addStep2Category(req, res) {
   const { categoryName } = req.body;
   if (!categoryName) {
     return res.status(400).json({ detail: 'categoryName is required' });
@@ -43,7 +46,7 @@ function addStep2Category(req, res) {
  * 将( hazard-system )的 impactRating 存到 step2.impactData
  * 如果已经存在就更新
  */
-function setImpactRating(req, res) {
+export function setImpactRating(req, res) {
   const { hazard, system, impactRating } = req.body;
   if (!hazard || !system || !impactRating) {
     return res
@@ -74,7 +77,7 @@ function setImpactRating(req, res) {
  * 将 hazard 的 likelihoodRating 存到 step2.likelihoodData
  * 如果已经存在就更新
  */
-function setLikelihoodRating(req, res) {
+export function setLikelihoodRating(req, res) {
   const { hazard, likelihoodRating } = req.body;
   if (!hazard || likelihoodRating == null) {
     return res
@@ -102,7 +105,7 @@ function setLikelihoodRating(req, res) {
  * riskScore = impactRating × likelihoodRating
  * 并把结果也存入 state.step2.riskResult
  */
-function calculateAndGetRisk(req, res) {
+export function calculateAndGetRisk(req, res) {
   const state = getWorkflowState();
   const { impactData, likelihoodData } = state.step2;
 
@@ -143,7 +146,7 @@ function calculateAndGetRisk(req, res) {
  * POST /workflow/step2/complete
  * 标记 step2.isCompleted = true
  */
-function markStep2Complete(req, res) {
+export function markStep2Complete(req, res) {
   const state = getWorkflowState();
   state.step2.isCompleted = true;
   saveWorkflowState(state);
@@ -151,11 +154,11 @@ function markStep2Complete(req, res) {
   res.json({ message: 'Step2 marked as completed', step2: state.step2 });
 }
 
-module.exports = {
-  getStep2Categories,
-  addStep2Category,
-  setImpactRating,
-  setLikelihoodRating,
-  calculateAndGetRisk,
-  markStep2Complete,
-};
+// module.exports = {
+//   getStep2Categories,
+//   addStep2Category,
+//   setImpactRating,
+//   setLikelihoodRating,
+//   calculateAndGetRisk,
+//   markStep2Complete,
+// };

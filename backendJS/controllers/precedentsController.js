@@ -1,8 +1,8 @@
 // backendJS/controllers/precedentsController.js
-const precedentsData = require('../data/precedentsData');
-
+// const precedentsData = require('../data/precedentsData');
+import { precedentsData } from '../data/precedentsData.js';
 // GET /precedents
-const getAllPrecedents = (req, res) => {
+export const getAllPrecedents = (req, res) => {
   const { query } = req.query;
 
   if (query) {
@@ -19,7 +19,7 @@ const getAllPrecedents = (req, res) => {
 };
 
 // GET /precedents/:id
-const getPrecedentById = (req, res) => {
+export const getPrecedentById = (req, res) => {
   const precedentId = parseInt(req.params.id, 10);
   const precedent = precedentsData.find((p) => p.id === precedentId);
 
@@ -29,7 +29,7 @@ const getPrecedentById = (req, res) => {
   res.json(precedent);
 };
 
-module.exports = {
-  getAllPrecedents,
-  getPrecedentById,
-};
+// module.exports = {
+//   getAllPrecedents,
+//   getPrecedentById,
+// };

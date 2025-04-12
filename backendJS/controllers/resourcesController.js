@@ -1,8 +1,8 @@
 // backendJS/controllers/resourcesController.js
-const resourcesData = require('../data/resourcesData');
-
+// const resourcesData = require('../data/resourcesData');
+import { resourcesData } from '../data/resourcesData.js';
 // GET /resources
-const getAllResources = (req, res) => {
+export const getAllResources = (req, res) => {
   const { query } = req.query;
 
   if (query) {
@@ -19,7 +19,7 @@ const getAllResources = (req, res) => {
 };
 
 // GET /resources/:id
-const getResourceById = (req, res) => {
+export const getResourceById = (req, res) => {
   const resourceId = parseInt(req.params.id, 10);
   const resource = resourcesData.find((r) => r.id === resourceId);
 
@@ -29,7 +29,7 @@ const getResourceById = (req, res) => {
   res.json(resource);
 };
 
-module.exports = {
-  getAllResources,
-  getResourceById,
-};
+// module.exports = {
+//   getAllResources,
+//   getResourceById,
+// };

@@ -1,8 +1,8 @@
 // backendJS/controllers/tasksController.js
-const tasksData = require('../data/tasksData');
-
+// const tasksData = require('../data/tasksData');
+import { tasksData } from '../data/tasksData.js';
 // GET /tasks
-const getAllTasks = (req, res) => {
+export const getAllTasks = (req, res) => {
   const { query } = req.query;
 
   // 如果携带了query参数，则只返回匹配到的title
@@ -18,7 +18,7 @@ const getAllTasks = (req, res) => {
 };
 
 // GET /tasks/:taskId
-const getTaskById = (req, res) => {
+export const getTaskById = (req, res) => {
   const taskId = parseInt(req.params.taskId, 10);
   const task = tasksData.find((t) => t.id === taskId);
 
@@ -29,7 +29,7 @@ const getTaskById = (req, res) => {
 };
 
 // POST /tasks
-const createTask = (req, res) => {
+export const createTask = (req, res) => {
   const { title, description } = req.body;
   const newId = tasksData.length
     ? Math.max(...tasksData.map((t) => t.id)) + 1
@@ -41,8 +41,8 @@ const createTask = (req, res) => {
   res.status(201).json(newTask);
 };
 
-module.exports = {
-  getAllTasks,
-  getTaskById,
-  createTask,
-};
+// module.exports = {
+//   getAllTasks,
+//   getTaskById,
+//   createTask,
+// };

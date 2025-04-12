@@ -1,9 +1,9 @@
 // backendJS/controllers/notesController.js
-const notesData = require('../data/notesData');
-
+// const notesData = require('../data/notesData');
+import { notesData } from '../data/notesData.js';
 // GET /notes?stepId=xxx&taskId=xxx
 // 获取全部笔记，或按 stepId/taskId 做简单过滤
-const getAllNotes = (req, res) => {
+export const getAllNotes = (req, res) => {
   const { stepId, taskId } = req.query;
 
   // 如果传了 stepId/taskId，就做相应过滤
@@ -19,7 +19,7 @@ const getAllNotes = (req, res) => {
 };
 
 // GET /notes/:id
-const getNoteById = (req, res) => {
+export const getNoteById = (req, res) => {
   const noteId = parseInt(req.params.id, 10);
   const note = notesData.find((n) => n.id === noteId);
   if (!note) {
@@ -30,7 +30,7 @@ const getNoteById = (req, res) => {
 
 // POST /notes
 // Body: { content, stepId, taskId }
-const createNote = (req, res) => {
+export const createNote = (req, res) => {
   const { content, stepId, taskId } = req.body;
 
   if (!content) {
@@ -56,7 +56,7 @@ const createNote = (req, res) => {
 
 // PUT /notes/:id
 // 用于更新笔记
-const updateNote = (req, res) => {
+export const updateNote = (req, res) => {
   const noteId = parseInt(req.params.id, 10);
   const noteIndex = notesData.findIndex((n) => n.id === noteId);
   if (noteIndex === -1) {
@@ -73,7 +73,7 @@ const updateNote = (req, res) => {
 };
 
 // DELETE /notes/:id
-const deleteNote = (req, res) => {
+export const deleteNote = (req, res) => {
   const noteId = parseInt(req.params.id, 10);
   const noteIndex = notesData.findIndex((n) => n.id === noteId);
   if (noteIndex === -1) {
@@ -83,10 +83,10 @@ const deleteNote = (req, res) => {
   res.json(deleted[0]);
 };
 
-module.exports = {
-  getAllNotes,
-  getNoteById,
-  createNote,
-  updateNote,
-  deleteNote,
-};
+// module.exports = {
+//   getAllNotes,
+//   getNoteById,
+//   createNote,
+//   updateNote,
+//   deleteNote,
+// };

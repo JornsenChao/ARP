@@ -1,26 +1,28 @@
 // backendJS/server.js
-const express = require('express');
-const cors = require('cors');
+import express from 'express';
+import cors from 'cors';
 
 // ====== 引入“参考工作流(Reference Workflow)”的路由 ======
-const tasksRouter = require('./routes/tasksRouter');
-const resourcesRouter = require('./routes/resourcesRouter');
-const precedentsRouter = require('./routes/precedentsRouter');
-const notesRouter = require('./routes/notesRouter');
+import tasksRouter from './routes/tasksRouter.js';
+import resourcesRouter from './routes/resourcesRouter.js';
+import precedentsRouter from './routes/precedentsRouter.js';
+import notesRouter from './routes/notesRouter.js';
 
 // ====== 引入“Essential Workflow”新路由 ======
-const essentialWorkflowRouter = require('./routes/essentialWorkflowRouter');
+import essentialWorkflowRouter from './routes/essentialWorkflowRouter.js';
 
 const app = express();
+
+// 测试用根路由
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Hello World from Node/Express backend with RAG function!',
+  });
+});
 
 // 允许跨域请求
 app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(express.json()); // 解析 application/json 请求体
-
-// 测试用根路由
-app.get('/', (req, res) => {
-  res.json({ message: 'Hello World from Node/Express backend!' });
-});
 
 // ============= 挂载 Reference Workflow 相关路由 =============
 // 现在把原先 /tasks /resources /precedents /notes 统一改到 /ref-workflow/...

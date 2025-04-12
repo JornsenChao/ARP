@@ -1,6 +1,6 @@
 // backendJS/data/tasksData.js
 
-const tasksData = [
+export const tasksData = [
   {
     id: 1,
     title: 'Risk Identification',
@@ -18,4 +18,4 @@ const tasksData = [
   },
 ];
 
-module.exports = tasksData;
+// module.exports = tasksData;

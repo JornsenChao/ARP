@@ -1,6 +1,6 @@
 // backendJS/data/resourcesData.js
 
-const resourcesData = [
+export const resourcesData = [
   {
     id: 1,
     title: 'Flood Risk Data',
@@ -18,4 +18,4 @@ const resourcesData = [
   },
 ];
 
-module.exports = resourcesData;
+// module.exports = resourcesData;

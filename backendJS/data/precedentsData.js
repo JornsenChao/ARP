@@ -1,6 +1,6 @@
 // backendJS/data/precedentsData.js
 
-const precedentsData = [
+export const precedentsData = [
   {
     id: 0,
     title: 'Build your own search filter',
@@ -24,4 +24,4 @@ const precedentsData = [
   },
 ];
 
-module.exports = precedentsData;
+// module.exports = precedentsData;

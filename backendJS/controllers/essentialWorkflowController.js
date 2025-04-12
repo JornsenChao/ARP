@@ -35,18 +35,18 @@ let workflowState = {
 /**
  * 获取工作流状态
  */
-function getWorkflowState() {
+export function getWorkflowState() {
   return workflowState;
 }
 
 /**
  * 保存工作流状态（完整替换）
  */
-function saveWorkflowState(newState) {
+export function saveWorkflowState(newState) {
   workflowState = newState;
 }
 
-module.exports = {
-  getWorkflowState,
-  saveWorkflowState,
-};
+// module.exports = {
+//   getWorkflowState,
+//   saveWorkflowState,
+// };

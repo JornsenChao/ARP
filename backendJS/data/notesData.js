@@ -3,7 +3,7 @@
 // 用一个数组来模拟数据库存储
 // 每条笔记包含：id, content, stepId, taskId, createTime 等
 // 也可根据需求继续扩展
-const notesData = [
+export const notesData = [
   {
     id: 1,
     content: 'This building needs higher flood protection.',
@@ -28,4 +28,4 @@ const notesData = [
   },
 ];
 
-module.exports = notesData;
+// module.exports = notesData;
