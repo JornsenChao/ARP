@@ -1,6 +1,6 @@
 // backendJS/controllers/tasksController.js
 
-import { tasksData } from '../data/tasksData.js';
+import { tasksData } from '../mockData/tasksData.js';
 // GET /tasks
 export const getAllTasks = (req, res) => {
   const { query } = req.query;

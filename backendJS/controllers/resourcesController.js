@@ -1,6 +1,6 @@
 // backendJS/controllers/resourcesController.js
 
-import { resourcesData } from '../data/resourcesData.js';
+import { resourcesData } from '../mockData/resourcesData.js';
 // GET /resources
 export const getAllResources = (req, res) => {
   const { query } = req.query;

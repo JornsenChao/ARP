@@ -1,6 +1,6 @@
 // backendJS/controllers/precedentsController.js
 
-import { precedentsData } from '../data/precedentsData.js';
+import { precedentsData } from '../mockData/precedentsData.js';
 // GET /precedents
 export const getAllPrecedents = (req, res) => {
   const { query } = req.query;

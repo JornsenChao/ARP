@@ -1,6 +1,6 @@
 // backendJS/controllers/notesController.js
 
-import { notesData } from '../data/notesData.js';
+import { notesData } from '../mockData/notesData.js';
 // GET /notes?stepId=xxx&taskId=xxx
 // 获取全部笔记，或按 stepId/taskId 做简单过滤
 export const getAllNotes = (req, res) => {
