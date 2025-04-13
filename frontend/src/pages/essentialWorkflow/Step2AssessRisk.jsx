@@ -14,14 +14,16 @@ import {
   TableCell,
   TableRow,
   TableHead,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 
 function Step2AssessRisk() {
-  const { workflowState, setWorkflowState } = useContext(
-    EssentialWorkflowContext
-  );
+  const { workflowState } = useContext(EssentialWorkflowContext);
   const [currentTab, setCurrentTab] = useState(0);
 
   if (!workflowState) {
@@ -61,114 +63,242 @@ export default Step2AssessRisk;
 */
 function ImpactAssessment() {
   const { workflowState } = useContext(EssentialWorkflowContext);
-  const [categories, setCategories] = useState([]);
-  const [newCategory, setNewCategory] = useState('');
-  const [impactData, setImpactData] = useState([]);
-
   const hazards = workflowState.step1.hazards || [];
 
-  // 1. 拉取 system categories, step2.impactData 不一定要拉接口，
-  //    这里演示直接把 "saved" 结果发后端就行
+  // impactCategories: [ { systemName, subSystems: [{name},...] } ]
+  const [impactCategories, setImpactCategories] = useState([]);
+  const [loadingCats, setLoadingCats] = useState(false);
+
+  // Input fields for "Add System"
+  const [newSystemName, setNewSystemName] = useState('');
+  // For "Add Subsystem": need to pick which system & subSystemName
+  const [selectedSystemForSub, setSelectedSystemForSub] = useState('');
+  const [newSubSystemName, setNewSubSystemName] = useState('');
+
   useEffect(() => {
-    fetchCategories();
+    fetchImpactCategories();
+    // eslint-disable-next-line
   }, []);
 
-  async function fetchCategories() {
+  async function fetchImpactCategories() {
+    setLoadingCats(true);
     try {
       const res = await fetch(
-        'http://localhost:8000/workflow/step2/categories'
+        'http://localhost:8000/workflow/step2/impact-categories'
       );
       const data = await res.json();
-      setCategories(data.categories || []);
+      setImpactCategories(data.impactCategories || []);
     } catch (err) {
-      console.error('Error fetching categories:', err);
+      console.error('Error fetching impact-categories:', err);
+    } finally {
+      setLoadingCats(false);
     }
   }
 
-  // 2. “Add System” => POST /workflow/step2/categories
-  async function handleAddCategory() {
-    if (!newCategory.trim()) return;
+  async function handleAddSystem() {
+    if (!newSystemName.trim()) return;
     try {
-      await fetch('http://localhost:8000/workflow/step2/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ categoryName: newCategory }),
-      });
-      setNewCategory('');
-      fetchCategories(); // 刷新列表
+      const res = await fetch(
+        'http://localhost:8000/workflow/step2/add-system',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ systemName: newSystemName }),
+        }
+      );
+      if (!res.ok) {
+        const errMsg = await res.json();
+        alert(errMsg.detail || 'Add system error');
+        return;
+      }
+      const data = await res.json();
+      setImpactCategories(data.impactCategories);
+      setNewSystemName('');
     } catch (err) {
-      console.error('Error adding category:', err);
+      console.error('Error adding system:', err);
     }
   }
 
-  // 3. impactRating 改变 => 调用 setImpactRating
-  async function saveImpact(hazard, system, rating) {
+  async function handleAddSubSystem() {
+    if (!selectedSystemForSub || !newSubSystemName.trim()) return;
+    try {
+      const res = await fetch(
+        'http://localhost:8000/workflow/step2/add-subsystem',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemName: selectedSystemForSub,
+            subSystemName: newSubSystemName,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const errMsg = await res.json();
+        alert(errMsg.detail || 'Add subsystem error');
+        return;
+      }
+      const data = await res.json();
+      setImpactCategories(data.impactCategories);
+      setSelectedSystemForSub('');
+      setNewSubSystemName('');
+    } catch (err) {
+      console.error('Error adding subSystem:', err);
+    }
+  }
+
+  // 保存 Impact Rating
+  async function saveImpact(hazard, systemName, subSystemName, rating) {
     // rating 在这里是字符串 => 转数字
     const impactRating = parseInt(rating, 10) || 0;
     try {
-      const res = await fetch('http://localhost:8000/workflow/step2/impact', {
+      await fetch('http://localhost:8000/workflow/step2/impact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hazard, system, impactRating }),
+        body: JSON.stringify({
+          hazard,
+          systemName,
+          subSystemName,
+          impactRating,
+        }),
       });
-      const data = await res.json();
-      console.log('Saved impact rating:', data);
     } catch (err) {
       console.error('Error saving impact rating:', err);
     }
   }
 
+  // -------------- Render --------------
   if (!hazards.length) {
-    return <Typography>No hazards found. Please go back to Step1.</Typography>;
+    return (
+      <Typography>
+        No hazards found. Please go back to Step1 and select some hazards.
+      </Typography>
+    );
+  }
+
+  if (loadingCats) {
+    return <Typography>Loading system & subSystem data...</Typography>;
   }
 
   return (
     <Box>
       <Typography variant="h6">High Level Impact Assessment</Typography>
       <Typography paragraph>
-        For each Hazard × System, assign an Impact Rating (1~5).
+        For each Hazard × (System → SubSystem), assign an Impact Rating (1~5).
       </Typography>
 
-      {/* Add new system */}
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <TextField
-          label="Add new system..."
-          size="small"
-          value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value)}
-          sx={{ mr: 1 }}
-        />
-        <Button variant="contained" onClick={handleAddCategory}>
-          Add System
-        </Button>
-      </Box>
+      {/* -- Add System / Add SubSystem UI -- */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          Add New System
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <TextField
+            label="System Name"
+            size="small"
+            value={newSystemName}
+            onChange={(e) => setNewSystemName(e.target.value)}
+            sx={{ width: 200 }}
+          />
+          <Button variant="contained" onClick={handleAddSystem}>
+            ADD SYSTEM
+          </Button>
+        </Box>
+      </Paper>
 
-      {/* Table: hazards × categories */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          Add New SubSystem
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControl size="small" sx={{ width: 200 }}>
+            <InputLabel>System</InputLabel>
+            <Select
+              label="System"
+              value={selectedSystemForSub}
+              onChange={(e) => setSelectedSystemForSub(e.target.value)}
+            >
+              {impactCategories.map((sys) => (
+                <MenuItem key={sys.systemName} value={sys.systemName}>
+                  {sys.systemName}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="SubSystem Name"
+            size="small"
+            value={newSubSystemName}
+            onChange={(e) => setNewSubSystemName(e.target.value)}
+            sx={{ width: 200 }}
+          />
+
+          <Button variant="contained" onClick={handleAddSubSystem}>
+            ADD SUBSYSTEM
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* -- Single Table with System & SubSystem as rows, Hazards as columns -- */}
       <Paper sx={{ p: 2 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>System / Hazard</TableCell>
+              <TableCell>System / SubSystem</TableCell>
               {hazards.map((hz) => (
                 <TableCell key={hz}>{hz}</TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
-            {categories.map((system) => (
-              <TableRow key={system}>
-                <TableCell>{system}</TableCell>
-                {hazards.map((hz) => (
-                  <TableCell key={hz}>
-                    <TextField
-                      type="number"
-                      size="small"
-                      InputProps={{ inputProps: { min: 1, max: 5 } }}
-                      onBlur={(e) => saveImpact(hz, system, e.target.value)}
-                    />
+            {impactCategories.map((sys) => (
+              <React.Fragment key={sys.systemName}>
+                {/* Group row for the top-level system */}
+                <TableRow>
+                  <TableCell
+                    colSpan={hazards.length + 1}
+                    sx={{ fontWeight: 'bold', backgroundColor: '#f0f0f0' }}
+                  >
+                    {sys.systemName}
                   </TableCell>
-                ))}
-              </TableRow>
+                </TableRow>
+
+                {/* SubSystems rows */}
+                {sys.subSystems && sys.subSystems.length > 0 ? (
+                  sys.subSystems.map((sub) => (
+                    <TableRow key={sub.name}>
+                      <TableCell>{sub.name}</TableCell>
+                      {hazards.map((hz) => (
+                        <TableCell key={hz}>
+                          <TextField
+                            type="number"
+                            size="small"
+                            InputProps={{ inputProps: { min: 1, max: 5 } }}
+                            onBlur={(e) =>
+                              saveImpact(
+                                hz,
+                                sys.systemName,
+                                sub.name,
+                                e.target.value
+                              )
+                            }
+                          />
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={hazards.length + 1}
+                      sx={{ fontStyle: 'italic', color: 'gray' }}
+                    >
+                      (No subSystems yet)
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))}
           </TableBody>
         </Table>
@@ -189,16 +319,11 @@ function LikelihoodAssessment() {
   async function saveLikelihood(hazard, rating) {
     const likelihoodRating = parseInt(rating, 10) || 0;
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/likelihood',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hazard, likelihoodRating }),
-        }
-      );
-      const data = await res.json();
-      console.log('Saved likelihood rating:', data);
+      await fetch('http://localhost:8000/workflow/step2/likelihood', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hazard, likelihoodRating }),
+      });
     } catch (err) {
       console.error('Error saving likelihood rating:', err);
     }
@@ -254,14 +379,20 @@ function PrioritizedRisk() {
     EssentialWorkflowContext
   );
   const [riskResult, setRiskResult] = useState([]);
+  const [sortBy, setSortBy] = useState('');
 
   useEffect(() => {
     fetchRisk();
-  }, []);
+    // eslint-disable-next-line
+  }, [sortBy]);
 
   async function fetchRisk() {
     try {
-      const res = await fetch('http://localhost:8000/workflow/step2/risk');
+      let url = 'http://localhost:8000/workflow/step2/risk';
+      if (sortBy) {
+        url += `?sortBy=${sortBy}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.riskResult) {
         setRiskResult(data.riskResult);
@@ -293,8 +424,25 @@ function PrioritizedRisk() {
     <Box>
       <Typography variant="h6">Prioritized Risk</Typography>
       <Typography paragraph>
-        Risk = Impact × Likelihood. Highest risk first.
+        Risk = Impact × Likelihood. You can choose a sorting method below.
       </Typography>
+
+      {/* 选择排序方式 */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+        <FormControl size="small" sx={{ width: 200 }}>
+          <InputLabel>Sort By</InputLabel>
+          <Select
+            label="Sort By"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <MenuItem value="">(No Sort)</MenuItem>
+            <MenuItem value="system">System Name</MenuItem>
+            <MenuItem value="hazard">Hazard</MenuItem>
+            <MenuItem value="score">Risk Score Desc</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
       {riskResult.length === 0 ? (
         <Typography>
@@ -307,6 +455,7 @@ function PrioritizedRisk() {
               <TableRow>
                 <TableCell>Hazard</TableCell>
                 <TableCell>System</TableCell>
+                <TableCell>SubSystem</TableCell>
                 <TableCell>Impact</TableCell>
                 <TableCell>Likelihood</TableCell>
                 <TableCell>RiskScore</TableCell>
@@ -316,7 +465,8 @@ function PrioritizedRisk() {
               {riskResult.map((r, idx) => (
                 <TableRow key={idx}>
                   <TableCell>{r.hazard}</TableCell>
-                  <TableCell>{r.system}</TableCell>
+                  <TableCell>{r.systemName}</TableCell>
+                  <TableCell>{r.subSystemName}</TableCell>
                   <TableCell>{r.impactRating}</TableCell>
                   <TableCell>{r.likelihoodRating}</TableCell>
                   <TableCell>{r.riskScore}</TableCell>

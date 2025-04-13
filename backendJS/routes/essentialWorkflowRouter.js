@@ -8,8 +8,9 @@ import {
 import { getFemaHazards } from '../controllers/femaController.js';
 // Step2 相关
 import {
-  getStep2Categories,
-  addStep2Category,
+  getImpactCategories,
+  addSystem,
+  addSubSystem,
   setImpactRating,
   setLikelihoodRating,
   calculateAndGetRisk,
@@ -35,14 +36,21 @@ router.post('/', (req, res) => {
 router.get('/hazards', getFemaHazards);
 
 // ========== (B) Step2 相关 API =============
-router.get('/step2/categories', getStep2Categories);
-router.post('/step2/categories', addStep2Category);
+// [*] 新增: 获取系统-子系统 baseline
+router.get('/step2/impact-categories', getImpactCategories);
 
+// [*] 新增: 添加系统 / 添加子系统
+router.post('/step2/add-system', addSystem);
+router.post('/step2/add-subsystem', addSubSystem);
+
+// 影响/可能性打分
 router.post('/step2/impact', setImpactRating);
 router.post('/step2/likelihood', setLikelihoodRating);
 
+// 计算risk
 router.get('/step2/risk', calculateAndGetRisk);
 
+// 标记完成
 router.post('/step2/complete', markStep2Complete);
 
 export default router;
