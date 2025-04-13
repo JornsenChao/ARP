@@ -13,12 +13,16 @@ import {
   TableBody,
   TableCell,
   TableRow,
+  TableContainer,
   TableHead,
-  Select,
-  MenuItem,
+  IconButton,
+  Collapse,
   FormControl,
   InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 
@@ -87,9 +91,14 @@ function ImpactAssessment() {
         'http://localhost:8000/workflow/step2/impact-categories'
       );
       const data = await res.json();
-      setImpactCategories(data.impactCategories || []);
+      if (Array.isArray(data.impactCategories)) {
+        setImpactCategories(data.impactCategories);
+      } else {
+        setImpactCategories([]);
+      }
     } catch (err) {
       console.error('Error fetching impact-categories:', err);
+      setImpactCategories([]);
     } finally {
       setLoadingCats(false);
     }
@@ -109,11 +118,11 @@ function ImpactAssessment() {
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add system error');
-        return;
+      } else {
+        const data = await res.json();
+        setImpactCategories(data.impactCategories);
+        setNewSystemName('');
       }
-      const data = await res.json();
-      setImpactCategories(data.impactCategories);
-      setNewSystemName('');
     } catch (err) {
       console.error('Error adding system:', err);
     }
@@ -136,12 +145,12 @@ function ImpactAssessment() {
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add subsystem error');
-        return;
+      } else {
+        const data = await res.json();
+        setImpactCategories(data.impactCategories);
+        setSelectedSystemForSub('');
+        setNewSubSystemName('');
       }
-      const data = await res.json();
-      setImpactCategories(data.impactCategories);
-      setSelectedSystemForSub('');
-      setNewSubSystemName('');
     } catch (err) {
       console.error('Error adding subSystem:', err);
     }
@@ -149,7 +158,6 @@ function ImpactAssessment() {
 
   // 保存 Impact Rating
   async function saveImpact(hazard, systemName, subSystemName, rating) {
-    // rating 在这里是字符串 => 转数字
     const impactRating = parseInt(rating, 10) || 0;
     try {
       await fetch('http://localhost:8000/workflow/step2/impact', {
@@ -185,9 +193,11 @@ function ImpactAssessment() {
       <Typography variant="h6">High Level Impact Assessment</Typography>
       <Typography paragraph>
         For each Hazard × (System → SubSystem), assign an Impact Rating (1~5).
+        <br />
+        You can expand or collapse each system to see/hide its subSystems.
       </Typography>
 
-      {/* -- Add System / Add SubSystem UI -- */}
+      {/* Add System */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           Add New System
@@ -206,6 +216,7 @@ function ImpactAssessment() {
         </Box>
       </Paper>
 
+      {/* Add SubSystem */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           Add New SubSystem
@@ -240,73 +251,129 @@ function ImpactAssessment() {
         </Box>
       </Paper>
 
-      {/* -- Single Table with System & SubSystem as rows, Hazards as columns -- */}
-      <Paper sx={{ p: 2 }}>
+      {/* Table with collapsible subSystems */}
+      <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell>System / SubSystem</TableCell>
+              <TableCell width="40%">System / SubSystem</TableCell>
+              {/* Hazards as columns */}
               {hazards.map((hz) => (
-                <TableCell key={hz}>{hz}</TableCell>
+                <TableCell key={hz} align="center">
+                  {hz}
+                </TableCell>
               ))}
             </TableRow>
           </TableHead>
           <TableBody>
             {impactCategories.map((sys) => (
-              <React.Fragment key={sys.systemName}>
-                {/* Group row for the top-level system */}
-                <TableRow>
-                  <TableCell
-                    colSpan={hazards.length + 1}
-                    sx={{ fontWeight: 'bold', backgroundColor: '#f0f0f0' }}
-                  >
-                    {sys.systemName}
-                  </TableCell>
-                </TableRow>
-
-                {/* SubSystems rows */}
-                {sys.subSystems && sys.subSystems.length > 0 ? (
-                  sys.subSystems.map((sub) => (
-                    <TableRow key={sub.name}>
-                      <TableCell>{sub.name}</TableCell>
-                      {hazards.map((hz) => (
-                        <TableCell key={hz}>
-                          <TextField
-                            type="number"
-                            size="small"
-                            InputProps={{ inputProps: { min: 1, max: 5 } }}
-                            onBlur={(e) =>
-                              saveImpact(
-                                hz,
-                                sys.systemName,
-                                sub.name,
-                                e.target.value
-                              )
-                            }
-                          />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={hazards.length + 1}
-                      sx={{ fontStyle: 'italic', color: 'gray' }}
-                    >
-                      (No subSystems yet)
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
+              <SystemRow
+                key={sys.systemName}
+                systemData={sys}
+                hazards={hazards}
+                onSaveImpact={saveImpact}
+              />
             ))}
           </TableBody>
         </Table>
-      </Paper>
+      </TableContainer>
     </Box>
   );
 }
+/* 
+  子组件: SystemRow
+  - 渲染一个可展开/折叠的系统行
+  - 当打开时，展示所有subSystems的多行
+*/
+function SystemRow({ systemData, hazards, onSaveImpact }) {
+  const [open, setOpen] = useState(false);
 
+  // 单击折叠/展开按钮
+  const handleToggle = () => {
+    setOpen(!open);
+  };
+
+  return (
+    <>
+      {/* 系统行 */}
+      <TableRow>
+        <TableCell
+          sx={{
+            fontWeight: 'bold',
+            backgroundColor: '#f7f7f7',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {/* 展开/收起按钮 */}
+          <IconButton size="small" onClick={handleToggle}>
+            {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </IconButton>
+          {systemData.systemName}
+        </TableCell>
+        {/* 占位：对于系统本身这行，不逐列显示rating输入。 
+            这里可以做一些统计或留空
+        */}
+        {hazards.map((hz) => (
+          <TableCell key={hz} align="center">
+            {/* optionally show some aggregated info, or leave blank */}—
+          </TableCell>
+        ))}
+      </TableRow>
+
+      {/* 子系统折叠区域 */}
+      <TableRow>
+        <TableCell
+          colSpan={hazards.length + 1}
+          style={{ paddingBottom: 0, paddingTop: 0 }}
+        >
+          <Collapse in={open} timeout="auto" unmountOnExit>
+            <Box sx={{ margin: 1 }}>
+              {/* 如果没有subSystems */}
+              {(!systemData.subSystems ||
+                systemData.subSystems.length === 0) && (
+                <Typography
+                  variant="body2"
+                  sx={{ fontStyle: 'italic', color: 'gray' }}
+                >
+                  (No subSystems yet)
+                </Typography>
+              )}
+              {systemData.subSystems && systemData.subSystems.length > 0 && (
+                <Table size="small">
+                  <TableBody>
+                    {systemData.subSystems.map((sub) => (
+                      <TableRow key={sub.name}>
+                        <TableCell width="40%">{sub.name}</TableCell>
+                        {hazards.map((hz) => (
+                          <TableCell key={hz} align="center">
+                            <TextField
+                              type="number"
+                              size="small"
+                              InputProps={{ inputProps: { min: 1, max: 5 } }}
+                              onBlur={(e) =>
+                                onSaveImpact(
+                                  hz,
+                                  systemData.systemName,
+                                  sub.name,
+                                  e.target.value
+                                )
+                              }
+                              sx={{ width: 50 }}
+                            />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </Box>
+          </Collapse>
+        </TableCell>
+      </TableRow>
+    </>
+  );
+}
 /* 
   ---------------------------
    (B) Likelihood Assessment 
