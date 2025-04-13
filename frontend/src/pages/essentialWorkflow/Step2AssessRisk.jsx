@@ -1,4 +1,3 @@
-// src/pages/essentialWorkflow/Step2AssessRisk.jsx
 import React, { useContext, useState, useEffect } from 'react';
 import {
   Box,
@@ -16,7 +15,6 @@ import {
   TableContainer,
   TableHead,
   IconButton,
-  Collapse,
   FormControl,
   InputLabel,
   Select,
@@ -73,12 +71,13 @@ function ImpactAssessment() {
   const [impactCategories, setImpactCategories] = useState([]);
   const [loadingCats, setLoadingCats] = useState(false);
 
-  // Input fields for "Add System"
+  // For "Add System"
   const [newSystemName, setNewSystemName] = useState('');
-  // For "Add Subsystem": need to pick which system & subSystemName
+  // For "Add Subsystem"
   const [selectedSystemForSub, setSelectedSystemForSub] = useState('');
   const [newSubSystemName, setNewSubSystemName] = useState('');
 
+  // =========== Fetch system-subSystem data ============
   useEffect(() => {
     fetchImpactCategories();
     // eslint-disable-next-line
@@ -104,6 +103,7 @@ function ImpactAssessment() {
     }
   }
 
+  // =========== Add System & SubSystem ============
   async function handleAddSystem() {
     if (!newSystemName.trim()) return;
     try {
@@ -156,7 +156,7 @@ function ImpactAssessment() {
     }
   }
 
-  // 保存 Impact Rating
+  // =========== Save Impact rating ============
   async function saveImpact(hazard, systemName, subSystemName, rating) {
     const impactRating = parseInt(rating, 10) || 0;
     try {
@@ -175,7 +175,7 @@ function ImpactAssessment() {
     }
   }
 
-  // -------------- Render --------------
+  // =========== UI Rendering =============
   if (!hazards.length) {
     return (
       <Typography>
@@ -183,7 +183,6 @@ function ImpactAssessment() {
       </Typography>
     );
   }
-
   if (loadingCats) {
     return <Typography>Loading system & subSystem data...</Typography>;
   }
@@ -194,7 +193,7 @@ function ImpactAssessment() {
       <Typography paragraph>
         For each Hazard × (System → SubSystem), assign an Impact Rating (1~5).
         <br />
-        You can expand or collapse each system to see/hide its subSystems.
+        Click the arrow to expand or hide subSystems.
       </Typography>
 
       {/* Add System */}
@@ -251,13 +250,12 @@ function ImpactAssessment() {
         </Box>
       </Paper>
 
-      {/* Table with collapsible subSystems */}
+      {/* Single table with hazards as columns */}
       <TableContainer component={Paper}>
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell width="40%">System / SubSystem</TableCell>
-              {/* Hazards as columns */}
+              <TableCell sx={{ width: '30%' }}>System / SubSystem</TableCell>
               {hazards.map((hz) => (
                 <TableCell key={hz} align="center">
                   {hz}
@@ -280,100 +278,70 @@ function ImpactAssessment() {
     </Box>
   );
 }
-/* 
-  子组件: SystemRow
-  - 渲染一个可展开/折叠的系统行
-  - 当打开时，展示所有subSystems的多行
-*/
+
+/**
+ * Renders one "system" row + optional "subSystem" rows
+ * in the same table, ensuring column alignment
+ */
 function SystemRow({ systemData, hazards, onSaveImpact }) {
   const [open, setOpen] = useState(false);
 
-  // 单击折叠/展开按钮
-  const handleToggle = () => {
+  const toggleOpen = () => {
     setOpen(!open);
   };
 
   return (
     <>
-      {/* 系统行 */}
-      <TableRow>
-        <TableCell
-          sx={{
-            fontWeight: 'bold',
-            backgroundColor: '#f7f7f7',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {/* 展开/收起按钮 */}
-          <IconButton size="small" onClick={handleToggle}>
+      {/* The "System" row */}
+      <TableRow
+        sx={{
+          backgroundColor: '#f9f9f9',
+        }}
+      >
+        <TableCell sx={{ fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+          <IconButton size="small" onClick={toggleOpen}>
             {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
           </IconButton>
           {systemData.systemName}
         </TableCell>
-        {/* 占位：对于系统本身这行，不逐列显示rating输入。 
-            这里可以做一些统计或留空
-        */}
+        {/* If you want to display aggregated info for each hazard, do so here; otherwise just use a dash */}
         {hazards.map((hz) => (
           <TableCell key={hz} align="center">
-            {/* optionally show some aggregated info, or leave blank */}—
+            —
           </TableCell>
         ))}
       </TableRow>
 
-      {/* 子系统折叠区域 */}
-      <TableRow>
-        <TableCell
-          colSpan={hazards.length + 1}
-          style={{ paddingBottom: 0, paddingTop: 0 }}
-        >
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1 }}>
-              {/* 如果没有subSystems */}
-              {(!systemData.subSystems ||
-                systemData.subSystems.length === 0) && (
-                <Typography
-                  variant="body2"
-                  sx={{ fontStyle: 'italic', color: 'gray' }}
-                >
-                  (No subSystems yet)
-                </Typography>
-              )}
-              {systemData.subSystems && systemData.subSystems.length > 0 && (
-                <Table size="small">
-                  <TableBody>
-                    {systemData.subSystems.map((sub) => (
-                      <TableRow key={sub.name}>
-                        <TableCell width="40%">{sub.name}</TableCell>
-                        {hazards.map((hz) => (
-                          <TableCell key={hz} align="center">
-                            <TextField
-                              type="number"
-                              size="small"
-                              InputProps={{ inputProps: { min: 1, max: 5 } }}
-                              onBlur={(e) =>
-                                onSaveImpact(
-                                  hz,
-                                  systemData.systemName,
-                                  sub.name,
-                                  e.target.value
-                                )
-                              }
-                              sx={{ width: 50 }}
-                            />
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
+      {/* Conditionally render subSystem rows below, to keep columns aligned */}
+      {open &&
+        systemData.subSystems &&
+        systemData.subSystems.map((sub) => (
+          <TableRow key={sub.name}>
+            <TableCell sx={{ pl: 6 }}>{sub.name}</TableCell>
+            {hazards.map((hz) => (
+              <TableCell key={hz} align="center">
+                <TextField
+                  type="number"
+                  size="small"
+                  InputProps={{ inputProps: { min: 1, max: 5 } }}
+                  onBlur={(e) =>
+                    onSaveImpact(
+                      hz,
+                      systemData.systemName,
+                      sub.name,
+                      e.target.value
+                    )
+                  }
+                  sx={{ width: 60 }}
+                />
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
     </>
   );
 }
+
 /* 
   ---------------------------
    (B) Likelihood Assessment 
