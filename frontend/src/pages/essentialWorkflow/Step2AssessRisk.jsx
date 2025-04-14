@@ -196,6 +196,31 @@ function ImpactAssessment() {
         Click the arrow to expand or hide subSystems.
       </Typography>
 
+      {/* Single table with hazards as columns */}
+      <TableContainer component={Paper}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell sx={{ width: '30%' }}>System / SubSystem</TableCell>
+              {hazards.map((hz) => (
+                <TableCell key={hz} align="center">
+                  {hz}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {impactCategories.map((sys) => (
+              <SystemRow
+                key={sys.systemName}
+                systemData={sys}
+                hazards={hazards}
+                onSaveImpact={saveImpact}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
       {/* Add System */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
@@ -249,32 +274,6 @@ function ImpactAssessment() {
           </Button>
         </Box>
       </Paper>
-
-      {/* Single table with hazards as columns */}
-      <TableContainer component={Paper}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ width: '30%' }}>System / SubSystem</TableCell>
-              {hazards.map((hz) => (
-                <TableCell key={hz} align="center">
-                  {hz}
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {impactCategories.map((sys) => (
-              <SystemRow
-                key={sys.systemName}
-                systemData={sys}
-                hazards={hazards}
-                onSaveImpact={saveImpact}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
     </Box>
   );
 }
