@@ -283,3 +283,28 @@ export function markStep2Complete(req, res) {
 
   res.json({ message: 'Step2 marked as completed', step2: state.step2 });
 }
+
+// ========== (新增) 清空 Impact Data ==========
+export function clearImpactData(req, res) {
+  const state = getWorkflowState();
+  // 把 step2.impactData 清空
+  state.step2.impactData = [];
+  // 同时也清空 impactCategories 里并不影响结构，但“已保存的打分记录”变为空
+  // 不过一般不需要动 step2.impactCategories，因为那是system+subsystem的结构而不是打分
+  saveWorkflowState(state);
+  res.json({
+    message: 'Impact data cleared.',
+    step2: state.step2,
+  });
+}
+
+// ========== (新增) 清空 Likelihood Data ==========
+export function clearLikelihoodData(req, res) {
+  const state = getWorkflowState();
+  state.step2.likelihoodData = [];
+  saveWorkflowState(state);
+  res.json({
+    message: 'Likelihood data cleared.',
+    step2: state.step2,
+  });
+}

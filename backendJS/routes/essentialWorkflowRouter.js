@@ -15,6 +15,8 @@ import {
   setLikelihoodRating,
   calculateAndGetRisk,
   markStep2Complete,
+  clearImpactData,
+  clearLikelihoodData,
 } from '../controllers/step2Controller.js';
 
 const router = Router();
@@ -49,6 +51,9 @@ router.post('/step2/likelihood', setLikelihoodRating);
 
 // 计算risk
 router.get('/step2/risk', calculateAndGetRisk);
+
+router.post('/step2/clear-impact', clearImpactData);
+router.post('/step2/clear-likelihood', clearLikelihoodData);
 
 // 标记完成
 router.post('/step2/complete', markStep2Complete);

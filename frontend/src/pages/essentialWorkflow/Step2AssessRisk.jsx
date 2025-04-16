@@ -28,23 +28,11 @@ import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 
-/**
- * Step2AssessRisk.jsx
- *   - 仍是3个子部分(ImpactAssessment / LikelihoodAssessment / PrioritizedRisk)，
- *     但每个子组件不会被卸载，而是用 hidden 显示/隐藏
- *     保证不会丢失子组件的本地 state (例如用户已输入的表单信息)。
- *
- * 额外需求：
- *   1) ImpactAssessment 中 1~5 输入 + 颜色区分
- *   2) 当切换tab或点击 next step 再回来时，保留已填的数据
- *   3) 第三子步骤 riskScore 显示颜色(仿heatmap)
- */
-
 function Step2AssessRisk() {
   const { workflowState } = useContext(EssentialWorkflowContext);
   const [currentTab, setCurrentTab] = useState(0);
 
-  // 切换到下一个子步骤时，带 confirm
+  // 当用户点击 "Next Sub Step" => 确认后切换到 nextTab
   const goToNextSubStep = (nextTabIndex) => {
     const confirmed = window.confirm(
       'Are you sure to proceed to the next sub step?'
@@ -65,7 +53,6 @@ function Step2AssessRisk() {
         Step 2: Assess Risk
       </Typography>
 
-      {/* 这里使用 Tabs，但通过 hidden 来控制显示，从而不卸载子组件 */}
       <Tabs
         value={currentTab}
         onChange={(e, val) => setCurrentTab(val)}
@@ -76,7 +63,7 @@ function Step2AssessRisk() {
         <Tab label="3) Prioritized Risk" />
       </Tabs>
 
-      {/* Tab Panels: 保持挂载，使用 hidden 属性 */}
+      {/* 使用 hidden 属性而不卸载组件，从而保留本地 state */}
       <Box hidden={currentTab !== 0}>
         <ImpactAssessment onNextSubStep={() => goToNextSubStep(1)} />
       </Box>
@@ -84,7 +71,8 @@ function Step2AssessRisk() {
         <LikelihoodAssessment onNextSubStep={() => goToNextSubStep(2)} />
       </Box>
       <Box hidden={currentTab !== 2}>
-        <PrioritizedRisk />
+        {/* 将 currentTab 作为 activeTabIndex 传给第三子组件 */}
+        <PrioritizedRisk activeTabIndex={currentTab} />
       </Box>
     </Box>
   );
@@ -93,31 +81,28 @@ function Step2AssessRisk() {
 export default Step2AssessRisk;
 
 /* 
-  ==============================================
+  ===========================================
    (A) Impact Assessment
-  ==============================================
+  ===========================================
 */
 function ImpactAssessment({ onNextSubStep }) {
   const { workflowState } = useContext(EssentialWorkflowContext);
   const hazards = workflowState.step1.hazards || [];
 
-  // 后端返回的 { systemName, subSystems: [{name,...}], ...}
   const [impactCategories, setImpactCategories] = useState([]);
   const [loadingCats, setLoadingCats] = useState(false);
 
-  // 存储用户已选中的 systems（只显示这些 system 的子系统行）
+  // 选中的 system
   const [selectedSystems, setSelectedSystems] = useState([]);
 
-  // 本地保存 “hazard-systemName-subSystemName -> rating” 映射，便于回显
-  // key可用 `${hazard}::${systemName}::${subName}`
+  // impactRatings: { "hazard::systemName::subName": 3, ... }
   const [impactRatings, setImpactRatings] = useState({});
 
-  // 新增系统 / 子系统
+  // For add system/subsystem
   const [newSystemName, setNewSystemName] = useState('');
   const [selectedSystemForSub, setSelectedSystemForSub] = useState('');
   const [newSubSystemName, setNewSubSystemName] = useState('');
 
-  // 1) 初次加载: 获取 categories & 获取当前已存在的impactData, 构建 impactRatings
   useEffect(() => {
     fetchImpactCategories();
     buildLocalRatingsFromServer();
@@ -144,12 +129,10 @@ function ImpactAssessment({ onNextSubStep }) {
     }
   }
 
-  // 拉取整个 workflowState.step2.impactData，构建本地 rating map
   async function buildLocalRatingsFromServer() {
     try {
       const resp = await fetch('http://localhost:8000/workflow');
       const fullState = await resp.json();
-      // 这里的 step2.impactData: [ { hazard, systemName, subSystemName, impactRating }, ... ]
       const arr = fullState?.step2?.impactData || [];
       const newMap = {};
       arr.forEach((item) => {
@@ -166,12 +149,10 @@ function ImpactAssessment({ onNextSubStep }) {
     }
   }
 
-  // 构造 key
   function buildImpactKey(hazard, systemName, subName) {
     return `${hazard}::${systemName}::${subName}`;
   }
 
-  // ================= 勾选 Systems =====================
   function handleToggleSystem(systemName) {
     setSelectedSystems((prev) => {
       if (prev.includes(systemName)) {
@@ -182,25 +163,36 @@ function ImpactAssessment({ onNextSubStep }) {
     });
   }
 
-  // ================= 保存 impact rating =====================
-  // 限定1~5 + 颜色
+  // 清空 Impact
+  async function handleClearImpact() {
+    const yes = window.confirm(
+      'Clear all Impact Assessment data? This cannot be undone.'
+    );
+    if (!yes) return;
+    try {
+      await fetch('http://localhost:8000/workflow/step2/clear-impact', {
+        method: 'POST',
+      });
+      // 清空本地 state
+      setImpactRatings({});
+    } catch (err) {
+      console.error('Error clearing impact data:', err);
+    }
+  }
+
   function handleImpactRatingChange(hazard, systemName, subName, inputValue) {
-    // clamp
     let val = parseInt(inputValue, 10);
     if (isNaN(val)) val = 1;
     if (val < 1) val = 1;
     if (val > 5) val = 5;
-
     const key = buildImpactKey(hazard, systemName, subName);
     setImpactRatings((prev) => ({ ...prev, [key]: val }));
   }
 
   async function handleImpactRatingBlur(hazard, systemName, subName) {
-    // 当用户离开输入框后，再把本地数值写到后端
     const key = buildImpactKey(hazard, systemName, subName);
     const rating = impactRatings[key];
     if (!rating) return;
-
     try {
       await fetch('http://localhost:8000/workflow/step2/impact', {
         method: 'POST',
@@ -217,26 +209,24 @@ function ImpactAssessment({ onNextSubStep }) {
     }
   }
 
-  // 用于给 1~5 rating 显示不同颜色(示例)
   function getImpactBgColor(r) {
-    // 你也可自定义颜色梯度，这里简单区分
     switch (r) {
       case 1:
-        return '#c8e6c9'; // 绿色
+        return '#c8e6c9';
       case 2:
         return '#dcedc8';
       case 3:
-        return '#ffecb3'; // 黄色
+        return '#ffecb3';
       case 4:
         return '#ffd54f';
       case 5:
-        return '#ffcdd2'; // 红
+        return '#ffcdd2';
       default:
         return 'transparent';
     }
   }
 
-  // =========== Add System ============
+  // Add System
   async function handleAddSystem() {
     if (!newSystemName.trim()) return;
     try {
@@ -261,7 +251,7 @@ function ImpactAssessment({ onNextSubStep }) {
     }
   }
 
-  // =========== Add SubSystem ============
+  // Add SubSystem
   async function handleAddSubSystem() {
     if (!selectedSystemForSub || !newSubSystemName.trim()) return;
     try {
@@ -290,7 +280,6 @@ function ImpactAssessment({ onNextSubStep }) {
     }
   }
 
-  // =========== 渲染 ================
   if (!hazards.length) {
     return <Typography>No hazards found. Please go back to Step1.</Typography>;
   }
@@ -298,7 +287,6 @@ function ImpactAssessment({ onNextSubStep }) {
     return <Typography>Loading system & subSystem data...</Typography>;
   }
 
-  // 过滤只显示选中的 system
   const filteredCategories = impactCategories.filter((sys) =>
     selectedSystems.includes(sys.systemName)
   );
@@ -307,10 +295,16 @@ function ImpactAssessment({ onNextSubStep }) {
     <Box>
       <Typography variant="h6">High Level Impact Assessment</Typography>
       <Typography paragraph>
-        1) 先勾选要关注的系统 → 2) 针对子系统输入 1~5 的 ImpactRating
+        1) Select systems. 2) Enter 1-5 impact rating.
       </Typography>
 
-      {/* ============  勾选系统  ============ */}
+      {/* Clear按钮 */}
+      <Box sx={{ mb: 1 }}>
+        <Button variant="outlined" color="error" onClick={handleClearImpact}>
+          Clear Current Input
+        </Button>
+      </Box>
+
       <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         {impactCategories.map((sys) => (
           <FormControlLabel
@@ -326,7 +320,6 @@ function ImpactAssessment({ onNextSubStep }) {
         ))}
       </Box>
 
-      {/* ============  表格：仅显示选中的 system  ============ */}
       {filteredCategories.length === 0 ? (
         <Typography color="text.secondary">No systems selected yet.</Typography>
       ) : (
@@ -359,7 +352,7 @@ function ImpactAssessment({ onNextSubStep }) {
         </TableContainer>
       )}
 
-      {/* ============  Add System / Subsystem  ============ */}
+      {/* Add System/Subsystem */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           Add New System
@@ -412,7 +405,7 @@ function ImpactAssessment({ onNextSubStep }) {
         </Box>
       </Paper>
 
-      {/* ============  “Next Sub Step” 按钮  ============ */}
+      {/* Next Sub Step */}
       <Button variant="contained" onClick={onNextSubStep}>
         Next Sub Step
       </Button>
@@ -420,9 +413,6 @@ function ImpactAssessment({ onNextSubStep }) {
   );
 }
 
-/**
- * SystemRow: 显示单个 system (可点击展开其 subSystems)
- */
 function SystemRow({
   systemData,
   hazards,
@@ -432,7 +422,6 @@ function SystemRow({
   getImpactBgColor,
 }) {
   const [open, setOpen] = useState(false);
-
   const toggleOpen = () => setOpen(!open);
 
   return (
@@ -457,8 +446,7 @@ function SystemRow({
             <TableCell sx={{ pl: 6 }}>{sub.name}</TableCell>
             {hazards.map((hz) => {
               const key = `${hz}::${systemData.systemName}::${sub.name}`;
-              const val = impactRatings[key] || ''; // 如果还没输入过，就显示空
-
+              const val = impactRatings[key] || '';
               return (
                 <TableCell key={hz} align="center">
                   <TextField
@@ -482,10 +470,7 @@ function SystemRow({
                         ? getImpactBgColor(parseInt(val))
                         : 'transparent',
                     }}
-                    inputProps={{
-                      min: 1,
-                      max: 5,
-                    }}
+                    inputProps={{ min: 1, max: 5 }}
                   />
                 </TableCell>
               );
@@ -497,20 +482,18 @@ function SystemRow({
 }
 
 /* 
-  ==============================================
+  ===========================================
    (B) Likelihood Assessment
-  ==============================================
+  ===========================================
 */
 function LikelihoodAssessment({ onNextSubStep }) {
   const { workflowState } = useContext(EssentialWorkflowContext);
   const hazards = workflowState.step1.hazards || [];
 
-  // 类似 impactRatings，这里也需要本地 likelihoodMap
   const [likelihoodMap, setLikelihoodMap] = useState({});
 
   useEffect(() => {
     buildLocalLikelihoodFromServer();
-    // eslint-disable-next-line
   }, []);
 
   async function buildLocalLikelihoodFromServer() {
@@ -528,12 +511,25 @@ function LikelihoodAssessment({ onNextSubStep }) {
     }
   }
 
+  async function handleClearLikelihood() {
+    const yes = window.confirm('Clear all Likelihood Assessment data?');
+    if (!yes) return;
+    try {
+      await fetch('http://localhost:8000/workflow/step2/clear-likelihood', {
+        method: 'POST',
+      });
+      // 本地清空
+      setLikelihoodMap({});
+    } catch (err) {
+      console.error('Error clearing likelihood data:', err);
+    }
+  }
+
   function handleLikelihoodChange(hazard, valStr) {
     let val = parseInt(valStr, 10);
     if (isNaN(val)) val = 1;
     if (val < 1) val = 1;
     if (val > 5) val = 5;
-
     setLikelihoodMap((prev) => ({ ...prev, [hazard]: val }));
   }
 
@@ -564,6 +560,17 @@ function LikelihoodAssessment({ onNextSubStep }) {
         Assign a likelihood (1~5) for each hazard's chance of occurrence.
       </Typography>
 
+      {/* Clear按钮 */}
+      <Box sx={{ mb: 1 }}>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={handleClearLikelihood}
+        >
+          Clear Current Input
+        </Button>
+      </Box>
+
       <Paper sx={{ p: 2, maxWidth: 400, mb: 2 }}>
         <Table size="small">
           <TableHead>
@@ -575,7 +582,6 @@ function LikelihoodAssessment({ onNextSubStep }) {
           <TableBody>
             {hazards.map((hz) => {
               const val = likelihoodMap[hz] || '';
-
               return (
                 <TableRow key={hz}>
                   <TableCell>{hz}</TableCell>
@@ -607,46 +613,77 @@ function LikelihoodAssessment({ onNextSubStep }) {
 }
 
 /* 
-  ==============================================
+  ===========================================
    (C) Prioritized Risk
-  ==============================================
+   =  => auto "internal refresh" whenever 
+   =     user enters sub step #3
+  ===========================================
 */
-function PrioritizedRisk() {
+function PrioritizedRisk({ activeTabIndex }) {
   const { workflowState, setWorkflowState } = useContext(
     EssentialWorkflowContext
   );
+
+  // riskResult
   const [riskResult, setRiskResult] = useState([]);
+  // track length of impactData / likelihoodData
+  const [impactCount, setImpactCount] = useState(0);
+  const [likelihoodCount, setLikelihoodCount] = useState(0);
+
   const [sortBy, setSortBy] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
+  // whenever "activeTabIndex===2" or sortBy changes, fetch data
   useEffect(() => {
-    fetchRisk();
-  }, [sortBy]);
+    if (activeTabIndex === 2) {
+      fetchAll();
+    }
+  }, [activeTabIndex, sortBy]);
 
-  async function fetchRisk() {
+  async function fetchAll() {
+    setLoading(true);
+    setError(null);
+
     try {
+      // 1) 获取 workflow => 检查 impact/likelihood
+      const wfRes = await fetch('http://localhost:8000/workflow');
+      if (!wfRes.ok) {
+        throw new Error(`Error fetching workflow: ${wfRes.status}`);
+      }
+      const wfData = await wfRes.json();
+      const impactArr = wfData.step2?.impactData || [];
+      const likelihoodArr = wfData.step2?.likelihoodData || [];
+      setImpactCount(impactArr.length);
+      setLikelihoodCount(likelihoodArr.length);
+
+      // 2) 获取 risk
       let url = 'http://localhost:8000/workflow/step2/risk';
       if (sortBy) {
         url += `?sortBy=${sortBy}`;
       }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.riskResult) {
-        setRiskResult(data.riskResult);
+      const rRes = await fetch(url);
+      if (!rRes.ok) {
+        throw new Error(`Error fetching risk data: ${rRes.status}`);
       }
+      const rData = await rRes.json();
+      const rr = rData.riskResult || [];
+
+      setRiskResult(rr);
     } catch (err) {
-      console.error('Error calculating risk:', err);
+      console.error('fetchAll error:', err);
+      setError(err.message || 'Unknown error');
+    } finally {
+      setLoading(false);
     }
   }
 
-  // 给 riskScore 做个heatmap效果
   function getRiskColor(score) {
-    // Impact×Likelihood => 1..25
-    // 这里做简单离散：1-5,6-10,11-15,16-20,21-25
-    if (score <= 5) return '#c8e6c9'; // 绿
+    if (score <= 5) return '#c8e6c9';
     if (score <= 10) return '#dcedc8';
-    if (score <= 15) return '#fff9c4'; // 黄
+    if (score <= 15) return '#fff9c4';
     if (score <= 20) return '#ffe082';
-    return '#ffcdd2'; // 红
+    return '#ffcdd2';
   }
 
   async function markComplete() {
@@ -655,8 +692,6 @@ function PrioritizedRisk() {
         method: 'POST',
       });
       const data = await res.json();
-      console.log('Step2 completed', data);
-      // 同步更新上下文
       setWorkflowState((prev) => {
         const updated = { ...prev };
         updated.step2.isCompleted = true;
@@ -667,14 +702,25 @@ function PrioritizedRisk() {
     }
   }
 
+  // ============== Render ==============
+  if (loading) {
+    return <Typography>Loading...</Typography>;
+  }
+  if (error) {
+    return <Typography color="error">Error: {error}</Typography>;
+  }
+
+  // 如果 impactCount=0 or likelihoodCount=0 or riskResult=0 => "No data"
+  const showNoData =
+    impactCount === 0 || likelihoodCount === 0 || riskResult.length === 0;
+
   return (
     <Box>
       <Typography variant="h6">Prioritized Risk</Typography>
       <Typography paragraph>
-        Risk = Impact × Likelihood. You can choose a sorting method below.
+        If any sub-step is empty, or result is zero, we show "No data".
       </Typography>
 
-      {/* 选择排序方式 */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
         <FormControl size="small" sx={{ width: 200 }}>
           <InputLabel>Sort By</InputLabel>
@@ -691,9 +737,9 @@ function PrioritizedRisk() {
         </FormControl>
       </Box>
 
-      {riskResult.length === 0 ? (
-        <Typography>
-          No data or all zeros. Please fill Impact & Likelihood first.
+      {showNoData ? (
+        <Typography color="text.secondary">
+          No data or all zeros. Please fill Impact &amp; Likelihood first.
         </Typography>
       ) : (
         <Paper sx={{ p: 2 }}>
