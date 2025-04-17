@@ -282,7 +282,19 @@ function ImpactAssessment({ activeTabIndex }) {
         {'Resilient Building Planning Worksheet'} <br />
         In this step, you will: <br />
         1) choose systems to be evaluated → <br />
-        2) evaluate impact on subsystem from 1~5
+        2) evaluate impact on subsystem from 1~5 <br />
+        " For each impact within each Impact Category, assign a consequence
+        rating of 1 to 5 based on the suggested scale below. <br />
+        Consider both the immediate and long-term impacts of each hazard on each
+        impact category. <br />
+        Some hazards may cause acute or sudden impacts (""shocks""), while
+        others can contribute to chronic impacts (""stressors""). "
+        <br />
+        1- Very low <br />
+        2- Low <br />
+        3- Moderate <br />
+        4- High <br />
+        5- Very High <br />
       </Typography>
 
       <Box sx={{ mb: 1 }}>
