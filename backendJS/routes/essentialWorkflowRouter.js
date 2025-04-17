@@ -17,6 +17,7 @@ import {
   markStep2Complete,
   clearImpactData,
   clearLikelihoodData,
+  setSelectedRisk,
 } from '../controllers/step2Controller.js';
 
 const router = Router();
@@ -54,7 +55,7 @@ router.get('/step2/risk', calculateAndGetRisk);
 
 router.post('/step2/clear-impact', clearImpactData);
 router.post('/step2/clear-likelihood', clearLikelihoodData);
-
+router.post('/step2/select-risk', setSelectedRisk);
 // 标记完成
 router.post('/step2/complete', markStep2Complete);
 

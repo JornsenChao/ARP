@@ -15,10 +15,12 @@ let workflowState = {
       'Landscape',
       'Civil Infrastructure',
     ],
-    userCategories: [], // 用户自定义系统
-    impactData: [], // [{ hazard, system, impactRating }]
-    likelihoodData: [], // [{ hazard, likelihoodRating }]
-    riskResult: [], // [{ hazard, system, impactRating, likelihoodRating, riskScore }]
+    userCategories: [],
+    impactData: [],
+    likelihoodData: [],
+    riskResult: [],
+    // 新增字段：用户在 Step2 第三子步骤里勾选的优先风险
+    selectedRisks: [],
     isCompleted: false,
   },
   step3: {

@@ -32,16 +32,6 @@ function Step2AssessRisk() {
   const { workflowState } = useContext(EssentialWorkflowContext);
   const [currentTab, setCurrentTab] = useState(0);
 
-  // 当用户点击 "Next Sub Step" => 确认后切换到 nextTab
-  const goToNextSubStep = (nextTabIndex) => {
-    const confirmed = window.confirm(
-      'Are you sure to proceed to the next sub step?'
-    );
-    if (confirmed) {
-      setCurrentTab(nextTabIndex);
-    }
-  };
-
   if (!workflowState) {
     return <Box sx={{ mt: 8, p: 2 }}>Loading Step 2...</Box>;
   }
@@ -63,17 +53,9 @@ function Step2AssessRisk() {
         <Tab label="3) Prioritized Risk" />
       </Tabs>
 
-      {/* 使用 hidden 属性而不卸载组件，从而保留本地 state */}
-      <Box hidden={currentTab !== 0}>
-        <ImpactAssessment onNextSubStep={() => goToNextSubStep(1)} />
-      </Box>
-      <Box hidden={currentTab !== 1}>
-        <LikelihoodAssessment onNextSubStep={() => goToNextSubStep(2)} />
-      </Box>
-      <Box hidden={currentTab !== 2}>
-        {/* 将 currentTab 作为 activeTabIndex 传给第三子组件 */}
-        <PrioritizedRisk activeTabIndex={currentTab} />
-      </Box>
+      {currentTab === 0 && <ImpactAssessment activeTabIndex={currentTab} />}
+      {currentTab === 1 && <LikelihoodAssessment activeTabIndex={currentTab} />}
+      {currentTab === 2 && <PrioritizedRisk activeTabIndex={currentTab} />}
     </Box>
   );
 }
@@ -85,29 +67,31 @@ export default Step2AssessRisk;
    (A) Impact Assessment
   ===========================================
 */
-function ImpactAssessment({ onNextSubStep }) {
+function ImpactAssessment({ activeTabIndex }) {
   const { workflowState } = useContext(EssentialWorkflowContext);
-  const hazards = workflowState.step1.hazards || [];
+  const hazards = workflowState?.step1?.hazards || [];
 
   const [impactCategories, setImpactCategories] = useState([]);
   const [loadingCats, setLoadingCats] = useState(false);
 
-  // 选中的 system
+  // 用户选中要打分的系统
   const [selectedSystems, setSelectedSystems] = useState([]);
 
-  // impactRatings: { "hazard::systemName::subName": 3, ... }
+  // impactRatings: { "hazard::systemName::subName": number }
   const [impactRatings, setImpactRatings] = useState({});
 
-  // For add system/subsystem
   const [newSystemName, setNewSystemName] = useState('');
   const [selectedSystemForSub, setSelectedSystemForSub] = useState('');
   const [newSubSystemName, setNewSubSystemName] = useState('');
 
+  // 当 activeTabIndex===0 时，才执行 fetch
   useEffect(() => {
-    fetchImpactCategories();
-    buildLocalRatingsFromServer();
+    if (activeTabIndex === 0) {
+      fetchImpactCategories();
+      buildLocalRatingsFromServer();
+    }
     // eslint-disable-next-line
-  }, []);
+  }, [activeTabIndex]);
 
   async function fetchImpactCategories() {
     setLoadingCats(true);
@@ -173,7 +157,6 @@ function ImpactAssessment({ onNextSubStep }) {
       await fetch('http://localhost:8000/workflow/step2/clear-impact', {
         method: 'POST',
       });
-      // 清空本地 state
       setImpactRatings({});
     } catch (err) {
       console.error('Error clearing impact data:', err);
@@ -295,10 +278,13 @@ function ImpactAssessment({ onNextSubStep }) {
     <Box>
       <Typography variant="h6">High Level Impact Assessment</Typography>
       <Typography paragraph>
-        1) Select systems. 2) Enter 1-5 impact rating.
+        This step is built based on City of Vancouver's
+        {'Resilient Building Planning Worksheet'} <br />
+        In this step, you will: <br />
+        1) choose systems to be evaluated → <br />
+        2) evaluate impact on subsystem from 1~5
       </Typography>
 
-      {/* Clear按钮 */}
       <Box sx={{ mb: 1 }}>
         <Button variant="outlined" color="error" onClick={handleClearImpact}>
           Clear Current Input
@@ -352,7 +338,6 @@ function ImpactAssessment({ onNextSubStep }) {
         </TableContainer>
       )}
 
-      {/* Add System/Subsystem */}
       <Paper sx={{ p: 2, mb: 2 }}>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
           Add New System
@@ -404,11 +389,6 @@ function ImpactAssessment({ onNextSubStep }) {
           </Button>
         </Box>
       </Paper>
-
-      {/* Next Sub Step */}
-      <Button variant="contained" onClick={onNextSubStep}>
-        Next Sub Step
-      </Button>
     </Box>
   );
 }
@@ -486,15 +466,19 @@ function SystemRow({
    (B) Likelihood Assessment
   ===========================================
 */
-function LikelihoodAssessment({ onNextSubStep }) {
+function LikelihoodAssessment({ activeTabIndex }) {
   const { workflowState } = useContext(EssentialWorkflowContext);
-  const hazards = workflowState.step1.hazards || [];
+  const hazards = workflowState?.step1?.hazards || [];
 
   const [likelihoodMap, setLikelihoodMap] = useState({});
 
+  // 当 activeTabIndex===1 时，执行 fetch
   useEffect(() => {
-    buildLocalLikelihoodFromServer();
-  }, []);
+    if (activeTabIndex === 1) {
+      buildLocalLikelihoodFromServer();
+    }
+    // eslint-disable-next-line
+  }, [activeTabIndex]);
 
   async function buildLocalLikelihoodFromServer() {
     try {
@@ -518,7 +502,6 @@ function LikelihoodAssessment({ onNextSubStep }) {
       await fetch('http://localhost:8000/workflow/step2/clear-likelihood', {
         method: 'POST',
       });
-      // 本地清空
       setLikelihoodMap({});
     } catch (err) {
       console.error('Error clearing likelihood data:', err);
@@ -560,7 +543,6 @@ function LikelihoodAssessment({ onNextSubStep }) {
         Assign a likelihood (1~5) for each hazard's chance of occurrence.
       </Typography>
 
-      {/* Clear按钮 */}
       <Box sx={{ mb: 1 }}>
         <Button
           variant="outlined"
@@ -604,10 +586,6 @@ function LikelihoodAssessment({ onNextSubStep }) {
           </TableBody>
         </Table>
       </Paper>
-
-      <Button variant="contained" onClick={onNextSubStep}>
-        Next Sub Step
-      </Button>
     </Box>
   );
 }
@@ -615,8 +593,7 @@ function LikelihoodAssessment({ onNextSubStep }) {
 /* 
   ===========================================
    (C) Prioritized Risk
-   =  => auto "internal refresh" whenever 
-   =     user enters sub step #3
+   显示时，额外判断“哪些行是 impact>0 && likelihood>0”，只要全部为0则显示 "No data..."
   ===========================================
 */
 function PrioritizedRisk({ activeTabIndex }) {
@@ -624,34 +601,35 @@ function PrioritizedRisk({ activeTabIndex }) {
     EssentialWorkflowContext
   );
 
-  // riskResult
   const [riskResult, setRiskResult] = useState([]);
-  // track length of impactData / likelihoodData
+  const [sortBy, setSortBy] = useState('');
+
   const [impactCount, setImpactCount] = useState(0);
   const [likelihoodCount, setLikelihoodCount] = useState(0);
 
-  const [sortBy, setSortBy] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // whenever "activeTabIndex===2" or sortBy changes, fetch data
+  // 本地保存已经勾选的
+  const [selectedRisks, setSelectedRisks] = useState([]);
+
+  // 当 activeTabIndex===2 或 sortBy 变化时，fetch 最新
   useEffect(() => {
     if (activeTabIndex === 2) {
       fetchAll();
     }
+    // eslint-disable-next-line
   }, [activeTabIndex, sortBy]);
 
   async function fetchAll() {
     setLoading(true);
     setError(null);
-
     try {
-      // 1) 获取 workflow => 检查 impact/likelihood
+      // 1) 获取 workflow => 拿到impact / likelihood
       const wfRes = await fetch('http://localhost:8000/workflow');
-      if (!wfRes.ok) {
-        throw new Error(`Error fetching workflow: ${wfRes.status}`);
-      }
+      if (!wfRes.ok) throw new Error('Error fetching workflow state');
       const wfData = await wfRes.json();
+
       const impactArr = wfData.step2?.impactData || [];
       const likelihoodArr = wfData.step2?.likelihoodData || [];
       setImpactCount(impactArr.length);
@@ -663,18 +641,35 @@ function PrioritizedRisk({ activeTabIndex }) {
         url += `?sortBy=${sortBy}`;
       }
       const rRes = await fetch(url);
-      if (!rRes.ok) {
-        throw new Error(`Error fetching risk data: ${rRes.status}`);
-      }
+      if (!rRes.ok) throw new Error('Error fetching risk data');
       const rData = await rRes.json();
       const rr = rData.riskResult || [];
 
       setRiskResult(rr);
+
+      // 3) selectedRisks
+      const sr = wfData.step2?.selectedRisks || [];
+      setSelectedRisks(sr);
     } catch (err) {
       console.error('fetchAll error:', err);
       setError(err.message || 'Unknown error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function markComplete() {
+    try {
+      await fetch('http://localhost:8000/workflow/step2/complete', {
+        method: 'POST',
+      });
+      setWorkflowState((prev) => {
+        const updated = { ...prev };
+        updated.step2.isCompleted = true;
+        return updated;
+      });
+    } catch (err) {
+      console.error('Error marking Step2 complete:', err);
     }
   }
 
@@ -686,23 +681,60 @@ function PrioritizedRisk({ activeTabIndex }) {
     return '#ffcdd2';
   }
 
-  async function markComplete() {
+  // 判断是否被选中
+  function isRowSelected(row) {
+    return selectedRisks.some(
+      (r) =>
+        r.hazard === row.hazard &&
+        r.systemName === row.systemName &&
+        r.subSystemName === row.subSystemName
+    );
+  }
+
+  async function handleSelectChange(row, checked) {
     try {
-      const res = await fetch('http://localhost:8000/workflow/step2/complete', {
+      // 调用后端
+      await fetch('http://localhost:8000/workflow/step2/select-risk', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hazard: row.hazard,
+          systemName: row.systemName,
+          subSystemName: row.subSystemName,
+          selected: checked,
+        }),
       });
-      const data = await res.json();
-      setWorkflowState((prev) => {
-        const updated = { ...prev };
-        updated.step2.isCompleted = true;
-        return updated;
-      });
+      // 更新本地
+      if (checked) {
+        setSelectedRisks((prev) => [...prev, row]);
+      } else {
+        setSelectedRisks((prev) =>
+          prev.filter(
+            (r) =>
+              !(
+                r.hazard === row.hazard &&
+                r.systemName === row.systemName &&
+                r.subSystemName === row.subSystemName
+              )
+          )
+        );
+      }
     } catch (err) {
-      console.error('Error marking Step2 complete:', err);
+      console.error('Error setSelectedRisk:', err);
+      alert('Failed to update selection. See console.');
     }
   }
 
-  // ============== Render ==============
+  // [MOD] 根据当前 riskResult 里 “impactRating>0 & likelihoodRating>0” 的项目数来判断是否显示表格
+  // 如果全是0或者空，就显示“No data or all zeros…”
+  const nonZeroRiskRows = riskResult.filter(
+    (r) => r.impactRating > 0 && r.likelihoodRating > 0
+  );
+
+  // 只要无影响打分 or 无可能打分 or 无非零风险行，就当作“没有数据”
+  const showNoData =
+    impactCount === 0 || likelihoodCount === 0 || nonZeroRiskRows.length === 0;
+
   if (loading) {
     return <Typography>Loading...</Typography>;
   }
@@ -710,15 +742,12 @@ function PrioritizedRisk({ activeTabIndex }) {
     return <Typography color="error">Error: {error}</Typography>;
   }
 
-  // 如果 impactCount=0 or likelihoodCount=0 or riskResult=0 => "No data"
-  const showNoData =
-    impactCount === 0 || likelihoodCount === 0 || riskResult.length === 0;
-
   return (
     <Box>
       <Typography variant="h6">Prioritized Risk</Typography>
       <Typography paragraph>
-        If any sub-step is empty, or result is zero, we show "No data".
+        If any sub-step is empty, or result is all zeros, we show "No data...".
+        You may check the box to select a row for next Step reference.
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
@@ -738,14 +767,15 @@ function PrioritizedRisk({ activeTabIndex }) {
       </Box>
 
       {showNoData ? (
-        <Typography color="text.secondary">
+        <Typography color="text.secondary" sx={{ mt: 2 }}>
           No data or all zeros. Please fill Impact &amp; Likelihood first.
         </Typography>
       ) : (
-        <Paper sx={{ p: 2 }}>
+        <TableContainer component={Paper}>
           <Table size="small">
             <TableHead>
               <TableRow>
+                <TableCell>Select</TableCell>
                 <TableCell>Hazard</TableCell>
                 <TableCell>System</TableCell>
                 <TableCell>SubSystem</TableCell>
@@ -755,26 +785,37 @@ function PrioritizedRisk({ activeTabIndex }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {riskResult.map((r, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{r.hazard}</TableCell>
-                  <TableCell>{r.systemName}</TableCell>
-                  <TableCell>{r.subSystemName}</TableCell>
-                  <TableCell>{r.impactRating}</TableCell>
-                  <TableCell>{r.likelihoodRating}</TableCell>
-                  <TableCell
-                    sx={{
-                      backgroundColor: getRiskColor(r.riskScore),
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {r.riskScore}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {nonZeroRiskRows.map((r, idx) => {
+                const selected = isRowSelected(r);
+                return (
+                  <TableRow key={idx}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selected}
+                        onChange={(e) =>
+                          handleSelectChange(r, e.target.checked)
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>{r.hazard}</TableCell>
+                    <TableCell>{r.systemName}</TableCell>
+                    <TableCell>{r.subSystemName}</TableCell>
+                    <TableCell>{r.impactRating}</TableCell>
+                    <TableCell>{r.likelihoodRating}</TableCell>
+                    <TableCell
+                      sx={{
+                        backgroundColor: getRiskColor(r.riskScore),
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {r.riskScore}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
-        </Paper>
+        </TableContainer>
       )}
 
       <Box sx={{ mt: 2 }}>

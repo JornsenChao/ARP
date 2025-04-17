@@ -1,5 +1,5 @@
 // frontend/src/pages/essentialWorkflow/Step3ParallelTasks.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -9,95 +9,126 @@ import {
   TextField,
   Button,
   Card,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
   List,
   ListItem,
   ListItemText,
   Divider,
-  Select,
-  MenuItem,
   FormControl,
   InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
 } from '@mui/material';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+
 import DependencySelector from '../../components/DependencySelector';
 import GraphViewer from '../../components/GraphViewer';
 import axios from 'axios';
 
-// 后端地址，如你的后端在 8000 端口
 const DOMAIN = 'http://localhost:8000';
 
-/**
- * Step3 需求：
- * - 右侧固定两块：Project Context + Current Summary
- * - 左侧三Tab(A/B/C)各一个 query window => "Ask" => RAG
- * - 显示结果 => 每条可 "Add to Summary"
- * - "Build Graph" => 调 /multiRAG/buildGraph => 显示 Graph
- *
- * 依赖:
- *   1) DependencySelector (模仿 RAG: collects "dependencyData")
- *   2) GraphViewer (already from RAG project)
- */
 function Step3ParallelTasks() {
-  // ======== ProjectContext: from DependencySelector ========
-  const [dependencyData, setDependencyData] = useState({});
-  // ======== Summary: user-chosen result chunks ========
-  const [summary, setSummary] = useState([]);
-
-  // ======== Tab state ========
+  // ======== Tab state (A/B/C) ========
   const [currentTab, setCurrentTab] = useState(0);
 
-  // 为了演示，分别存放每个Tab的查询 & 返回docs & GraphData
-  // A
+  // ======== common RAG states ========
+  const [dependencyData, setDependencyData] = useState({});
+  const [summary, setSummary] = useState([]);
+
+  // ======== step2 "selectedRisks" -> 这里我们要匹配 riskResultRow ========
+  const [selectedRiskRows, setSelectedRiskRows] = useState([]);
+
+  // For queries in each tab
   const [queryA, setQueryA] = useState('');
   const [docsA, setDocsA] = useState([]);
   const [graphA, setGraphA] = useState(null);
 
-  // B
   const [queryB, setQueryB] = useState('');
   const [docsB, setDocsB] = useState([]);
   const [graphB, setGraphB] = useState(null);
 
-  // C
   const [queryC, setQueryC] = useState('');
   const [docsC, setDocsC] = useState([]);
   const [graphC, setGraphC] = useState(null);
 
-  // 下拉选择(语言 / framework?)
   const [language, setLanguage] = useState('en');
   const [framework, setFramework] = useState('');
   const [graphLibrary, setGraphLibrary] = useState('cytoscape');
-  // loading indicator
   const [loading, setLoading] = useState(false);
+
+  /**
+   * 一进 Step3，或后续想刷新时，都可以获取 workflow
+   * -> 读 step2.selectedRisks[] (仅 references)
+   * -> 读 step2.riskResult[] (最新score)
+   * -> 对应匹配 => build selectedRiskRows
+   */
+  useEffect(() => {
+    fetchSelectedRisksAndBuildRows();
+  }, []);
+
+  async function fetchSelectedRisksAndBuildRows() {
+    try {
+      setLoading(true);
+      const wfRes = await fetch(`${DOMAIN}/workflow`);
+      const wfData = await wfRes.json();
+
+      // step2.riskResult
+      const riskRes = wfData.step2?.riskResult || [];
+      // step2.selectedRisks: [{hazard, systemName, subSystemName}, ...]
+      const selectedRefs = wfData.step2?.selectedRisks || [];
+
+      // 用 selectedRefs 去匹配 riskRes 里的行
+      // 这样就能拿到最新的 impact/likelihood/riskScore
+      const matched = selectedRefs.map((ref) => {
+        return riskRes.find(
+          (row) =>
+            row.hazard === ref.hazard &&
+            row.systemName === ref.systemName &&
+            row.subSystemName === ref.subSystemName
+        );
+      });
+      // 过滤掉 null/undefined
+      const validRows = matched.filter(Boolean);
+
+      setSelectedRiskRows(validRows);
+    } catch (err) {
+      console.error('Error loading selected risks', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const handleChangeTab = (event, newValue) => {
     setCurrentTab(newValue);
   };
 
-  // ======== RAG Search (MultiRAG) for a given tab ========
+  // ======== RAG Search for a given tab ========
   async function handleAskRAG(whichTab) {
     setLoading(true);
     try {
-      // 1) pick query & setDocs
       let query = '';
       if (whichTab === 'A') query = queryA;
       else if (whichTab === 'B') query = queryB;
       else query = queryC;
+
       if (!query.trim()) {
         alert('Please type a query');
         setLoading(false);
         return;
       }
 
-      // 2) call /multiRAG/query
       const resp = await axios.post(`${DOMAIN}/multiRAG/query`, {
         fileKeys: [],
-        dependencyData, // from right side
+        dependencyData,
         userQuery: query,
         language,
         customFields: [],
       });
       const { docs = [] } = resp.data || {};
 
-      // 3) store in state
       if (whichTab === 'A') setDocsA(docs);
       else if (whichTab === 'B') setDocsB(docs);
       else setDocsC(docs);
@@ -109,20 +140,6 @@ function Step3ParallelTasks() {
     }
   }
 
-  // ======== Add to Summary ========
-  function handleAddToSummary(doc) {
-    // doc.pageContent...
-    // 这里简单存 { text: doc.pageContent }
-    setSummary((prev) => [
-      ...prev,
-      {
-        text: doc.pageContent.slice(0, 100), //截断
-        metadata: doc.metadata,
-        addedAt: new Date().toLocaleTimeString(),
-      },
-    ]);
-  }
-
   // ======== Build Graph ========
   async function handleBuildGraph(whichTab) {
     try {
@@ -130,13 +147,14 @@ function Step3ParallelTasks() {
       if (whichTab === 'A') docs = docsA;
       else if (whichTab === 'B') docs = docsB;
       else docs = docsC;
+
       if (docs.length === 0) {
         alert('No docs found, search first');
         return;
       }
       const resp = await axios.post(`${DOMAIN}/multiRAG/buildGraph`, {
         docs,
-        frameworkName: framework, // e.g. "AIA"
+        frameworkName: framework,
       });
       const { graphData } = resp.data;
       if (whichTab === 'A') setGraphA(graphData);
@@ -148,7 +166,19 @@ function Step3ParallelTasks() {
     }
   }
 
-  // ======== Render sub steps ========
+  // ======== Add to Summary ========
+  function handleAddToSummary(doc) {
+    setSummary((prev) => [
+      ...prev,
+      {
+        text: doc.pageContent.slice(0, 100),
+        metadata: doc.metadata,
+        addedAt: new Date().toLocaleTimeString(),
+      },
+    ]);
+  }
+
+  // ======== Render tab content ========
   const renderTabContent = (whichTab, query, setQuery, docs, graph) => {
     return (
       <Box>
@@ -208,26 +238,20 @@ function Step3ParallelTasks() {
             </Select>
           </FormControl>
         </Box>
-        {/* Render docs */}
-        <Box>
-          <Typography variant="subtitle1">Search Results:</Typography>
-          {docs.length === 0 && <Typography>No results yet.</Typography>}
-          {docs.map((doc, idx) => (
-            <Card key={idx} sx={{ mb: 1, p: 1 }}>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {doc.pageContent?.slice(0, 200)}...
-              </Typography>
-              <Button
-                variant="text"
-                onClick={() => handleAddToSummary(doc)}
-                sx={{ mt: 1 }}
-              >
-                + Add to Summary
-              </Button>
-            </Card>
-          ))}
-        </Box>
-        {/* Render Graph */}
+        {/* Results */}
+        <Typography variant="subtitle1">Search Results:</Typography>
+        {docs.length === 0 && <Typography>No results yet.</Typography>}
+        {docs.map((doc, idx) => (
+          <Card key={idx} sx={{ mb: 1, p: 1 }}>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+              {doc.pageContent?.slice(0, 200)}...
+            </Typography>
+            <Button variant="text" onClick={() => handleAddToSummary(doc)}>
+              + Add to Summary
+            </Button>
+          </Card>
+        ))}
+        {/* Graph */}
         {graph && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1">Graph Visualization:</Typography>
@@ -272,7 +296,7 @@ function Step3ParallelTasks() {
           renderTabContent('C', queryC, setQueryC, docsC, graphC)}
       </Box>
 
-      {/* 右侧: Project Context + Current Summary */}
+      {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentSummary) */}
       <Box
         sx={{
           width: 400,
@@ -284,29 +308,84 @@ function Step3ParallelTasks() {
         }}
       >
         <Toolbar />
-        {/* Project Context */}
-        <Box sx={{ flex: 1, p: 2, overflowY: 'auto' }}>
-          <Typography variant="h6">Project Context</Typography>
-          <DependencySelector onChange={(data) => setDependencyData(data)} />
-        </Box>
-        <Divider />
-        {/* Current Summary */}
-        <Box sx={{ flex: 1, p: 2, overflowY: 'auto' }}>
-          <Typography variant="h6">Current Summary</Typography>
-          {summary.length === 0 ? (
-            <Typography>No items yet.</Typography>
-          ) : (
-            <List dense>
-              {summary.map((item, idx) => (
-                <ListItem key={idx}>
-                  <ListItemText
-                    primary={item.text}
-                    secondary={`Added at ${item.addedAt}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          )}
+
+        {loading && (
+          <Box sx={{ textAlign: 'center', mt: 2 }}>
+            <CircularProgress />
+          </Box>
+        )}
+
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          {/* (1) Project Context */}
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Project Context</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <DependencySelector
+                onChange={(data) => setDependencyData(data)}
+              />
+            </AccordionDetails>
+          </Accordion>
+
+          <Divider />
+
+          {/* (2) Selected Risks */}
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Selected Risks (from Step2)</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {selectedRiskRows.length === 0 ? (
+                <Typography>No risk selected or all are zeroed out.</Typography>
+              ) : (
+                <List dense>
+                  {selectedRiskRows.map((r, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemText
+                        primary={`${r.hazard} / ${r.systemName} / ${r.subSystemName}`}
+                        secondary={`Impact=${r.impactRating}, Likelihood=${r.likelihoodRating}, Score=${r.riskScore}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+              {/* 还可加个“Refresh”按钮：重新获取step2最新 */}
+              <Button
+                variant="outlined"
+                size="small"
+                sx={{ mt: 2 }}
+                onClick={fetchSelectedRisksAndBuildRows}
+              >
+                Refresh
+              </Button>
+            </AccordionDetails>
+          </Accordion>
+
+          <Divider />
+
+          {/* (3) Current Summary */}
+          <Accordion>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Current Summary</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {summary.length === 0 ? (
+                <Typography>No items yet.</Typography>
+              ) : (
+                <List dense>
+                  {summary.map((item, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemText
+                        primary={item.text}
+                        secondary={`Added at ${item.addedAt}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </AccordionDetails>
+          </Accordion>
         </Box>
       </Box>
     </Box>
