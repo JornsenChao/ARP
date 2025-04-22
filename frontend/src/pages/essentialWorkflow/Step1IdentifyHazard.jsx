@@ -60,7 +60,7 @@ function CustomYAxisTick(props) {
 }
 
 function Step1IdentifyHazard() {
-  const { workflowState, updateStep1Hazards } = useContext(
+  const { workflowState, updateStep1Hazards, setWorkflowState } = useContext(
     EssentialWorkflowContext
   );
 
@@ -120,6 +120,24 @@ function Step1IdentifyHazard() {
     } else {
       updateStep1Hazards([...currentSelected, hazard]);
     }
+  }
+
+  // 更新 step1.hazards + 同步到后端
+  // function updateStep1Hazards(newHazards) {
+  //   setWorkflowState((prev) => {
+  //     const updated = { ...prev };
+  //     updated.step1.hazards = newHazards;
+  //     return updated;
+  //   });
+  // }
+
+  // 将 allRecords 存入 workflowState.step1.femaRecords
+  function saveAllRecordsToState() {
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.femaRecords = allRecords;
+      return updated;
+    });
   }
 
   // -------------- 时间段过滤 --------------
@@ -302,11 +320,22 @@ function Step1IdentifyHazard() {
         </Typography>
       </Box>
 
+      {/* <Box sx={{ mt: 2 }}>
+        <Button
+          variant="contained"
+          disabled={allRecords.length === 0}
+          onClick={saveAllRecordsToState}
+        >
+          Save FEMA Records to State
+        </Button>
+      </Box> */}
+
       {/* 下一步按钮 */}
       <Box sx={{ mt: 2 }}>
         <Button
           variant="contained"
           disabled={selectedHazards.length === 0}
+          onClick={saveAllRecordsToState}
           component={Link}
           to="/workflow/step2"
         >

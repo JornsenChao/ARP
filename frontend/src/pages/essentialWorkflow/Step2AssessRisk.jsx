@@ -17,13 +17,25 @@ import {
   TableContainer,
   TableHead,
   IconButton,
+  List,
+  ListItem,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Checkbox,
   FormControlLabel,
+  Divider,
 } from '@mui/material';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer,
+} from 'recharts';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
@@ -478,19 +490,18 @@ function SystemRow({
    (B) Likelihood Assessment
   ===========================================
 */
-function LikelihoodAssessment({ activeTabIndex }) {
+function LikelihoodAssessment() {
   const { workflowState } = useContext(EssentialWorkflowContext);
-  const hazards = workflowState?.step1?.hazards || [];
+  // hazards: 来自 Step1
+  const selectedHazards = workflowState?.step1?.hazards || [];
+  // 全部FEMA记录: Step1 中保存
+  const allFemaRecords = workflowState?.step1?.femaRecords || [];
 
   const [likelihoodMap, setLikelihoodMap] = useState({});
 
-  // 当 activeTabIndex===1 时，执行 fetch
   useEffect(() => {
-    if (activeTabIndex === 1) {
-      buildLocalLikelihoodFromServer();
-    }
-    // eslint-disable-next-line
-  }, [activeTabIndex]);
+    buildLocalLikelihoodFromServer();
+  }, []);
 
   async function buildLocalLikelihoodFromServer() {
     try {
@@ -544,17 +555,22 @@ function LikelihoodAssessment({ activeTabIndex }) {
     }
   }
 
-  if (!hazards.length) {
-    return <Typography>No hazards found. Please go back to Step1.</Typography>;
+  if (!selectedHazards.length) {
+    return (
+      <Typography>
+        No hazards selected in Step1. Please go back to Step1.
+      </Typography>
+    );
   }
 
   return (
     <Box>
       <Typography variant="h6">Likelihood Assessment</Typography>
       <Typography paragraph>
-        Assign a likelihood (1~5) for each hazard's chance of occurrence.
+        For each hazard you selected in Step1, assign a likelihood (1~5).
       </Typography>
 
+      {/* Clear按钮 */}
       <Box sx={{ mb: 1 }}>
         <Button
           variant="outlined"
@@ -565,43 +581,153 @@ function LikelihoodAssessment({ activeTabIndex }) {
         </Button>
       </Box>
 
-      <Paper sx={{ p: 2, maxWidth: 400, mb: 2 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Hazard</TableCell>
-              <TableCell>Likelihood (1~5)</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {hazards.map((hz) => {
-              const val = likelihoodMap[hz] || '';
-              return (
-                <TableRow key={hz}>
-                  <TableCell>{hz}</TableCell>
-                  <TableCell>
-                    <TextField
-                      type="number"
-                      size="small"
-                      value={val}
-                      onChange={(e) =>
-                        handleLikelihoodChange(hz, e.target.value)
-                      }
-                      onBlur={() => handleLikelihoodBlur(hz)}
-                      sx={{ width: 60 }}
-                      inputProps={{ min: 1, max: 5 }}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Paper>
+      {/* 显示 IncidentType Frequency 但仅限已选 hazards */}
+      <HazardFrequencyChart
+        selectedHazards={selectedHazards}
+        allFemaRecords={allFemaRecords}
+      />
+
+      {/* 显示 FEMA 记录表，但仅限 incidentType 在 selectedHazards 之内 */}
+      <HazardRecordsTable
+        selectedHazards={selectedHazards}
+        allFemaRecords={allFemaRecords}
+      />
+
+      {/* Likelihood input */}
+      <Box sx={{ mt: 3 }}>
+        <Paper sx={{ p: 2, maxWidth: 400, mb: 2 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Hazard</TableCell>
+                <TableCell>Likelihood (1~5)</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {selectedHazards.map((hz) => {
+                const val = likelihoodMap[hz] || '';
+                return (
+                  <TableRow key={hz}>
+                    <TableCell>{hz}</TableCell>
+                    <TableCell>
+                      <TextField
+                        type="number"
+                        size="small"
+                        value={val}
+                        onChange={(e) => handleLikelihoodChange(hz, e.target.value)}
+                        onBlur={() => handleLikelihoodBlur(hz)}
+                        sx={{ width: 60 }}
+                        inputProps={{ min: 1, max: 5 }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Paper>
+      </Box>
     </Box>
   );
 }
 
+/**
+ * (B1) HazardFrequencyChart
+ * 绘制 “IncidentType Frequency” 但只针对用户在 Step1 中选的 hazards
+ */
+function HazardFrequencyChart({ selectedHazards, allFemaRecords }) {
+  // 过滤出 incidentType ∈ selectedHazards 的记录
+  const filtered = allFemaRecords.filter((rec) =>
+    selectedHazards.includes(rec.incidentType)
+  );
+  // 做频率统计
+  const freqMap = {};
+  filtered.forEach((rec) => {
+    const t = rec.incidentType || 'Unknown';
+    freqMap[t] = (freqMap[t] || 0) + 1;
+  });
+  const chartData = Object.entries(freqMap).map(([type, count]) => ({
+    type,
+    count,
+  }));
+
+  if (!chartData.length) {
+    return (
+      <Typography color="text.secondary" sx={{ mt: 2 }}>
+        No matching FEMA records for your selected hazards.
+      </Typography>
+    );
+  }
+
+  return (
+    <Box sx={{ mt: 2, mb: 2 }}>
+      <Typography variant="subtitle1" gutterBottom>
+        IncidentType Frequency (Selected Hazards Only)
+      </Typography>
+      <Box sx={{ width: '100%', height: 150 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData} layout="vertical" margin={{ left: 70 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" />
+            <YAxis dataKey="type" type="category" width={120} />
+            <Tooltip />
+            <Bar dataKey="count" fill="#8884d8" />
+          </BarChart>
+        </ResponsiveContainer>
+      </Box>
+    </Box>
+  );
+}
+
+/**
+ * (B2) HazardRecordsTable
+ * 仅显示 incidentType ∈ selectedHazards 的 FEMA记录
+ */
+function HazardRecordsTable({ selectedHazards, allFemaRecords }) {
+  const filtered = allFemaRecords.filter((r) =>
+    selectedHazards.includes(r.incidentType)
+  );
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Typography variant="subtitle1" gutterBottom>
+        Fetched Disaster Records (Selected Hazards Only)
+      </Typography>
+      {!filtered.length ? (
+        <Typography color="text.secondary">
+          No FEMA records match your selected hazards.
+        </Typography>
+      ) : (
+        <Paper sx={{ maxHeight: 200, overflowY: 'auto', p: 1 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Title</TableCell>
+                <TableCell>IncidentType</TableCell>
+                <TableCell>BeginDate</TableCell>
+                <TableCell>EndDate</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filtered.map((rec, idx) => (
+                <TableRow key={idx}>
+                  <TableCell>{rec.title}</TableCell>
+                  <TableCell>{rec.incidentType}</TableCell>
+                  <TableCell>
+                    {rec.incidentBeginDate?.slice(0, 10) || 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {rec.incidentEndDate?.slice(0, 10) || 'N/A'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      )}
+    </Box>
+  );
+}
 /* 
   ===========================================
    (C) Prioritized Risk

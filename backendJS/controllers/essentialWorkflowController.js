@@ -4,6 +4,7 @@
 let workflowState = {
   step1: {
     hazards: [],
+    femaRecords: [],   // 新增：存放 fetchFemaData 后的全部记录
     isCompleted: false,
   },
   step2: {
