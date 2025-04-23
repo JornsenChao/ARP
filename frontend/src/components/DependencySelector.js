@@ -1,11 +1,21 @@
 // src/components/DependencySelector.js
-import React, { useState, useEffect, useRef } from 'react';
-import { Checkbox, Input, Button, Select } from 'antd';
+
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import {
+  Checkbox,
+  Input,
+  Button,
+  Select,
+  Typography,
+  Space,
+  message,
+} from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 
-// 示例：原本固定的选项
-const climateRiskOptions = [
+// 预设选项
+const climateRiskPresets = [
   { label: 'Flooding', value: 'flooding' },
   { label: 'Drought', value: 'drought' },
   { label: 'Extreme Heat Wave', value: 'heatwave' },
@@ -13,63 +23,66 @@ const climateRiskOptions = [
   { label: 'Landslide', value: 'landslide' },
 ];
 
-const regulatoryOptions = [
+const regulatoryPresets = [
   { label: 'Building Height Limit', value: 'height limit' },
   { label: 'Nature Reserve', value: 'wetland' },
 ];
 
-const projectTypeOptions = [
+const projectTypePresets = [
   { label: 'Civic Infrastructure', value: 'public building' },
   { label: 'Residential', value: 'residential' },
   { label: 'Commercial', value: 'commercial complex' },
 ];
 
-const environmentOptions = [
+const environmentPresets = [
   { label: 'Coastal', value: 'coastal' },
   { label: 'Inland', value: 'inland' },
   { label: 'Alpine', value: 'mountain' },
 ];
 
-const scaleOptions = [
+const scalePresets = [
   { label: 'Site', value: 'small-scale site' },
   { label: 'Building', value: 'medium-scale site' },
   { label: 'Campus', value: 'large-scale region' },
 ];
 
 /**
- * 现在我们希望：
- *  1) 每个区块（climateRisks / regulations / ...）都有一个下拉 Select 来让用户标记它是 dependency / reference / strategy
- *  2) 区块内也可以自定义添加选项
- *  3) 最终我们把每个区块收集成一个 { values: string[], type: 'dependency'|'reference'|'strategy' } 的对象
- *  4) 通过 onChange 回传给父组件
+ * DependencySelector:
+ *  - 5 大字段: climateRisks / regulations / projectTypes / environment / scale
+ *  - 每个字段: { values: string[], type: 'dep'|'ref'|'strategy' }
+ *  - 另有 additional
+ *  - 自定义项与预设项合并在 Set 里管理 => 不会覆盖
+ *  - 若新添加的自定义值已存在 => 忽略
  */
 const DependencySelector = ({ onChange }) => {
-  // 每个区块都用一个对象来管理 { values: string[], type: 'dependency' | 'reference' | 'strategy' }
+  // ========== State for each block ==========
+  // 例如 climateRisksData: { set: Set<string>, type: string }
+  // 内部存储 useMemo 预设 => union => build finalOptions
   const [climateRisksData, setClimateRisksData] = useState({
-    values: [],
+    set: new Set(),
     type: 'dependency',
   });
   const [regulationsData, setRegulationsData] = useState({
-    values: [],
+    set: new Set(),
     type: 'dependency',
   });
   const [projectTypesData, setProjectTypesData] = useState({
-    values: [],
+    set: new Set(),
     type: 'dependency',
   });
   const [environmentData, setEnvironmentData] = useState({
-    values: [],
+    set: new Set(),
     type: 'dependency',
   });
   const [scaleData, setScaleData] = useState({
-    values: [],
+    set: new Set(),
     type: 'dependency',
   });
 
   // 其他补充
   const [additional, setAdditional] = useState('');
 
-  // 每个区块的“自定义输入”
+  // 每个区块的自定义输入
   const [customInput, setCustomInput] = useState({
     climateRisk: '',
     regulation: '',
@@ -78,19 +91,28 @@ const DependencySelector = ({ onChange }) => {
     scale: '',
   });
 
-  // 当任何状态变更时，都合并所有数据给父组件
+  // ========== 构建 block => final output for onChange ==========
+  // 例如 climateRisksData.set => array, type => "dep|ref|str"
+  const buildBlock = (theState) => {
+    // 先把 set => array
+    return {
+      values: Array.from(theState.set),
+      type: theState.type,
+    };
+  };
+
   const prevDataRef = useRef();
   useEffect(() => {
-    // 合并
+    // 1) build the final object
     const newData = {
-      climateRisks: climateRisksData, // { values, type }
-      regulations: regulationsData,
-      projectTypes: projectTypesData,
-      environment: environmentData,
-      scale: scaleData,
-      additional, // 字符串
+      climateRisks: buildBlock(climateRisksData),
+      regulations: buildBlock(regulationsData),
+      projectTypes: buildBlock(projectTypesData),
+      environment: buildBlock(environmentData),
+      scale: buildBlock(scaleData),
+      additional,
     };
-    // 比较
+    // 2) if changed => onChange
     if (JSON.stringify(prevDataRef.current) !== JSON.stringify(newData)) {
       prevDataRef.current = newData;
       onChange?.(newData);
@@ -105,32 +127,7 @@ const DependencySelector = ({ onChange }) => {
     onChange,
   ]);
 
-  // 处理固定选项的选择
-  const handleCheckboxChange = (fieldKey, values) => {
-    // fieldKey : 'climateRisks','regulations',...
-    // values: [string, string...]
-    switch (fieldKey) {
-      case 'climateRisks':
-        setClimateRisksData((prev) => ({ ...prev, values }));
-        break;
-      case 'regulations':
-        setRegulationsData((prev) => ({ ...prev, values }));
-        break;
-      case 'projectTypes':
-        setProjectTypesData((prev) => ({ ...prev, values }));
-        break;
-      case 'environment':
-        setEnvironmentData((prev) => ({ ...prev, values }));
-        break;
-      case 'scale':
-        setScaleData((prev) => ({ ...prev, values }));
-        break;
-      default:
-        break;
-    }
-  };
-
-  // 处理类型下拉切换
+  // ========== Handler: type select (dep/ref/str) ==========
   const handleTypeChange = (fieldKey, newType) => {
     switch (fieldKey) {
       case 'climateRisks':
@@ -153,50 +150,220 @@ const DependencySelector = ({ onChange }) => {
     }
   };
 
-  // 处理自定义输入
-  const handleAddCustom = (fieldKey) => {
-    const val = customInput[fieldKey]?.trim();
-    if (!val) return;
-    let newValues;
+  // ========== Handler: checkbox group onChange ==========
+  // antd <Checkbox.Group> returns an array of [value, value]
+  // we unify with the current set => new set
+  function handleCheckboxChange(fieldKey, newArr) {
     switch (fieldKey) {
-      case 'climateRisk':
-        newValues = [...climateRisksData.values, val];
-        setClimateRisksData((prev) => ({ ...prev, values: newValues }));
+      case 'climateRisks': {
+        setClimateRisksData((prev) => {
+          return { ...prev, set: new Set(newArr) };
+        });
         break;
-      case 'regulation':
-        newValues = [...regulationsData.values, val];
-        setRegulationsData((prev) => ({ ...prev, values: newValues }));
+      }
+      case 'regulations': {
+        setRegulationsData((prev) => {
+          return { ...prev, set: new Set(newArr) };
+        });
         break;
-      case 'projectType':
-        newValues = [...projectTypesData.values, val];
-        setProjectTypesData((prev) => ({ ...prev, values: newValues }));
+      }
+      case 'projectTypes': {
+        setProjectTypesData((prev) => {
+          return { ...prev, set: new Set(newArr) };
+        });
         break;
-      case 'environment':
-        newValues = [...environmentData.values, val];
-        setEnvironmentData((prev) => ({ ...prev, values: newValues }));
+      }
+      case 'environment': {
+        setEnvironmentData((prev) => {
+          return { ...prev, set: new Set(newArr) };
+        });
         break;
-      case 'scale':
-        newValues = [...scaleData.values, val];
-        setScaleData((prev) => ({ ...prev, values: newValues }));
+      }
+      case 'scale': {
+        setScaleData((prev) => {
+          return { ...prev, set: new Set(newArr) };
+        });
         break;
+      }
       default:
         break;
     }
+  }
+
+  // ========== Handler: add custom input ==========
+  function handleAddCustom(fieldKey) {
+    const val = customInput[fieldKey]?.trim();
+    if (!val) return;
+
+    switch (fieldKey) {
+      case 'climateRisk': {
+        setClimateRisksData((prev) => {
+          if (prev.set.has(val)) {
+            // already exist => skip
+            return prev;
+          }
+          const newSet = new Set(prev.set);
+          newSet.add(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'regulation': {
+        setRegulationsData((prev) => {
+          if (prev.set.has(val)) {
+            return prev;
+          }
+          const newSet = new Set(prev.set);
+          newSet.add(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'projectType': {
+        setProjectTypesData((prev) => {
+          if (prev.set.has(val)) {
+            return prev;
+          }
+          const newSet = new Set(prev.set);
+          newSet.add(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'environment': {
+        setEnvironmentData((prev) => {
+          if (prev.set.has(val)) {
+            return prev;
+          }
+          const newSet = new Set(prev.set);
+          newSet.add(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'scale': {
+        setScaleData((prev) => {
+          if (prev.set.has(val)) {
+            return prev;
+          }
+          const newSet = new Set(prev.set);
+          newSet.add(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      default:
+        break;
+    }
+
     setCustomInput({ ...customInput, [fieldKey]: '' });
-  };
+  }
+
+  // ========== Handler: remove single custom item ==========
+  // e.g. remove "flooding" from climateRisks
+  function handleRemoveCustom(fieldKey, val) {
+    switch (fieldKey) {
+      case 'climateRisk': {
+        setClimateRisksData((prev) => {
+          const newSet = new Set(prev.set);
+          newSet.delete(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'regulation': {
+        setRegulationsData((prev) => {
+          const newSet = new Set(prev.set);
+          newSet.delete(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'projectType': {
+        setProjectTypesData((prev) => {
+          const newSet = new Set(prev.set);
+          newSet.delete(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'environment': {
+        setEnvironmentData((prev) => {
+          const newSet = new Set(prev.set);
+          newSet.delete(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      case 'scale': {
+        setScaleData((prev) => {
+          const newSet = new Set(prev.set);
+          newSet.delete(val);
+          return { ...prev, set: newSet };
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  // ========== Build final "options" for each block: preset + custom ==========
+
+  function buildOptions(presets, blockSet) {
+    // 先保留预设
+    const result = [...presets];
+    // blockSet 里可能有自定义 => 过滤掉已经在预设中的
+    // to do that, we compare value
+    // we can store all preset values in a set
+    const presetVals = new Set(presets.map((p) => p.value));
+    blockSet.forEach((val) => {
+      if (!presetVals.has(val)) {
+        // custom
+        result.push({ label: val, value: val });
+      }
+    });
+    return result;
+  }
+
+  // 构建 climateRiskOptions + user custom
+  const climateRiskFullOpts = useMemo(() => {
+    return buildOptions(climateRiskPresets, climateRisksData.set);
+    // eslint-disable-next-line
+  }, [climateRisksData.set]);
+
+  const regulationsFullOpts = useMemo(() => {
+    return buildOptions(regulatoryPresets, regulationsData.set);
+    // eslint-disable-next-line
+  }, [regulationsData.set]);
+
+  const projectTypeFullOpts = useMemo(() => {
+    return buildOptions(projectTypePresets, projectTypesData.set);
+    // eslint-disable-next-line
+  }, [projectTypesData.set]);
+
+  const environmentFullOpts = useMemo(() => {
+    return buildOptions(environmentPresets, environmentData.set);
+    // eslint-disable-next-line
+  }, [environmentData.set]);
+
+  const scaleFullOpts = useMemo(() => {
+    return buildOptions(scalePresets, scaleData.set);
+    // eslint-disable-next-line
+  }, [scaleData.set]);
 
   return (
-    <div>
-      {/* ========== climateRisks ========== */}
+    <div style={{ marginBottom: 16 }}>
+      {/* ---------- climateRisks ---------- */}
       <h4>Climate Hazard(s)</h4>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Checkbox.Group
-          options={climateRiskOptions}
-          value={climateRisksData.values}
+          options={climateRiskFullOpts}
+          value={Array.from(climateRisksData.set)}
           onChange={(vals) => handleCheckboxChange('climateRisks', vals)}
         />
         <Select
-          style={{ width: 120 }}
+          style={{ width: 100 }}
           value={climateRisksData.type}
           onChange={(val) => handleTypeChange('climateRisks', val)}
         >
@@ -205,10 +372,10 @@ const DependencySelector = ({ onChange }) => {
           <Select.Option value="strategy">str</Select.Option>
         </Select>
       </div>
-      {/* 自定义输入 */}
+      {/* custom input */}
       <div style={{ marginTop: 5 }}>
         <Input
-          style={{ width: 200 }}
+          style={{ width: 160 }}
           placeholder="Add custom hazard"
           value={customInput.climateRisk}
           onChange={(e) =>
@@ -223,17 +390,35 @@ const DependencySelector = ({ onChange }) => {
           Add
         </Button>
       </div>
+      {/* show custom items (like a small list) */}
+      <div style={{ marginLeft: 24, marginTop: 5 }}>
+        {Array.from(climateRisksData.set)
+          .filter(
+            (val) => !climateRiskPresets.some((p) => p.value === val) // not preset => custom
+          )
+          .map((val) => (
+            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
+              <Typography style={{ marginRight: 4 }}>{val}</Typography>
+              <Button
+                size="small"
+                onClick={() => handleRemoveCustom('climateRisk', val)}
+              >
+                <CloseOutlined />
+              </Button>
+            </div>
+          ))}
+      </div>
 
-      {/* ========== regulations ========== */}
+      {/* ---------- regulations ---------- */}
       <h4 style={{ marginTop: 20 }}>Code/Regulatory Requirement</h4>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Checkbox.Group
-          options={regulatoryOptions}
-          value={regulationsData.values}
+          options={regulationsFullOpts}
+          value={Array.from(regulationsData.set)}
           onChange={(vals) => handleCheckboxChange('regulations', vals)}
         />
         <Select
-          style={{ width: 120 }}
+          style={{ width: 100 }}
           value={regulationsData.type}
           onChange={(val) => handleTypeChange('regulations', val)}
         >
@@ -244,7 +429,7 @@ const DependencySelector = ({ onChange }) => {
       </div>
       <div style={{ marginTop: 5 }}>
         <Input
-          style={{ width: 200 }}
+          style={{ width: 160 }}
           placeholder="Add custom regulation"
           value={customInput.regulation}
           onChange={(e) =>
@@ -259,17 +444,32 @@ const DependencySelector = ({ onChange }) => {
           Add
         </Button>
       </div>
+      <div style={{ marginLeft: 24, marginTop: 5 }}>
+        {Array.from(regulationsData.set)
+          .filter((val) => !regulatoryPresets.some((p) => p.value === val))
+          .map((val) => (
+            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
+              <Typography style={{ marginRight: 4 }}>{val}</Typography>
+              <Button
+                size="small"
+                onClick={() => handleRemoveCustom('regulation', val)}
+              >
+                <CloseOutlined />
+              </Button>
+            </div>
+          ))}
+      </div>
 
-      {/* ========== projectTypes ========== */}
+      {/* ---------- projectTypes ---------- */}
       <h4 style={{ marginTop: 20 }}>Project Type</h4>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Checkbox.Group
-          options={projectTypeOptions}
-          value={projectTypesData.values}
+          options={projectTypeFullOpts}
+          value={Array.from(projectTypesData.set)}
           onChange={(vals) => handleCheckboxChange('projectTypes', vals)}
         />
         <Select
-          style={{ width: 120 }}
+          style={{ width: 100 }}
           value={projectTypesData.type}
           onChange={(val) => handleTypeChange('projectTypes', val)}
         >
@@ -280,8 +480,8 @@ const DependencySelector = ({ onChange }) => {
       </div>
       <div style={{ marginTop: 5 }}>
         <Input
-          style={{ width: 200 }}
-          placeholder="Add custom project type"
+          style={{ width: 160 }}
+          placeholder="Add custom projectType"
           value={customInput.projectType}
           onChange={(e) =>
             setCustomInput({ ...customInput, projectType: e.target.value })
@@ -295,17 +495,32 @@ const DependencySelector = ({ onChange }) => {
           Add
         </Button>
       </div>
+      <div style={{ marginLeft: 24, marginTop: 5 }}>
+        {Array.from(projectTypesData.set)
+          .filter((val) => !projectTypePresets.some((p) => p.value === val))
+          .map((val) => (
+            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
+              <Typography style={{ marginRight: 4 }}>{val}</Typography>
+              <Button
+                size="small"
+                onClick={() => handleRemoveCustom('projectType', val)}
+              >
+                <CloseOutlined />
+              </Button>
+            </div>
+          ))}
+      </div>
 
-      {/* ========== environment ========== */}
+      {/* ---------- environment ---------- */}
       <h4 style={{ marginTop: 20 }}>Project Geolocation</h4>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Checkbox.Group
-          options={environmentOptions}
-          value={environmentData.values}
+          options={environmentFullOpts}
+          value={Array.from(environmentData.set)}
           onChange={(vals) => handleCheckboxChange('environment', vals)}
         />
         <Select
-          style={{ width: 120 }}
+          style={{ width: 100 }}
           value={environmentData.type}
           onChange={(val) => handleTypeChange('environment', val)}
         >
@@ -316,7 +531,7 @@ const DependencySelector = ({ onChange }) => {
       </div>
       <div style={{ marginTop: 5 }}>
         <Input
-          style={{ width: 200 }}
+          style={{ width: 160 }}
           placeholder="Add custom environment"
           value={customInput.environment}
           onChange={(e) =>
@@ -331,17 +546,32 @@ const DependencySelector = ({ onChange }) => {
           Add
         </Button>
       </div>
+      <div style={{ marginLeft: 24, marginTop: 5 }}>
+        {Array.from(environmentData.set)
+          .filter((val) => !environmentPresets.some((p) => p.value === val))
+          .map((val) => (
+            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
+              <Typography style={{ marginRight: 4 }}>{val}</Typography>
+              <Button
+                size="small"
+                onClick={() => handleRemoveCustom('environment', val)}
+              >
+                <CloseOutlined />
+              </Button>
+            </div>
+          ))}
+      </div>
 
-      {/* ========== scale ========== */}
+      {/* ---------- scale ---------- */}
       <h4 style={{ marginTop: 20 }}>Project Scale</h4>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Checkbox.Group
-          options={scaleOptions}
-          value={scaleData.values}
+          options={scaleFullOpts}
+          value={Array.from(scaleData.set)}
           onChange={(vals) => handleCheckboxChange('scale', vals)}
         />
         <Select
-          style={{ width: 120 }}
+          style={{ width: 100 }}
           value={scaleData.type}
           onChange={(val) => handleTypeChange('scale', val)}
         >
@@ -352,7 +582,7 @@ const DependencySelector = ({ onChange }) => {
       </div>
       <div style={{ marginTop: 5 }}>
         <Input
-          style={{ width: 200 }}
+          style={{ width: 160 }}
           placeholder="Add custom scale"
           value={customInput.scale}
           onChange={(e) =>
@@ -367,14 +597,30 @@ const DependencySelector = ({ onChange }) => {
           Add
         </Button>
       </div>
+      <div style={{ marginLeft: 24, marginTop: 5 }}>
+        {Array.from(scaleData.set)
+          .filter((val) => !scalePresets.some((p) => p.value === val))
+          .map((val) => (
+            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
+              <Typography style={{ marginRight: 4 }}>{val}</Typography>
+              <Button
+                size="small"
+                onClick={() => handleRemoveCustom('scale', val)}
+              >
+                <CloseOutlined />
+              </Button>
+            </div>
+          ))}
+      </div>
 
-      {/* ========== Other ========== */}
+      {/* ---------- additional ---------- */}
       <h4 style={{ marginTop: 20 }}>Other</h4>
       <TextArea
         rows={3}
         placeholder="e.g. budget limited, time sensitive, etc."
         value={additional}
         onChange={(e) => setAdditional(e.target.value)}
+        style={{ width: '100%' }}
       />
     </div>
   );
