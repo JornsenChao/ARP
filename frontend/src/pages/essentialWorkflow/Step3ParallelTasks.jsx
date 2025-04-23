@@ -326,6 +326,118 @@ function Step3ParallelTasks() {
                 onChange={(data) => setDependencyData(data)}
               />
             </AccordionDetails>
+            {/* </Accordion> */}
+
+            <Divider />
+
+            {/* <Accordion defaultExpanded> */}
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Current Selection</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {/* show the user current dependencyData */}
+              <Typography variant="subtitle4">Climate Risks:</Typography>
+              <List dense>
+                {dependencyData.climateRisks?.values?.map((val) => (
+                  <ListItem key={val} disableGutters>
+                    <ListItemText primary={val} />
+                  </ListItem>
+                ))}
+              </List>
+              {/* <Typography variant="caption">
+                Type: {dependencyData.climateRisks?.type}
+              </Typography> */}
+              {/* Similarly for regulations, projectTypes, environment, scale */}
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2">Regulations:</Typography>
+              <List dense>
+                {dependencyData.regulations?.values?.map((val) => (
+                  <ListItem key={val} disableGutters>
+                    <ListItemText primary={val} />
+                  </ListItem>
+                ))}
+              </List>
+              {/* <Typography variant="caption">
+                Type: {dependencyData.regulations?.type}
+              </Typography> */}
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2">Project Types:</Typography>
+              <List dense>
+                {dependencyData.projectTypes?.values?.map((val) => (
+                  <ListItem key={val} disableGutters>
+                    <ListItemText primary={val} />
+                  </ListItem>
+                ))}
+              </List>
+              {/* <Typography variant="caption">
+                Type: {dependencyData.projectTypes?.type}
+              </Typography> */}
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2">Environment:</Typography>
+              <List dense>
+                {dependencyData.environment?.values?.map((val) => (
+                  <ListItem key={val} disableGutters>
+                    <ListItemText primary={val} />
+                  </ListItem>
+                ))}
+              </List>
+              {/* <Typography variant="caption">
+                Type: {dependencyData.environment?.type}
+              </Typography> */}
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2">Scale:</Typography>
+              <List dense>
+                {dependencyData.scale?.values?.map((val) => (
+                  <ListItem key={val} disableGutters>
+                    <ListItemText primary={val} />
+                  </ListItem>
+                ))}
+              </List>
+              {/* <Typography variant="caption">
+                Type: {dependencyData.scale?.type}
+              </Typography> */}
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2">Other Info:</Typography>
+              <Typography variant="body2">
+                {dependencyData.additional || '(none)'}
+              </Typography>
+
+              <Divider sx={{ my: 2 }} />
+
+              {/* ========== 新增：显示自定义字段 otherData ========== */}
+              <Typography variant="subtitle2">Custom Fields:</Typography>
+              {/* 如果没有任何自定义字段 */}
+              {Object.keys(dependencyData.otherData || {}).length === 0 ? (
+                <Typography variant="body2">(none)</Typography>
+              ) : (
+                // 遍历 each fieldName => array of string
+                Object.entries(dependencyData.otherData).map(
+                  ([fieldName, arrOfVals]) => (
+                    <div key={fieldName} style={{ marginTop: '0.5rem' }}>
+                      <Typography
+                        variant="subtitle2"
+                        sx={{ fontWeight: 'bold' }}
+                      >
+                        {fieldName}
+                      </Typography>
+                      {arrOfVals?.length > 0 ? (
+                        <List dense>
+                          {arrOfVals.map((val) => (
+                            <ListItem key={val} disableGutters>
+                              <ListItemText primary={val} />
+                            </ListItem>
+                          ))}
+                        </List>
+                      ) : (
+                        <Typography variant="body2" sx={{ ml: 2 }}>
+                          (no values)
+                        </Typography>
+                      )}
+                    </div>
+                  )
+                )
+              )}
+            </AccordionDetails>
           </Accordion>
 
           <Divider />

@@ -1,6 +1,6 @@
 // src/pages/essentialWorkflow/Step2AssessRisk.jsx
 
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -24,7 +24,7 @@ import {
   Select,
   MenuItem,
   Checkbox,
-  FormControlLabel,  
+  FormControlLabel,
   Divider,
   Radio,
   RadioGroup,
@@ -49,7 +49,12 @@ import {
 function Step2AssessRisk() {
   const { workflowState } = useContext(EssentialWorkflowContext);
   const [currentTab, setCurrentTab] = useState(0);
-
+  const handleNextTaskClick = () => {
+    // 这里可以做：若 currentTab < 2, 就 setCurrentTab(currentTab + 1);
+    if (currentTab < 2) {
+      setCurrentTab(currentTab + 1);
+    }
+  };
   if (!workflowState) {
     return <Box sx={{ mt: 8, p: 2 }}>Loading Step 2...</Box>;
   }
@@ -74,6 +79,18 @@ function Step2AssessRisk() {
       {currentTab === 0 && <ImpactAssessment activeTabIndex={currentTab} />}
       {currentTab === 1 && <LikelihoodAssessment activeTabIndex={currentTab} />}
       {currentTab === 2 && <PrioritizedRisk activeTabIndex={currentTab} />}
+
+      <Box sx={{ mt: 2 }}>
+        {currentTab < 2 ? (
+          <Button variant="contained" onClick={handleNextTaskClick}>
+            Next Task (within Step2)
+          </Button>
+        ) : (
+          <Button variant="contained" component={Link} to="/workflow/step3">
+            Next Step (Step3)
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -678,7 +695,28 @@ const LikelihoodAssessment = () => {
     }
     return ''; // don't show label
   }
+  // ========== Color logic for hazards =======
+  // define a dynamic color function => each hazard => hue
+  // if we have N hazards, distribute them evenly in [0..360)
+  // for stable order => sort hazards
+  const sortedHazards = [...chartHazards].sort();
+  const colorMap = useMemo(() => {
+    const mapObj = {};
+    const n = sortedHazards.length;
+    sortedHazards.forEach((hz, idx) => {
+      const hue = Math.round((360 / n) * idx);
+      // give some fixed saturation/lightness => produce "in harmony" pastel
+      const sat = 60; // can tweak
+      const light = 60; // can tweak
+      mapObj[hz] = `hsl(${hue}, ${sat}%, ${light}%)`;
+    });
+    return mapObj;
+    // eslint-disable-next-line
+  }, [JSON.stringify(sortedHazards)]);
 
+  function getColorForHazard(hz) {
+    return colorMap[hz] || '#888888';
+  }
   // =========== Focus Hazards UI ==============
   // user can check or uncheck each hazard in selectedHazards => store in userFocusHazards
   function handleFocusHazardToggle(hz) {
@@ -692,9 +730,7 @@ const LikelihoodAssessment = () => {
   }
   // if userFocusHazards is empty => means show all
   function isHazardFocused(hz) {
-    return userFocusHazards.length
-      ? userFocusHazards.includes(hz)
-      : true; // default all
+    return userFocusHazards.length ? userFocusHazards.includes(hz) : true; // default all
   }
 
   return (
@@ -780,15 +816,16 @@ const LikelihoodAssessment = () => {
               {/* For each hazard in chartHazards => one <Bar dataKey=hz> */}
               {chartHazards.map((hz, idx) => {
                 // pick color? you can define a color array
-                const colorArr = [
-                  '#8884d8',
-                  '#82ca9d',
-                  '#ffc658',
-                  '#d84f52',
-                  '#6a9cf3',
-                  '#29cae4',
-                ];
-                const barColor = colorArr[idx % colorArr.length];
+                // const colorArr = [
+                //   '#8884d8',
+                //   '#82ca9d',
+                //   '#ffc658',
+                //   '#d84f52',
+                //   '#6a9cf3',
+                //   '#29cae4',
+                // ];
+                // const barColor = colorArr[idx % colorArr.length];
+                const barColor = getColorForHazard(hz);
                 return <Bar key={hz} dataKey={hz} fill={barColor} />;
               })}
             </BarChart>
@@ -819,7 +856,9 @@ const LikelihoodAssessment = () => {
                       type="number"
                       size="small"
                       value={val}
-                      onChange={(e) => handleLikelihoodChange(hz, e.target.value)}
+                      onChange={(e) =>
+                        handleLikelihoodChange(hz, e.target.value)
+                      }
                       onBlur={() => handleLikelihoodBlur(hz)}
                       sx={{ width: 60 }}
                       inputProps={{ min: 1, max: 5 }}

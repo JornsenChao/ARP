@@ -60,7 +60,7 @@ function CustomYAxisTick(props) {
 }
 
 function Step1IdentifyHazard() {
-  const { workflowState, updateStep1Hazards, setWorkflowState } = useContext(
+  const { workflowState, setWorkflowState } = useContext(
     EssentialWorkflowContext
   );
 
@@ -114,22 +114,25 @@ function Step1IdentifyHazard() {
 
   // 切换 hazards 选中
   function toggleHazard(hazard) {
-    const currentSelected = selectedHazards;
-    if (currentSelected.includes(hazard)) {
-      updateStep1Hazards(currentSelected.filter((h) => h !== hazard));
+    if (selectedHazards.includes(hazard)) {
+      updateStep1Hazards(selectedHazards.filter((h) => h !== hazard));
     } else {
-      updateStep1Hazards([...currentSelected, hazard]);
+      updateStep1Hazards([...selectedHazards, hazard]);
     }
   }
 
   // 更新 step1.hazards + 同步到后端
-  // function updateStep1Hazards(newHazards) {
-  //   setWorkflowState((prev) => {
-  //     const updated = { ...prev };
-  //     updated.step1.hazards = newHazards;
-  //     return updated;
-  //   });
-  // }
+  function updateStep1Hazards(newHazards) {
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.hazards = newHazards;
+      return updated;
+    });
+  }
+
+  function clearSelectedHazards() {
+    updateStep1Hazards([]);
+  }
 
   // 将 allRecords 存入 workflowState.step1.femaRecords
   function saveAllRecordsToState() {
@@ -329,6 +332,16 @@ function Step1IdentifyHazard() {
           Save FEMA Records to State
         </Button>
       </Box> */}
+      <Box sx={{ mt: 1 }}>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={clearSelectedHazards}
+          disabled={selectedHazards.length === 0}
+        >
+          Clear Selected Hazards
+        </Button>
+      </Box>
 
       {/* 下一步按钮 */}
       <Box sx={{ mt: 2 }}>
