@@ -24,9 +24,16 @@ import {
   Select,
   MenuItem,
   Checkbox,
-  FormControlLabel,
+  FormControlLabel,  
   Divider,
+  Radio,
+  RadioGroup,
 } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
+import { Link } from 'react-router-dom';
+import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
+
+// Recharts
 import {
   BarChart,
   Bar,
@@ -34,11 +41,10 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
+  Tooltip as RTooltip,
 } from 'recharts';
-import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
-import { Link } from 'react-router-dom';
-import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 
 function Step2AssessRisk() {
   const { workflowState } = useContext(EssentialWorkflowContext);
@@ -488,22 +494,31 @@ function SystemRow({
 /* 
   ===========================================
    (B) Likelihood Assessment
+   重点：增加“Yearly BarChart” + “Focus Hazards” + “Aggregate by Decade”
   ===========================================
 */
-function LikelihoodAssessment() {
+const LikelihoodAssessment = () => {
   const { workflowState } = useContext(EssentialWorkflowContext);
-  // hazards: 来自 Step1
+
+  // 1) 从 Step1 获取用户选中的 hazards + FEMA记录
   const selectedHazards = workflowState?.step1?.hazards || [];
-  // 全部FEMA记录: Step1 中保存
   const allFemaRecords = workflowState?.step1?.femaRecords || [];
 
+  // 2) Step2 Likelihood Data
   const [likelihoodMap, setLikelihoodMap] = useState({});
+
+  // 3) 额外：Chart aggregator: "year" / "decade"
+  const [aggregator, setAggregator] = useState('year');
+  // 4) Focus hazards：如果用户想只看部分 hazards
+  //   如果 userFocusHazards.length===0 表示显示全部 selectedHazards
+  const [userFocusHazards, setUserFocusHazards] = useState([]);
 
   useEffect(() => {
     buildLocalLikelihoodFromServer();
   }, []);
 
-  async function buildLocalLikelihoodFromServer() {
+  // 拉取后端 step2.likelihoodData => 存到 local state
+  const buildLocalLikelihoodFromServer = async () => {
     try {
       const res = await fetch('http://localhost:8000/workflow');
       const fullState = await res.json();
@@ -516,9 +531,9 @@ function LikelihoodAssessment() {
     } catch (err) {
       console.error('Error fetching likelihood data:', err);
     }
-  }
+  };
 
-  async function handleClearLikelihood() {
+  const handleClearLikelihood = async () => {
     const yes = window.confirm('Clear all Likelihood Assessment data?');
     if (!yes) return;
     try {
@@ -529,7 +544,7 @@ function LikelihoodAssessment() {
     } catch (err) {
       console.error('Error clearing likelihood data:', err);
     }
-  }
+  };
 
   function handleLikelihoodChange(hazard, valStr) {
     let val = parseInt(valStr, 10);
@@ -555,179 +570,271 @@ function LikelihoodAssessment() {
     }
   }
 
-  if (!selectedHazards.length) {
+  if (selectedHazards.length === 0) {
     return (
-      <Typography>
+      <Typography sx={{ mt: 2 }}>
         No hazards selected in Step1. Please go back to Step1.
       </Typography>
     );
   }
 
-  return (
-    <Box>
-      <Typography variant="h6">Likelihood Assessment</Typography>
-      <Typography paragraph>
-        For each hazard you selected in Step1, assign a likelihood (1~5).
-      </Typography>
+  // =========== 生成 grouped-bar-chart 数据 ==============
+  // aggregator: "year" or "decade"
+  // userFocusHazards: 如果空 => 用 selectedHazards；否则只用 userFocusHazards
+  const chartHazards = userFocusHazards.length
+    ? userFocusHazards
+    : selectedHazards;
 
-      {/* Clear按钮 */}
-      <Box sx={{ mb: 1 }}>
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={handleClearLikelihood}
-        >
-          Clear Current Input
-        </Button>
-      </Box>
-
-      {/* 显示 IncidentType Frequency 但仅限已选 hazards */}
-      <HazardFrequencyChart
-        selectedHazards={selectedHazards}
-        allFemaRecords={allFemaRecords}
-      />
-
-      {/* 显示 FEMA 记录表，但仅限 incidentType 在 selectedHazards 之内 */}
-      <HazardRecordsTable
-        selectedHazards={selectedHazards}
-        allFemaRecords={allFemaRecords}
-      />
-
-      {/* Likelihood input */}
-      <Box sx={{ mt: 3 }}>
-        <Paper sx={{ p: 2, maxWidth: 400, mb: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Hazard</TableCell>
-                <TableCell>Likelihood (1~5)</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {selectedHazards.map((hz) => {
-                const val = likelihoodMap[hz] || '';
-                return (
-                  <TableRow key={hz}>
-                    <TableCell>{hz}</TableCell>
-                    <TableCell>
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={val}
-                        onChange={(e) => handleLikelihoodChange(hz, e.target.value)}
-                        onBlur={() => handleLikelihoodBlur(hz)}
-                        sx={{ width: 60 }}
-                        inputProps={{ min: 1, max: 5 }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Paper>
-      </Box>
-    </Box>
-  );
-}
-
-/**
- * (B1) HazardFrequencyChart
- * 绘制 “IncidentType Frequency” 但只针对用户在 Step1 中选的 hazards
- */
-function HazardFrequencyChart({ selectedHazards, allFemaRecords }) {
-  // 过滤出 incidentType ∈ selectedHazards 的记录
-  const filtered = allFemaRecords.filter((rec) =>
+  // 1) 先抽取 relevantRecords: incidentType in selectedHazards
+  const relevantRecords = allFemaRecords.filter((rec) =>
     selectedHazards.includes(rec.incidentType)
   );
-  // 做频率统计
-  const freqMap = {};
-  filtered.forEach((rec) => {
-    const t = rec.incidentType || 'Unknown';
-    freqMap[t] = (freqMap[t] || 0) + 1;
-  });
-  const chartData = Object.entries(freqMap).map(([type, count]) => ({
-    type,
-    count,
-  }));
 
-  if (!chartData.length) {
-    return (
-      <Typography color="text.secondary" sx={{ mt: 2 }}>
-        No matching FEMA records for your selected hazards.
-      </Typography>
-    );
+  // 2) 解析 rec.incidentBeginDate -> year
+  // aggregator=year => xKey = "YYYY"
+  // aggregator=decade => xKey = "YYYYs" e.g. "1970s"
+  let minYear = 9999;
+  let maxYear = 0;
+  const parsed = relevantRecords.map((r) => {
+    let y = 1900;
+    if (r.incidentBeginDate) {
+      const tmp = new Date(r.incidentBeginDate);
+      y = tmp.getFullYear();
+    }
+    if (y < minYear) minYear = y;
+    if (y > maxYear) maxYear = y;
+    return {
+      incidentType: r.incidentType,
+      year: y,
+    };
+  });
+  if (minYear > maxYear) {
+    // 说明根本没记录 => 返回空chart
+    minYear = 0;
+    maxYear = 0;
+  }
+
+  // aggregator => xVal
+  function getXVal(yearNum) {
+    if (aggregator === 'year') return yearNum.toString();
+    // "decade"
+    // 例如 1970~1979 => "1970s"
+    // 2001 => 2000s
+    const decadeStart = Math.floor(yearNum / 10) * 10;
+    return decadeStart + 's';
+  }
+
+  // 3) 构建 => { [xVal]: { hazardA: count, hazardB: count, ... } }
+  const grouped = {};
+  parsed.forEach((item) => {
+    const xVal = getXVal(item.year);
+    if (!grouped[xVal]) {
+      grouped[xVal] = {};
+    }
+    const hazard = item.incidentType;
+    if (!grouped[xVal][hazard]) {
+      grouped[xVal][hazard] = 0;
+    }
+    grouped[xVal][hazard]++;
+  });
+
+  // 4) 按 aggregator => 构造 xVals
+  //   if aggregator="year", x从 minYear..maxYear
+  //   if aggregator="decade", x从 (floor(minYear/10)*10) 到 (floor(maxYear/10)*10)
+  let xValList = [];
+  if (aggregator === 'year') {
+    for (let y = minYear; y <= maxYear; y++) {
+      xValList.push(getXVal(y));
+    }
+  } else {
+    const startDecade = Math.floor(minYear / 10) * 10;
+    const endDecade = Math.floor(maxYear / 10) * 10;
+    for (let d = startDecade; d <= endDecade; d += 10) {
+      xValList.push(d + 's');
+    }
+  }
+
+  // 5) 构建 final data array => each item = { xVal, hazardA: n, hazardB: n, ... }
+  //   for xVal in xValList => for hazard in chartHazards
+  const chartData = xValList.map((xval) => {
+    const row = { xval };
+    chartHazards.forEach((hz) => {
+      row[hz] = grouped[xval]?.[hz] || 0;
+    });
+    return row;
+  });
+
+  // X轴自定义tick: 仅显示 "1970" "1980" "1990" "2000" "2010" "2020" 当 aggregator=year
+  // aggregator=decade => 全部直接显示 "1970s" "1980s" ...
+  function xAxisTickFormatter(value) {
+    if (aggregator === 'decade') {
+      return value; // "1970s", "1980s", ...
+    }
+    // aggregator=year => value is e.g. "1977"
+    // show label only if it's multiple of 10
+    const numYear = Number(value);
+    if (!Number.isNaN(numYear) && numYear % 10 === 0) {
+      return value;
+    }
+    return ''; // don't show label
+  }
+
+  // =========== Focus Hazards UI ==============
+  // user can check or uncheck each hazard in selectedHazards => store in userFocusHazards
+  function handleFocusHazardToggle(hz) {
+    setUserFocusHazards((prev) => {
+      if (prev.includes(hz)) {
+        return prev.filter((h) => h !== hz);
+      } else {
+        return [...prev, hz];
+      }
+    });
+  }
+  // if userFocusHazards is empty => means show all
+  function isHazardFocused(hz) {
+    return userFocusHazards.length
+      ? userFocusHazards.includes(hz)
+      : true; // default all
   }
 
   return (
-    <Box sx={{ mt: 2, mb: 2 }}>
-      <Typography variant="subtitle1" gutterBottom>
-        IncidentType Frequency (Selected Hazards Only)
+    <Box>
+      <Typography variant="h6" gutterBottom>
+        Likelihood Assessment
       </Typography>
-      <Box sx={{ width: '100%', height: 150 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} layout="vertical" margin={{ left: 70 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="type" type="category" width={120} />
-            <Tooltip />
-            <Bar dataKey="count" fill="#8884d8" />
-          </BarChart>
-        </ResponsiveContainer>
+      <Typography paragraph>
+        1) Each hazard's frequency by year or decade. 2) Assign a 1~5
+        likelihood. 3) Clear if needed.
+      </Typography>
+
+      {/* Clear */}
+      <Button
+        variant="outlined"
+        color="error"
+        onClick={handleClearLikelihood}
+        sx={{ mb: 2 }}
+      >
+        Clear Current Input
+      </Button>
+
+      {/* Aggregator Switch */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+        <Typography>Aggregation:</Typography>
+        <RadioGroup
+          row
+          value={aggregator}
+          onChange={(e) => setAggregator(e.target.value)}
+        >
+          <FormControlLabel value="year" control={<Radio />} label="By Year" />
+          <FormControlLabel
+            value="decade"
+            control={<Radio />}
+            label="By Decade"
+          />
+        </RadioGroup>
       </Box>
-    </Box>
-  );
-}
 
-/**
- * (B2) HazardRecordsTable
- * 仅显示 incidentType ∈ selectedHazards 的 FEMA记录
- */
-function HazardRecordsTable({ selectedHazards, allFemaRecords }) {
-  const filtered = allFemaRecords.filter((r) =>
-    selectedHazards.includes(r.incidentType)
-  );
+      {/* Focus hazard checkboxes */}
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+        <Typography>Focus Hazards:</Typography>
+        {selectedHazards.map((hz) => {
+          const checked = userFocusHazards.includes(hz);
+          return (
+            <FormControlLabel
+              key={hz}
+              control={
+                <Checkbox
+                  checked={checked}
+                  onChange={() => handleFocusHazardToggle(hz)}
+                />
+              }
+              label={hz}
+            />
+          );
+        })}
+        <Tooltip title="If no hazard is checked, chart includes all hazards.">
+          <Typography variant="body2" color="text.secondary">
+            (Leave blank to show all)
+          </Typography>
+        </Tooltip>
+      </Box>
 
-  return (
-    <Box sx={{ mt: 2 }}>
-      <Typography variant="subtitle1" gutterBottom>
-        Fetched Disaster Records (Selected Hazards Only)
+      {/* Chart */}
+      <Paper sx={{ width: '100%', height: 400, p: 1, mb: 2 }}>
+        {chartData.length === 0 ? (
+          <Typography color="text.secondary" sx={{ mt: 2 }}>
+            No records found for your selected hazards.
+          </Typography>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                dataKey="xval"
+                tickFormatter={xAxisTickFormatter}
+                interval={0} // ensure we check every tick
+              />
+              <YAxis />
+              <RTooltip />
+              <Legend />
+              {/* For each hazard in chartHazards => one <Bar dataKey=hz> */}
+              {chartHazards.map((hz, idx) => {
+                // pick color? you can define a color array
+                const colorArr = [
+                  '#8884d8',
+                  '#82ca9d',
+                  '#ffc658',
+                  '#d84f52',
+                  '#6a9cf3',
+                  '#29cae4',
+                ];
+                const barColor = colorArr[idx % colorArr.length];
+                return <Bar key={hz} dataKey={hz} fill={barColor} />;
+              })}
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </Paper>
+
+      {/* Likelihood input table */}
+      <Typography variant="subtitle1" sx={{ mb: 1 }}>
+        Set Likelihood (1~5)
       </Typography>
-      {!filtered.length ? (
-        <Typography color="text.secondary">
-          No FEMA records match your selected hazards.
-        </Typography>
-      ) : (
-        <Paper sx={{ maxHeight: 200, overflowY: 'auto', p: 1 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>IncidentType</TableCell>
-                <TableCell>BeginDate</TableCell>
-                <TableCell>EndDate</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filtered.map((rec, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{rec.title}</TableCell>
-                  <TableCell>{rec.incidentType}</TableCell>
+      <Paper sx={{ maxWidth: 400, p: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Hazard</TableCell>
+              <TableCell>Likelihood</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {selectedHazards.map((hz) => {
+              const val = likelihoodMap[hz] || '';
+              return (
+                <TableRow key={hz}>
+                  <TableCell>{hz}</TableCell>
                   <TableCell>
-                    {rec.incidentBeginDate?.slice(0, 10) || 'N/A'}
-                  </TableCell>
-                  <TableCell>
-                    {rec.incidentEndDate?.slice(0, 10) || 'N/A'}
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={val}
+                      onChange={(e) => handleLikelihoodChange(hz, e.target.value)}
+                      onBlur={() => handleLikelihoodBlur(hz)}
+                      sx={{ width: 60 }}
+                      inputProps={{ min: 1, max: 5 }}
+                    />
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Paper>
-      )}
+              );
+            })}
+          </TableBody>
+        </Table>
+      </Paper>
     </Box>
   );
-}
+};
+
 /* 
   ===========================================
    (C) Prioritized Risk
