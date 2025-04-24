@@ -15,7 +15,6 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// --------- 定义 service ----------- //
 export const fileService = {
   listAllFiles() {
     return Object.keys(fileRegistry).map((fileKey) => {
@@ -24,10 +23,12 @@ export const fileService = {
         tags,
         fileType,
         storeBuilt,
-        columnMap,
+        columnSchema, // 新字段：数组
         createdAt,
         lastBuildAt,
         mapAndBuildMethod,
+        memoryStore,
+        docType, // 新增: caseStudy, strategy, otherResource
       } = fileRegistry[fileKey];
       return {
         fileKey,
@@ -35,15 +36,20 @@ export const fileService = {
         tags,
         fileType,
         storeBuilt,
-        columnMap,
+        columnSchema,
         createdAt,
         lastBuildAt,
         mapAndBuildMethod,
+        docType,
       };
     });
   },
 
-  handleUploadFile(file, tagsRaw) {
+  /**
+   * handleUploadFile
+   *  - 增加 docType
+   */
+  handleUploadFile(file, tagsRaw, docType) {
     // 1) 检查是否已有同名文件
     const existing = Object.values(fileRegistry).find(
       (rec) => rec.fileName === file.originalname
@@ -63,10 +69,11 @@ export const fileService = {
     fileRegistry[fileKey] = {
       fileName: file.originalname,
       tags,
+      docType: docType || 'otherResource', // 缺省为otherResource
       fileType: ext,
       localPath: file.path,
       storeBuilt: false,
-      columnMap: null,
+      columnSchema: null,
       createdAt: nowISO,
       lastBuildAt: null,
       mapAndBuildMethod: null,
@@ -79,7 +86,11 @@ export const fileService = {
     };
   },
 
-  updateFileInfo(fileKey, newName, newTags) {
+  /**
+   * updateFileInfo
+   *  - 可更新 newName, tags, docType
+   */
+  updateFileInfo(fileKey, newName, newTags, newDocType) {
     const rec = fileRegistry[fileKey];
     if (!rec) return null;
     if (newName) {
@@ -87,6 +98,9 @@ export const fileService = {
     }
     if (newTags) {
       rec.tags = Array.isArray(newTags) ? newTags : [newTags];
+    }
+    if (newDocType) {
+      rec.docType = newDocType;
     }
     return rec;
   },
@@ -100,13 +114,22 @@ export const fileService = {
     delete fileRegistry[fileKey];
   },
 
-  mapColumns(fileKey, columnMap) {
+  /**
+   * mapColumns:
+   *   body.columnSchema = [
+   *     { columnName, infoCategory, metaCategory },
+   *     ...
+   *   ]
+   */
+  mapColumns(fileKey, columnSchema) {
     const rec = fileRegistry[fileKey];
     if (!rec) throw new Error('File not found');
     if (!['.csv', '.xlsx', '.xls'].includes(rec.fileType)) {
       throw new Error('Not a CSV/XLSX file, cannot map columns');
     }
-    rec.columnMap = columnMap;
+
+    // 存储
+    rec.columnSchema = columnSchema; // 直接保存
     rec.storeBuilt = false;
   },
 
@@ -130,28 +153,40 @@ export const fileService = {
     if (['.pdf', '.txt', '.csv', '.xlsx', '.xls'].includes(ext)) {
       if (['.csv', '.xlsx', '.xls'].includes(ext)) {
         // 先 parse -> row -> docs(pageContent, metadata)
-        if (!rec.columnMap) throw new Error('Need columnMap first');
+        if (!rec.columnSchema) {
+          throw new Error('Need columnSchema first (mapColumns).');
+        }
         const records = parseTable(rec.localPath);
-        const { dependencyCol, strategyCol, referenceCol } = rec.columnMap;
+        // columnSchema: [{ columnName, infoCategory, metaCategory }, ...]
+        // 对于每行 row => 把各列的值收集起来
         docs = [];
 
         records.forEach((row, rowIdx) => {
-          const depText = dependencyCol
-            .map((col) => sanitizeCellValue(row[col] || ''))
-            .join(', ');
-          const refText = referenceCol
-            .map((col) => sanitizeCellValue(row[col] || ''))
-            .join(', ');
-          const strategyText = strategyCol
-            .map((col) => sanitizeCellValue(row[col] || ''))
-            .join('\n');
+          // 构建一个 metadata 对象，以保存列值 + infoCategory + metaCategory
+          const colDataArray = rec.columnSchema.map((colInfo) => {
+            const rawVal = row[colInfo.columnName] || '';
+            return {
+              colName: colInfo.columnName,
+              infoCategory: colInfo.infoCategory || '',
+              metaCategory: colInfo.metaCategory || '',
+              cellValue: sanitizeCellValue(rawVal),
+            };
+          });
+
+          // 可以决定：将全部列拼成一个 pageContent, 或者只用 strategy-like列？
+          // 这里示例：把全部列合并成文本
+          let combinedText = '';
+          colDataArray.forEach((cd) => {
+            combinedText += `[${cd.colName} - ${cd.infoCategory}/${cd.metaCategory}]: ${cd.cellValue}\n`;
+          });
 
           docs.push({
-            pageContent: strategyText,
+            pageContent: combinedText,
             metadata: {
               rowIndex: rowIdx,
-              dependency: depText,
-              reference: refText,
+              columnData: colDataArray,
+              docType: rec.docType, // file-level
+              fileName: rec.fileName,
             },
           });
         });
@@ -160,6 +195,11 @@ export const fileService = {
         docs = await embeddingsService.loadAndSplitDocumentsByType(
           rec.localPath
         );
+        // 给pdf/txt的metadata里也可以加 docType
+        docs.forEach((d) => {
+          d.metadata.docType = rec.docType;
+          d.metadata.fileName = rec.fileName;
+        });
       }
     } else {
       throw new Error(`Unsupported file ext: ${ext}`);
@@ -184,7 +224,6 @@ export const fileService = {
   },
 
   loadDemo(demoName) {
-    // 这里可根据你的实际路径
     const demoDir = path.join(__dirname, '../demo_docs');
     const demoFilePath = path.join(demoDir, demoName);
     if (!fs.existsSync(demoFilePath)) {
@@ -200,10 +239,11 @@ export const fileService = {
     fileRegistry[newFileKey] = {
       fileName: demoName,
       tags: ['demo'],
+      docType: 'otherResource', // default
       fileType: ext,
       localPath: uploadPath,
       storeBuilt: false,
-      columnMap: null,
+      columnSchema: null,
       createdAt: nowISO,
       lastBuildAt: null,
       mapAndBuildMethod: null,

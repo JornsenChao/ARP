@@ -30,6 +30,31 @@ import axios from 'axios';
 
 const DOMAIN = 'http://localhost:8000';
 
+const SYNONYM_MAP = {
+  coastal: ['coastal', 'oceanfront', 'marine', 'near the sea'],
+  flood: ['flood', 'inundation'],
+  // ...
+};
+
+function highlightSynonyms(text, sideContextKeys) {
+  // sideContextKeys: e.g. ['coastal','flood'] from user selection
+  // expand with synonyms
+  let allKeys = new Set();
+  sideContextKeys.forEach((k) => {
+    allKeys.add(k);
+    if (synonyms[k]) {
+      synonyms[k].forEach((syn) => allKeys.add(syn));
+    }
+  });
+  // naive implementation: replace them ignoring case
+  let result = text;
+  allKeys.forEach((term) => {
+    const re = new RegExp(`\\b(${term})\\b`, 'gi');
+    result = result.replace(re, `<mark>$1</mark>`);
+  });
+  return result;
+}
+
 function Step3ParallelTasks() {
   // ======== Tab state (A/B/C) ========
   const [currentTab, setCurrentTab] = useState(0);
@@ -58,7 +83,24 @@ function Step3ParallelTasks() {
   const [framework, setFramework] = useState('');
   const [graphLibrary, setGraphLibrary] = useState('cytoscape');
   const [loading, setLoading] = useState(false);
-
+  function getDocTypeForTab(whichTab) {
+    if (whichTab === 'A') return 'caseStudy';
+    if (whichTab === 'B') return 'strategy';
+    return 'otherResource';
+  }
+  function getSynonymMatches(docContent) {
+    const lower = docContent.toLowerCase();
+    const found = [];
+    Object.entries(SYNONYM_MAP).forEach(([label, synonyms]) => {
+      for (const s of synonyms) {
+        if (lower.includes(s)) {
+          found.push(label);
+          break; // 找到一个同义词就够了
+        }
+      }
+    });
+    return found;
+  }
   /**
    * 一进 Step3，或后续想刷新时，都可以获取 workflow
    * -> 读 step2.selectedRisks[] (仅 references)
@@ -104,15 +146,42 @@ function Step3ParallelTasks() {
   const handleChangeTab = (event, newValue) => {
     setCurrentTab(newValue);
   };
+  /**
+   * 1) 先拿 /files/list => 过滤出 docType=xxx => fileKeys
+   */
+  const getFileKeysByDocType = async (docTypeName) => {
+    try {
+      const res = await axios.get(`${DOMAIN}/files/list`);
+      const all = res.data || [];
+      const filtered = all.filter(
+        (f) => f.docType === docTypeName && f.storeBuilt
+      );
+      return filtered.map((f) => f.fileKey);
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  };
 
-  // ======== RAG Search for a given tab ========
-  async function handleAskRAG(whichTab) {
+  /**
+   * 2) handleAskRAG: 先拿 fileKeys (by docType),
+   *   再 multiRAG/query
+   */
+  const handleAskRAG = async (whichTab) => {
     setLoading(true);
     try {
       let query = '';
-      if (whichTab === 'A') query = queryA;
-      else if (whichTab === 'B') query = queryB;
-      else query = queryC;
+      let targetDocType = 'otherResource';
+      if (whichTab === 'A') {
+        query = queryA;
+        targetDocType = 'caseStudy';
+      } else if (whichTab === 'B') {
+        query = queryB;
+        targetDocType = 'strategy';
+      } else {
+        query = queryC;
+        targetDocType = 'otherResource';
+      }
 
       if (!query.trim()) {
         alert('Please type a query');
@@ -120,25 +189,38 @@ function Step3ParallelTasks() {
         return;
       }
 
+      // 先 get fileKeys by docType
+      const fileKeys = await getFileKeysByDocType(targetDocType);
+      console.log('fileKeys', fileKeys);
+      console.log('targetDocType', targetDocType);
+
+      // call multiRAG
       const resp = await axios.post(`${DOMAIN}/multiRAG/query`, {
-        fileKeys: [],
-        dependencyData,
+        fileKeys,
+        dependencyData, // optional, depends on your backend
         userQuery: query,
         language,
         customFields: [],
+        docType: targetDocType,
       });
-      const { docs = [] } = resp.data || {};
+      const { docs = [] } = resp.data || [];
 
-      if (whichTab === 'A') setDocsA(docs);
-      else if (whichTab === 'B') setDocsB(docs);
-      else setDocsC(docs);
+      // 做同义词匹配
+      const annotatedDocs = docs.map((doc) => {
+        const highlightLabels = getSynonymMatches(doc.pageContent);
+        return { ...doc, highlightLabels };
+      });
+
+      if (whichTab === 'A') setDocsA(annotatedDocs);
+      else if (whichTab === 'B') setDocsB(annotatedDocs);
+      else setDocsC(annotatedDocs);
     } catch (err) {
       console.error(err);
       alert('Error: ' + err.message);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   // ======== Build Graph ========
   async function handleBuildGraph(whichTab) {
@@ -243,9 +325,32 @@ function Step3ParallelTasks() {
         {docs.length === 0 && <Typography>No results yet.</Typography>}
         {docs.map((doc, idx) => (
           <Card key={idx} sx={{ mb: 1, p: 1 }}>
-            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-              {doc.pageContent?.slice(0, 200)}...
-            </Typography>
+            {/* 1) 同义词匹配 highlight */}
+            {doc.highlightLabels && doc.highlightLabels.length > 0 && (
+              <Box sx={{ color: 'red', fontWeight: 'bold' }}>
+                Matched synonyms: {doc.highlightLabels.join(', ')}
+              </Box>
+            )}
+
+            {/* 2) 如果是 CSV/XLSX chunk, metadata.columnData 存在 => 列名+info/meta */}
+            {doc.metadata?.columnData ? (
+              <Box>
+                {doc.metadata.columnData.map((col, cidx) => (
+                  <Box key={cidx} sx={{ mb: 1 }}>
+                    <strong>
+                      {col.colName} | {col.infoCategory} | {col.metaCategory}
+                    </strong>
+                    : {col.cellValue}
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              // 对于 pdf/txt chunk, 可能没 columnData
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {doc.pageContent.slice(0, 300)}...
+              </Typography>
+            )}
+
             <Button variant="text" onClick={() => handleAddToSummary(doc)}>
               + Add to Summary
             </Button>

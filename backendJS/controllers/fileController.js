@@ -36,12 +36,13 @@ export const fileController = {
     upload.single('file'),
     async (req, res) => {
       try {
-        const { tags } = req.body;
+        const { tags, docType } = req.body; // <--- docType: "caseStudy" | "strategy" | "otherResource"
         const file = req.file;
         if (!file) {
           return res.status(400).json({ error: 'No file uploaded' });
         }
-        const result = fileService.handleUploadFile(file, tags);
+        // 将 docType、tags 传递给 service
+        const result = fileService.handleUploadFile(file, tags, docType);
         res.json(result);
       } catch (err) {
         console.error(err);
@@ -54,8 +55,13 @@ export const fileController = {
   async updateFile(req, res) {
     try {
       const { fileKey } = req.params;
-      const { newName, tags } = req.body;
-      const updated = fileService.updateFileInfo(fileKey, newName, tags);
+      const { newName, tags, docType } = req.body;
+      const updated = fileService.updateFileInfo(
+        fileKey,
+        newName,
+        tags,
+        docType
+      );
       if (!updated) return res.status(404).send('File not found');
       res.json({ message: 'File updated', data: updated });
     } catch (err) {
@@ -80,9 +86,10 @@ export const fileController = {
   async mapColumns(req, res) {
     try {
       const { fileKey } = req.params;
-      const { columnMap } = req.body;
-      fileService.mapColumns(fileKey, columnMap);
-      res.json({ message: 'Column map saved', columnMap });
+      // 假设 body={ columnSchema: [ { columnName, infoCategory, metaCategory }, ... ] }
+      const { columnSchema } = req.body;
+      fileService.mapColumns(fileKey, columnSchema);
+      res.json({ message: 'Column map saved', columnSchema });
     } catch (err) {
       console.error(err);
       res.status(500).send(err.message);
