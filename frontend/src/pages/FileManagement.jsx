@@ -15,6 +15,10 @@ import {
 import { UploadOutlined, CloseOutlined } from '@ant-design/icons';
 import ColumnMapper from '../components/ColumnMapper';
 
+// === Chat/QA 相关组件 ===
+import RenderQA from '../components/RenderQA';
+import ChatComponent from '../components/ChatComponent';
+
 const DOMAIN = 'http://localhost:8000';
 const LOCALSTORAGE_PREFIX = 'fileChat_conversation_';
 
@@ -434,8 +438,10 @@ function FileManagement() {
             </Button>
           </div>
           <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 10 }}>
+            <RenderQA conversation={conversation} isLoading={isChatLoading} />
+
             {/* 这里可以放你的 RenderQA 或其他对话组件 */}
-            {conversation.map((each, idx) => (
+            {/* {conversation.map((each, idx) => (
               <div key={idx} style={{ marginBottom: 8 }}>
                 <div>
                   <strong>User:</strong> {each.question}
@@ -444,11 +450,18 @@ function FileManagement() {
                   <strong>AI:</strong> {each.answer}
                 </div>
               </div>
-            ))}
+            ))} */}
             {isChatLoading && <div>Loading...</div>}
           </div>
           {/* 这里也可以放 ChatComponent */}
-          <p>(Chat input here... omitted for brevity in this example)</p>
+          {/* <p>(Chat input here... omitted for brevity in this example)</p> */}
+          <ChatComponent
+            handleResp={handleResp}
+            isLoading={isChatLoading}
+            setIsLoading={setIsChatLoading}
+            activeFile={activeChatFile}
+            sessionId={`fileChat-${activeChatFile}`}
+          />
         </Card>
       )}
     </div>

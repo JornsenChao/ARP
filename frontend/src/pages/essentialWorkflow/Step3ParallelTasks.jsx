@@ -24,6 +24,8 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
+import { linkify } from '../../utils/linkify';
+import DOMPurify from 'dompurify';
 import DependencySelector from '../../components/DependencySelector';
 import GraphViewer from '../../components/GraphViewer';
 import axios from 'axios';
@@ -100,6 +102,14 @@ function Step3ParallelTasks() {
       }
     });
     return found;
+  }
+  function renderChunkContent(rawText) {
+    // 1) 调用 linkify
+    const replaced = linkify(rawText);
+    // 2) 再做 DOMPurify 清理
+    const safeHtml = DOMPurify.sanitize(replaced);
+    // 3) dangerouslySetInnerHTML
+    return <div dangerouslySetInnerHTML={{ __html: safeHtml }} />;
   }
   /**
    * 一进 Step3，或后续想刷新时，都可以获取 workflow
@@ -320,11 +330,21 @@ function Step3ParallelTasks() {
             </Select>
           </FormControl>
         </Box>
+        {/* Graph */}
+        {graph && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1">Graph Visualization:</Typography>
+            <Box sx={{ height: 400, border: '1px solid #ccc' }}>
+              <GraphViewer library={graphLibrary} graphData={graph} />
+            </Box>
+          </Box>
+        )}
         {/* Results */}
         <Typography variant="subtitle1">Search Results:</Typography>
         {docs.length === 0 && <Typography>No results yet.</Typography>}
         {docs.map((doc, idx) => (
           <Card key={idx} sx={{ mb: 1, p: 1 }}>
+            {/* {renderChunkContent(doc.pageContent)} */}
             {/* 1) 同义词匹配 highlight */}
             {doc.highlightLabels && doc.highlightLabels.length > 0 && (
               <Box sx={{ color: 'red', fontWeight: 'bold' }}>
@@ -335,14 +355,23 @@ function Step3ParallelTasks() {
             {/* 2) 如果是 CSV/XLSX chunk, metadata.columnData 存在 => 列名+info/meta */}
             {doc.metadata?.columnData ? (
               <Box>
-                {doc.metadata.columnData.map((col, cidx) => (
-                  <Box key={cidx} sx={{ mb: 1 }}>
-                    <strong>
-                      {col.colName} | {col.infoCategory} | {col.metaCategory}
-                    </strong>
-                    : {col.cellValue}
-                  </Box>
-                ))}
+                {doc.metadata.columnData.map((col, cidx) => {
+                  // 把 col.cellValue 里的链接 转成 <a>  (linkify)
+                  // linkify 返回带 <a> 的HTML => dangerouslySetInnerHTML
+                  const htmlVal = linkify(col.cellValue || '');
+
+                  return (
+                    <Box key={cidx} sx={{ mb: 1 }}>
+                      <strong>
+                        {col.colName} | {col.infoCategory} | {col.metaCategory}
+                      </strong>
+                      <Box
+                        sx={{ ml: 2 }}
+                        dangerouslySetInnerHTML={{ __html: htmlVal }}
+                      />
+                    </Box>
+                  );
+                })}
               </Box>
             ) : (
               // 对于 pdf/txt chunk, 可能没 columnData
@@ -356,15 +385,6 @@ function Step3ParallelTasks() {
             </Button>
           </Card>
         ))}
-        {/* Graph */}
-        {graph && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1">Graph Visualization:</Typography>
-            <Box sx={{ height: 400, border: '1px solid #ccc' }}>
-              <GraphViewer library={graphLibrary} graphData={graph} />
-            </Box>
-          </Box>
-        )}
       </Box>
     );
   };

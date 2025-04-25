@@ -1,4 +1,5 @@
-// src/components/GraphViewer.js
+// src/components/GraphViewer.jsx
+
 import React, {
   useEffect,
   useRef,
@@ -10,78 +11,78 @@ import CytoscapeComponent from 'react-cytoscapejs';
 import * as d3 from 'd3';
 import * as THREE from 'three';
 import ForceGraph3D from 'react-force-graph-3d';
-// import ReactEChartsCore from 'echarts-for-react';
-// import * as echarts from 'echarts/core';
-// import { GraphChart } from 'echarts/charts';
-// import { TooltipComponent, LegendComponent } from 'echarts/components';
-// import { CanvasRenderer } from 'echarts/renderers';
-// echarts.use([GraphChart, TooltipComponent, LegendComponent, CanvasRenderer]);
 
-/**
- * 辅助：为给定 colorHex 调整亮度 (lighten)
- * 可以用 HSL、也可以用简单 RGB
- */
+import ReactEChartsCore from 'echarts-for-react';
+import * as echarts from 'echarts/core';
+import { GraphChart } from 'echarts/charts';
+import { TooltipComponent, LegendComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
+
+// Let ECharts know which features to use
+echarts.use([GraphChart, TooltipComponent, LegendComponent, CanvasRenderer]);
+
+/***************************************************
+ * 1) Color Mappings
+ ***************************************************/
+export const META_CATEGORY_COLORS = {
+  'input condition': '#1f77b4',
+  'design driver factor': '#ff7f0e',
+  'inference process': '#2ca02c',
+  'result output': '#9467bd',
+  'auxiliary reference': '#8c564b',
+  other: '#999999',
+};
+
+export const INFO_CATEGORY_COLORS = {
+  location: '#d62728',
+  climate: '#bcbd22',
+  disaster: '#17becf',
+  projectType: '#e377c2',
+  buildingFunction: '#7f7f7f',
+  scaleAndSize: '#8c564b',
+  structureSystem: '#ff9896',
+  buildingStrategy: '#c49c94',
+  isBuilt: '#f7b6d2',
+  budget: '#c5b0d5',
+  regulationBackground: '#1f77b4',
+  other: '#999999',
+};
+
+function getMetaCategoryColor(meta) {
+  return META_CATEGORY_COLORS[meta] || '#999999';
+}
+function getInfoCategoryColor(info) {
+  return INFO_CATEGORY_COLORS[info] || '#999999';
+}
+
+/***************************************************
+ * 2) Some shared utilities
+ ***************************************************/
 function lightenColor(hex, percent = 0.3) {
-  // parse #RRGGBB
   let r = parseInt(hex.slice(1, 3), 16);
   let g = parseInt(hex.slice(3, 5), 16);
   let b = parseInt(hex.slice(5, 7), 16);
-
-  // lighten
   r = Math.round(r + (255 - r) * percent);
   g = Math.round(g + (255 - g) * percent);
   b = Math.round(b + (255 - b) * percent);
-
-  // clamp
   if (r > 255) r = 255;
   if (g > 255) g = 255;
   if (b > 255) b = 255;
-
-  // to hex
   const rr = r.toString(16).padStart(2, '0');
   const gg = g.toString(16).padStart(2, '0');
   const bb = b.toString(16).padStart(2, '0');
   return `#${rr}${gg}${bb}`;
 }
 
-const TYPE_COLORS = {
-  strategy: '#1f77b4', // 蓝
-  dependency: '#ff7f0e', // 橙
-  reference: '#2ca02c', // 绿
-  frameworkDimension: '#9467bd', // 紫
-};
-
-function getTypeColor(type) {
-  return TYPE_COLORS[type] || '#cccccc';
-}
-
 function fadeByDistance(dist, maxDist = 1000) {
-  // method 1
-  // const ratio = 1 - dist / maxDist;
-  // if (ratio < 0) return 0;
-  // if (ratio > 1) return 1;
-
-  // method 2
-  // let ratio = 1 - dist / maxDist;
-  // ratio = Math.min(Math.max(ratio, 0), 1);
-  // ratio = ratio ** 3;
-
-  // method 3
-  // const ratio = Math.exp(-Math.log(2) * (dist / 500));
-
-  // method 4
-  const d0 = 350; // 中心位置
-  const k = 0.1; // 陡峭度
+  const d0 = 350;
+  const k = 0.1;
   const ratio = 0.2 + 1 / (1 + Math.exp(k * (dist - d0)));
-  console.log(ratio);
-  // if (ratio > 1) return 1;
-  // console.log(dist);
-  // console.log(maxDist);
   return ratio;
 }
 
 /**
- * makeTextSprite: 用指定 color 画出文字贴图
+ * makeTextSprite: draws multiline text on a canvas => sprite for 3D ForceGraph
  */
 function makeTextSprite(message, { fontsize = 70, color = '#ffffff' } = {}) {
   const canvas = document.createElement('canvas');
@@ -89,113 +90,100 @@ function makeTextSprite(message, { fontsize = 70, color = '#ffffff' } = {}) {
   const font = `${fontsize}px sans-serif`;
   ctx.font = font;
 
-  const textWidth = ctx.measureText(message).width;
-  canvas.width = textWidth;
-  canvas.height = fontsize * 1.2;
+  // measure max line width
+  const lines = message.split('\n');
+  let maxWidth = 0;
+  for (const line of lines) {
+    const w = ctx.measureText(line).width;
+    if (w > maxWidth) maxWidth = w;
+  }
+  canvas.width = maxWidth;
+  canvas.height = fontsize * 1.2 * lines.length;
 
   ctx.font = font;
   ctx.fillStyle = color;
-  ctx.fillText(message, 0, fontsize);
-
+  lines.forEach((line, idx) => {
+    ctx.fillText(line, 0, fontsize * (idx + 1));
+  });
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
   const spriteMaterial = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
   });
-
   const sprite = new THREE.Sprite(spriteMaterial);
-  // scale
   sprite.scale.set(0.1 * canvas.width, 0.1 * canvas.height, 1);
   return sprite;
 }
-/*************  ✨ Codeium Command ⭐  *************/
-/**
- * Computes the degree of each node in the given graph data.
- *
- * Iterates over the edges in the graph data to count how many times
- * each node appears as a source or target, incrementing the node's
- * degree accordingly. Adds a 'degree' property to each node.
- *
- * @param {object} graphData - The graph data containing nodes and edges.
- * @returns {object} The modified graph data with updated node degrees.
- */
 
-/******  00db961d-3231-4ef2-b199-c93cba28c11f  *******/
+// small helper for degree
 function computeNodeDegrees(graphData) {
   if (!graphData?.nodes || !graphData?.edges) return graphData;
   graphData.nodes.forEach((n) => {
     n.degree = 0;
   });
   graphData.edges.forEach((edge) => {
-    const sNode = graphData.nodes.find((n) => n.id === edge.source);
+    const sNode = graphData.nodes.find((m) => m.id === edge.source);
     if (sNode) sNode.degree++;
-    const tNode = graphData.nodes.find((n) => n.id === edge.target);
+    const tNode = graphData.nodes.find((m) => m.id === edge.target);
     if (tNode) tNode.degree++;
   });
   return graphData;
 }
+
+/***************************************************
+ * 3) GraphViewerCytoscape
+ ***************************************************/
 function GraphViewerCytoscape({ graphData }) {
-  // 将 graphData 转成 cytoscape 需要的 elements
-  // elements: [{ data:{id,label} }, { data:{id,source,target}, }, ...]
   const elements = useMemo(() => {
     if (!graphData || !graphData.nodes) return [];
-
     const nodeElements = graphData.nodes.map((n) => ({
-      data: { id: n.id, label: n.label, type: n.type },
+      data: { id: n.id, label: n.label, ...n },
     }));
-
-    const edgeElements = graphData.edges.map((e, index) => ({
+    const edgeElements = (graphData.edges || []).map((e, idx) => ({
       data: {
-        id: `edge-${index}`,
+        id: e.id || `edge-${idx}`,
         source: e.source,
         target: e.target,
-        label: e.relation,
+        label: e.relation || '',
       },
     }));
-
     return [...nodeElements, ...edgeElements];
   }, [graphData]);
 
-  const layout = { name: 'cose', animate: true };
+  function pickNodeColor(ele) {
+    const meta = ele.data('metaCategory');
+    const info = ele.data('infoCategory');
+    if (meta && meta !== 'other') {
+      return getMetaCategoryColor(meta);
+    }
+    if (info && info !== 'other') {
+      return getInfoCategoryColor(info);
+    }
+    return '#999999';
+  }
 
-  // ====== 这里是关键，增加对 frameworkDimension 的样式 ======
   const stylesheet = [
     {
       selector: 'node',
       style: {
-        'background-color': '#678',
         label: 'data(label)',
         'font-size': 12,
         'text-wrap': 'wrap',
-        'text-max-width': '80px',
+        'text-max-width': '200px', // can tweak
       },
     },
     {
-      selector: 'node[type="strategy"]',
+      selector: 'node',
       style: {
-        'background-color': '#1f77b4',
-        shape: 'round-rectangle',
-      },
-    },
-    {
-      selector: 'node[type="dependency"]',
-      style: {
-        'background-color': '#ff7f0e',
-      },
-    },
-    {
-      selector: 'node[type="reference"]',
-      style: {
-        'background-color': '#2ca02c',
-      },
-    },
-    {
-      // 新增: 匹配后端返回的 frameworkDimension 节点
-      selector: 'node[type="frameworkDimension"]',
-      style: {
-        'background-color': '#9467bd',
-        shape: 'diamond',
+        'background-color': pickNodeColor,
+        shape: (ele) => {
+          const type = ele.data('type');
+          if (type === 'doc') return 'diamond';
+          return 'ellipse';
+        },
+        'border-width': 1,
+        'border-color': '#aaa',
       },
     },
     {
@@ -213,6 +201,8 @@ function GraphViewerCytoscape({ graphData }) {
     },
   ];
 
+  const layout = { name: 'cose', animate: true };
+
   return (
     <div style={{ width: '100%', height: '800px', border: '1px solid #ccc' }}>
       <CytoscapeComponent
@@ -224,26 +214,25 @@ function GraphViewerCytoscape({ graphData }) {
     </div>
   );
 }
+
+/***************************************************
+ * 4) GraphViewerD3Force
+ ***************************************************/
 function GraphViewerD3Force({ graphData }) {
   const svgRef = useRef(null);
   const width = 600;
-  const height = 500;
+  const height = 600;
   const containerRef = useRef(null);
+
   useEffect(() => {
     if (!graphData || !graphData.nodes?.length) return;
-    // 拿容器的实际尺寸
-    // const { width, height } = containerRef.current.getBoundingClientRect();
-    // 1) 计算节点度
     computeNodeDegrees(graphData);
 
     const svg = d3.select(svgRef.current);
-    // .attr('width', width)
-    // .attr('height', height);
     svg.selectAll('*').remove();
-
     const container = svg.append('g');
 
-    const links = graphData.edges.map((e) => ({
+    const links = (graphData.edges || []).map((e) => ({
       ...e,
       source: e.source,
       target: e.target,
@@ -262,7 +251,6 @@ function GraphViewerD3Force({ graphData }) {
       .force('charge', d3.forceManyBody().strength(-200))
       .force('center', d3.forceCenter(width / 2, height / 2));
 
-    // =========== links =========== //
     const linkGroup = container.append('g').attr('class', 'links');
     const linkElems = linkGroup
       .selectAll('line')
@@ -270,10 +258,9 @@ function GraphViewerD3Force({ graphData }) {
       .enter()
       .append('line')
       .attr('stroke', '#999')
-      .attr('stroke-width', 2.0)
+      .attr('stroke-width', 2)
       .attr('stroke-opacity', 0.8);
 
-    // =========== nodes =========== //
     const nodeGroup = container.append('g').attr('class', 'nodes');
     const nodeElems = nodeGroup
       .selectAll('circle')
@@ -281,12 +268,16 @@ function GraphViewerD3Force({ graphData }) {
       .enter()
       .append('circle')
       .attr('r', (d) => {
-        // 缓存半径到 d.radius
-        d.radius = 1 + Math.log2(d.degree + 1) * 5;
-        if (d.radius < 5) d.radius = 5; // 避免度太低时过小
+        d.radius = 6 + (d.degree || 0);
         return d.radius;
       })
-      .attr('fill', (d) => getTypeColor(d.type))
+      .attr('fill', (d) => {
+        const meta = d.metaCategory || 'other';
+        const info = d.infoCategory || 'other';
+        if (meta !== 'other') return getMetaCategoryColor(meta);
+        if (info !== 'other') return getInfoCategoryColor(info);
+        return '#999999';
+      })
       .attr('stroke', '#fff')
       .attr('stroke-width', 1.5)
       .call(
@@ -297,19 +288,26 @@ function GraphViewerD3Force({ graphData }) {
           .on('end', dragEnded)
       );
 
-    // =========== labels =========== //
+    // For multiline label via <tspan>, parse \n
     const labelGroup = container.append('g').attr('class', 'labels');
     const labelElems = labelGroup
       .selectAll('text')
       .data(nodes)
       .enter()
       .append('text')
-      .text((d) => d.label || d.id)
-      // 文字颜色：比节点颜色浅一点
-      .attr('fill', (d) => lightenColor(getTypeColor(d.type), 0.4))
-      // 让鼠标事件不会阻挡拖拽
-      .style('pointer-events', 'none')
-      .style('font-size', '12px');
+      .style('fill', '#eee')
+      .style('font-size', '12px')
+      .each(function (d) {
+        const lines = (d.label || '').split('\n');
+        d3.select(this)
+          .selectAll('tspan')
+          .data(lines)
+          .enter()
+          .append('tspan')
+          .attr('x', 0)
+          .attr('dy', (dd, i) => (i === 0 ? 0 : 1.2) + 'em')
+          .text((dd) => dd);
+      });
 
     simulation.on('tick', () => {
       linkElems
@@ -320,14 +318,12 @@ function GraphViewerD3Force({ graphData }) {
 
       nodeElems.attr('cx', (d) => d.x).attr('cy', (d) => d.y);
 
-      // **2) label 偏移：让文字在右上角
-      labelElems
-        .attr('x', (d) => d.x + d.radius + 3) // 3 像素缓冲
-        .attr('y', (d) => d.y - d.radius * 0.1);
-      // 让文字稍微和圆心对齐，避免压住了节点
+      labelElems.attr('transform', function (d) {
+        // place label to the right of node
+        return `translate(${d.x + d.radius + 3}, ${d.y - 2})`;
+      });
     });
 
-    // 缩放 & 平移
     const zoom = d3
       .zoom()
       .scaleExtent([0.3, 3])
@@ -350,93 +346,71 @@ function GraphViewerD3Force({ graphData }) {
       d.fx = null;
       d.fy = null;
     }
-
-    return () => {
-      simulation.stop();
-    };
   }, [graphData]);
 
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '800px', position: 'relative' }}
+      style={{ width: '100%', height: '600px', position: 'relative' }}
     >
       <svg
         ref={svgRef}
         width={width}
         height={height}
-        style={{ border: '1px solid #ccc', background: '#111111' }}
+        style={{ border: '1px solid #ccc', background: '#111' }}
       ></svg>
     </div>
   );
 }
+
+/***************************************************
+ * 5) GraphViewerReactForceGraph
+ ***************************************************/
 function GraphViewerReactForceGraph({ graphData }) {
   const fgRef = useRef(null);
-  // 在初始化或 graphData 变化后，先计算节点度
+
   useEffect(() => {
-    if (!graphData?.nodes?.length) return;
+    if (!graphData?.nodes) return;
     computeNodeDegrees(graphData);
   }, [graphData]);
 
-  // 在初始时给每个 node 做 sphere + text sprite
   const nodeThreeObject = useCallback((node) => {
-    const mainColor = getTypeColor(node.type) || '#888888';
-    // const radius = 1.0 + Math.log2((node.degree || 1) + 1);
-    // node.degree 如果没设置，先默认0
+    const mainColor = pickNodeColor(node);
     const deg = node.degree || 0;
-    // console.log(deg);
-    // 例如把 radius = 1 + sqrt(deg) (可随你需要)
     const radius = (0.1 + Math.sqrt(deg)) * 1;
 
-    // 创建球体
     const geometry = new THREE.SphereGeometry(radius, 16, 16);
     const material = new THREE.MeshLambertMaterial({
       color: mainColor,
-      transparent: true, // 允许后续动态修改透明度
+      transparent: true,
       opacity: 1,
     });
     const sphere = new THREE.Mesh(geometry, material);
 
-    // 创建文字 Sprite（贴图）
     if (node.label) {
-      // 文字颜色可做一下加亮
-      const textColor = lightenColor(mainColor, 0.5);
       const sprite = makeTextSprite(node.label, {
         fontsize: 40,
-        color: textColor,
-        align: 'left',
+        color: lightenColor(mainColor, 0.5),
       });
-      // 把文字略微放在球体上方
       sprite.position.set(0, radius + 0.5, 0);
-      sphere.add(sprite); // 让文字跟随球体
+      sphere.add(sprite);
     }
-
     return sphere;
   }, []);
 
-  // 2) 每帧执行：遍历 nodes，对远处节点做 fade
   const handleEngineTick = useCallback(() => {
     if (!fgRef.current) return;
     const fgInstance = fgRef.current;
-
-    // 访问 camera
     const camera = fgInstance.camera();
     if (!camera || !graphData?.nodes) return;
 
-    // 直接使用 graphData.nodes，而不是 fgInstance.graphData()
     graphData.nodes.forEach((node) => {
       const nodeObj = node.__threeObj;
       if (!nodeObj) return;
-
-      // 算出节点世界坐标
       const worldPos = new THREE.Vector3();
       nodeObj.getWorldPosition(worldPos);
       const dist = camera.position.distanceTo(worldPos);
-
-      // 根据距离计算透明度
       const fadeRatio = fadeByDistance(dist, 1000);
-
-      // 设置球体和文字 sprite 的透明度
       if (nodeObj.material) {
         nodeObj.material.opacity = fadeRatio;
       }
@@ -449,72 +423,117 @@ function GraphViewerReactForceGraph({ graphData }) {
   }, [graphData]);
 
   return (
-    <div style={{ width: '100%', height: '800px', border: '1px solid red' }}>
+    <div style={{ width: '100%', height: '600px', border: '1px solid red' }}>
       <ForceGraph3D
         ref={fgRef}
         graphData={{
-          nodes: graphData.nodes,
-          links: graphData.edges.map((e) => ({
+          nodes: graphData?.nodes || [],
+          links: (graphData?.edges || []).map((e) => ({
             source: e.source,
             target: e.target,
-            rel: e.relation,
+            rel: e.relation || '',
           })),
         }}
         nodeThreeObject={nodeThreeObject}
-        // 1) 让连线是曲线
-        linkCurvature={0.3} // 可以调大/小
+        linkCurvature={0.3}
         linkCurveRotation={0}
-        // 2) 边的颜色/箭头
         linkAutoColorBy="rel"
         linkDirectionalArrowLength={3}
         linkDirectionalArrowRelPos={1}
         linkOpacity={0.7}
         linkWidth={0.5}
-        // 3) 每帧执行, 更新节点明暗
         onEngineTick={handleEngineTick}
-        // 其他可选
         showNavInfo={false}
-        backgroundColor="#111111" // 深色背景
+        backgroundColor="#111111"
         enableNodeDrag={true}
       />
     </div>
   );
 }
+
+// helper pick color
+function pickNodeColor(node) {
+  const meta = node.metaCategory || 'other';
+  const info = node.infoCategory || 'other';
+  if (meta !== 'other') return getMetaCategoryColor(meta);
+  if (info !== 'other') return getInfoCategoryColor(info);
+  return '#999999';
+}
+
+/***************************************************
+ * 6) GraphViewerECharts
+ ***************************************************/
 // function GraphViewerECharts({ graphData }) {
 //   // convert to ECharts 'graph' series
-//   const option = {
-//     title: { text: 'ECharts Graph' },
-//     tooltip: {},
-//     legend: [{ data: ['Graph'] }],
-//     series: [
-//       {
-//         name: 'Graph',
-//         type: 'graph',
-//         layout: 'force',
-//         roam: true,
-//         force: {
-//           repulsion: 80,
-//           gravity: 0.02,
-//         },
-//         data: graphData.nodes.map((n) => ({
-//           name: n.id,
-//           value: n.label,
-//           category: n.type, // or something
-//           symbolSize: 30,
-//         })),
-//         links: graphData.edges.map((e) => ({
-//           source: e.source,
-//           target: e.target,
-//           label: { formatter: e.relation },
-//         })),
-//         edgeSymbol: ['none', 'arrow'],
-//         emphasis: { focus: 'adjacency' },
+//   const { nodes = [], edges = [] } = graphData || {};
+
+//   const option = useMemo(() => {
+//     const seriesData = nodes.map((n) => ({
+//       name: n.id,
+//       value: n.label,
+//       category:
+//         n.metaCategory && n.metaCategory !== 'other'
+//           ? n.metaCategory
+//           : n.infoCategory || 'other',
+//       // ECharts label: we can do a small multiline if there's \n
+//       symbolSize: 30,
+//     }));
+//     const seriesEdges = edges.map((e) => ({
+//       source: e.source,
+//       target: e.target,
+//       label: { formatter: e.relation || '' },
+//     }));
+
+//     // ECharts "categories" + color
+//     // We'll create categories from meta + info?
+//     // For minimal example, let's just define "other" and "some" ...
+//     // or we dynamically create categories. We'll do a quick approach:
+//     const categorySet = new Set();
+//     seriesData.forEach((d) => {
+//       categorySet.add(d.category);
+//     });
+//     const categories = Array.from(categorySet).map((c) => ({
+//       name: c,
+//       itemStyle: {
+//         color: META_CATEGORY_COLORS[c] || INFO_CATEGORY_COLORS[c] || '#999999',
 //       },
-//     ],
-//   };
+//     }));
+
+//     return {
+//       tooltip: {},
+//       legend: [
+//         {
+//           data: categories.map((c) => c.name),
+//         },
+//       ],
+//       series: [
+//         {
+//           name: 'Graph',
+//           type: 'graph',
+//           layout: 'force',
+//           categories,
+//           data: seriesData,
+//           links: seriesEdges,
+//           label: {
+//             show: true,
+//             formatter: (params) => {
+//               // `params.value` is the node.label with possible \n
+//               return params.value?.replace(/\\n/g, '\n');
+//             },
+//           },
+//           force: {
+//             repulsion: 100,
+//             gravity: 0.03,
+//           },
+//           roam: true,
+//           edgeSymbol: ['none', 'arrow'],
+//         },
+//       ],
+//     };
+//   }, [graphData]);
 
 //   return (
-//     <div style={{ width: '100%', height: '100%' }}>
+//     <div style={{ width: '100%', height: '600px' }}>
 //       <ReactEChartsCore
 //         echarts={echarts}
 //         option={option}
@@ -523,12 +542,10 @@ function GraphViewerReactForceGraph({ graphData }) {
 //     </div>
 //   );
 // }
-/**
- * 【对外导出的主组件】GraphViewer
- *  - 接受 props: { graphData, library }
- *  - library 可选: "cytoscape" | "d3-force" | "react-force-graph" | "sigma" | "echarts" | "visx"
- */
 
+/***************************************************
+ * 7) Main exported GraphViewer
+ ***************************************************/
 export default function GraphViewer({ graphData, library = 'd3Force' }) {
   switch (library) {
     case 'd3Force':
@@ -538,8 +555,7 @@ export default function GraphViewer({ graphData, library = 'd3Force' }) {
     case 'ReactForceGraph3d':
       return <GraphViewerReactForceGraph graphData={graphData} />;
     // case 'echarts':
-    //   return <div>This feature is temperaly disabled.</div>;
-    // return <GraphViewerECharts graphData={graphData} />;
+    //   return <GraphViewerECharts graphData={graphData} />;
     default:
       return <div>No library selected or unsupported: {library}</div>;
   }
