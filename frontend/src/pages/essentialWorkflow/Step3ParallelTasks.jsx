@@ -25,6 +25,7 @@ import {
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 import { linkify } from '../../utils/linkify';
+// import ExpandableText from '../../components/ExpandableText';
 import DOMPurify from 'dompurify';
 import DependencySelector from '../../components/DependencySelector';
 import GraphViewer from '../../components/GraphViewer';
@@ -85,6 +86,15 @@ function Step3ParallelTasks() {
   const [framework, setFramework] = useState('');
   const [graphLibrary, setGraphLibrary] = useState('cytoscape');
   const [loading, setLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const toggle = () => setExpanded(!expanded);
+  const textLenLimit = 1500;
+  // const [doc, setDoc] = useState({ pageContent: '' });
+  // const fullText = doc.pageContent || '';
+  // const previewText = fullText.slice(0, 1000);
+  // const showToggle = fullText.length > 1000;
+
   function getDocTypeForTab(whichTab) {
     if (whichTab === 'A') return 'caseStudy';
     if (whichTab === 'B') return 'strategy';
@@ -263,7 +273,7 @@ function Step3ParallelTasks() {
     setSummary((prev) => [
       ...prev,
       {
-        text: doc.pageContent.slice(0, 100),
+        text: doc.pageContent.slice(0, textLenLimit),
         metadata: doc.metadata,
         addedAt: new Date().toLocaleTimeString(),
       },
@@ -374,9 +384,18 @@ function Step3ParallelTasks() {
                 })}
               </Box>
             ) : (
-              // 对于 pdf/txt chunk, 可能没 columnData
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {doc.pageContent.slice(0, 300)}...
+                {expanded
+                  ? doc.pageContent
+                  : doc.pageContent.slice(0, textLenLimit) +
+                    (doc.pageContent.length > textLenLimit ? '…' : '')}
+                {/* {fullText.slice(0, textLenLimit)}... */}
+
+                {doc.pageContent.length > textLenLimit && (
+                  <Button size="small" onClick={toggle}>
+                    {expanded ? '收起' : '展开全文'}
+                  </Button>
+                )}
               </Typography>
             )}
 

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Document } from 'langchain/document';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
+import { advancedPdfLoader } from './advancedPdfLoader.js';
 import { CSVLoader } from 'langchain/document_loaders/fs/csv';
 import XLSX from 'xlsx';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
@@ -14,8 +15,12 @@ export const embeddingsService = {
     let docs = [];
 
     if (ext === '.pdf') {
-      const loader = new PDFLoader(filePath);
-      docs = await loader.load();
+      // const loader = new PDFLoader(filePath);
+      // docs = await loader.load();
+      docs = await advancedPdfLoader(filePath, {
+        chunkSizeChars: 1500,
+        lineLen: 100,
+      });
     } else if (ext === '.csv') {
       const loader = new CSVLoader(filePath);
       docs = await loader.load();
