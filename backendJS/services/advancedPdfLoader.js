@@ -32,13 +32,13 @@ function insertLineBreaks(str = '', lineLen = 80) {
   for (const w of words) {
     // 如果再加一个单词会超过 lineLen，就先换行
     if (line.length && line.length + w.length + 1 > lineLen) {
-      lines.push(line); // push 完整行
-      line = w; // 当前单词作为下一行开头
+      lines.push(line);
+      line = w;
     } else {
-      line += (line ? ' ' : '') + w; // 行首不加空格
+      line += (line ? ' ' : '') + w;
     }
   }
-  if (line) lines.push(line); // 收尾
+  if (line) lines.push(line);
   return lines.join('\n');
 }
 
@@ -60,8 +60,9 @@ function splitBySentence(text, maxLen = 1500) {
   // 对仍超长的做硬切
   const final = [];
   for (const c of chunks) {
-    if (c.length <= maxLen) final.push(c);
-    else {
+    if (c.length <= maxLen) {
+      final.push(c);
+    } else {
       for (let i = 0; i < c.length; i += maxLen) {
         final.push(c.slice(i, i + maxLen));
       }
@@ -70,39 +71,59 @@ function splitBySentence(text, maxLen = 1500) {
   return final;
 }
 
-/** 尝试把跨页被截断的段落重新合并 */
-function mergePageParagraphs(pageTexts) {
+/**
+ * 合并跨页段落。
+ * 输入: pages = [{ text: string, pageNum: number }, ...]
+ * 逻辑：如果上一个段落末尾没碰到句号/问号等，则视为同一段落的延续；否则另起一段。
+ * 最终返回 [{ text, startPage, endPage }, ...]
+ */
+function mergePageParagraphs(pages) {
   const merged = [];
   let buf = '';
-  let startPg = 1;
+  let bufStartPage = pages.length ? pages[0].pageNum : 1;
 
-  for (let idx = 0; idx < pageTexts.length; idx++) {
-    const txt = pageTexts[idx];
-    if (!txt.trim()) continue;
+  for (let i = 0; i < pages.length; i++) {
+    const { text, pageNum } = pages[i];
+    if (!text.trim()) continue;
 
     if (!buf) {
-      buf = txt;
-      startPg = idx + 1;
+      // 第一次初始化
+      buf = text;
+      bufStartPage = pageNum;
       continue;
     }
-
+    // 判断是否需要合并到上一段
     const endsWithPunct = /[。！？.?!]\s*$/.test(buf);
-    const startsWithLower = /^[a-z]/.test(txt);
-
-    if (!endsWithPunct || startsWithLower) {
-      buf += ' ' + txt;
+    const startsWithLower = /^[a-z]/.test(text);
+    // 如果本次 pageNum 与上一段落的 pageNum 不同，则直接“另起一段”
+    const isPageChanged = pageNum !== bufStartPage;
+    if ((!endsWithPunct || startsWithLower) && !isPageChanged) {
+      // 继续合并到同一段
+      buf += ' ' + text;
     } else {
-      merged.push({ text: buf.trim(), startPage: startPg, endPage: idx });
-      buf = txt;
-      startPg = idx + 1;
+      // 另起一段
+      merged.push({
+        text: buf.trim(),
+        startPage: bufStartPage,
+        endPage: pageNum - (isPageChanged ? 1 : 1),
+      });
+      buf = text;
+      bufStartPage = pageNum;
     }
   }
-  if (buf)
+
+  // 收尾
+  if (buf) {
+    // 最后这段一直延续到最后pageNum
+    const lastPageNum = pages.length
+      ? pages[pages.length - 1].pageNum
+      : bufStartPage;
     merged.push({
       text: buf.trim(),
-      startPage: startPg,
-      endPage: pageTexts.length,
+      startPage: bufStartPage,
+      endPage: lastPageNum,
     });
+  }
   return merged;
 }
 
@@ -121,53 +142,73 @@ function slidingWindowChunks(text, maxChars = 1200, overlap = 100) {
 }
 
 /**
+ * advancedPdfLoader
  * @param {string} absolutePath 绝对路径
  * @param {object} opts
- * @param {number} opts.chunkSizeChars  单块最大字符（默认 1500）
- * @param {number} opts.lineLen         自动换行长度（默认 80）
+ *   - chunkSizeChars?: number  单块最大字符（默认 1500）
+ *   - lineLen?: number         自动换行长度（默认 80）
+ *   - basePage?: number        PDF 中首页对应的实际页码（可选, 默认为 1）
  * @returns {Array<{pageContent:string, metadata:object}>}
+ *
+ * 示例：如果 PDF 的逻辑第一页在文档上是“iii”，你可以设 basePage = 0, or other offset
  */
 export async function advancedPdfLoader(
   absolutePath,
-  { chunkSizeChars = 1500, lineLen = 80 } = {}
+  { chunkSizeChars = 1500, lineLen = 80, basePage = 1 } = {}
 ) {
-  /* 1. 读取并转 Uint8Array */
+  // 1) 读取并转 Uint8Array
   const buf = await fs.readFile(absolutePath);
   const uint8 = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
 
-  /* 2. 解析 PDF → 获取每页文本 */
+  // 2) 解析 PDF → 获取每页文本
   const pdf = await getDocument({ data: uint8, disableWorker: true }).promise;
-  const pageTexts = [];
+
+  // pageInfos 用于存放 { text, pageNum }
+  const pageInfos = [];
 
   for (let p = 1; p <= pdf.numPages; p++) {
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
     const raw = tc.items.map((i) => i.str).join(' ');
-    pageTexts.push(normalize(raw));
+    const normalized = normalize(raw);
+    // 这里 p + basePage - 1 => 如果 basePage=1，则实际页码还是 p
+    // 如果 basePage=0，说明pdf物理第一页可能是"封面"之类
+    // 你可以自行决定如何加这个偏移
+    const actualPageNum = p + basePage - 1;
+
+    pageInfos.push({
+      text: normalized,
+      pageNum: actualPageNum,
+    });
   }
 
-  /* 3. 合并跨页段落，再句子/长度切分 */
-  const merged = mergePageParagraphs(pageTexts);
+  // 3) 合并跨页段落
+  const merged = mergePageParagraphs(pageInfos);
   const fileName = path.basename(absolutePath);
+
   const chunks = [];
 
+  // 4) 对每个合并段落做分句/长度切分
   for (const para of merged) {
     const pretty = insertLineBreaks(para.text, lineLen);
     const subChunks = splitBySentence(pretty, chunkSizeChars);
 
-    subChunks.forEach((c, idx) =>
+    // 这里 para.startPage, para.endPage 是合并后的大段落起止
+    // 但它们都是数字，若相同则说明同一页，否则是区间
+    subChunks.forEach((c, idx) => {
+      const pageLabel =
+        para.startPage === para.endPage
+          ? `${para.startPage}`
+          : `${para.startPage}-${para.endPage}`;
       chunks.push({
         pageContent: c,
         metadata: {
           fileName,
-          page:
-            para.startPage === para.endPage
-              ? `${para.startPage}`
-              : `${para.startPage}-${para.endPage}`,
+          page: pageLabel,
           chunkIndex: idx,
         },
-      })
-    );
+      });
+    });
   }
 
   console.log(
@@ -177,4 +218,5 @@ export async function advancedPdfLoader(
   );
   return chunks;
 }
+
 export default { advancedPdfLoader };

@@ -22,7 +22,7 @@ export const multiRAGService = {
     userQuery,
     language = 'en',
     customFields = [],
-    topK = 20
+    topK = 3
   ) {
     const combinedQuery = combineDependencyUserQuery(
       dependencyData,
@@ -85,14 +85,17 @@ ${userQuery}
    *  - 按 fileName 分组, 再循环
    *  - 调用 doFileSummarize() => 返回 JSON
    * ================================
+   * 主要负责对传进来的 docs 做分组、排序、逐文件生成摘要，然后合并返回最终结果。
    */
   async multiRAGSummarize(docs, language = 'en') {
+    console.log('Line 90 [multiRAGSummarize] received docs:', docs);
+    console.log('Line 91 [multiRAGSummarize] language:', language);
     try {
       if (!docs || !docs.length) {
         return { summary_items: [], sources: [] };
       }
 
-      // 1) 按 fileName 分组
+      // 1) 按 fileName 把 docs 分组, 这样就能区分来自哪个文件的 chunk. grouped 是一个map，key是文件名，value是这个文件的所有 chunk
       const grouped = {};
       for (const doc of docs) {
         const fn = doc.metadata.fileName || 'unknown_file';
@@ -100,10 +103,14 @@ ${userQuery}
         grouped[fn].push(doc);
       }
 
-      // 2) 按 page/row 排序
+      // 2) 对每个文件组内的 chunk 按页码或行号进行排序。fn是文件名，grouped[fn]是这个文件的所有 chunk
       for (const fn in grouped) {
         grouped[fn].sort(
           (a, b) => parsePageOrRow(a.metadata) - parsePageOrRow(b.metadata)
+        );
+
+        console.log(
+          `Line 111 fileName=${fn}, chunkCount=${grouped[fn].length}`
         );
       }
 
@@ -112,21 +119,19 @@ ${userQuery}
 
       // 3) 依次 Summarize
       for (const fn in grouped) {
-        const combinedText = grouped[fn]
-          .map((doc) => {
-            const pOrL = parsePageOrRowString(doc.metadata);
-            return `--- [Chunk from ${pOrL}] ---\n${doc.pageContent}`;
-          })
-          .join('\n\n');
-
-        const firstMeta = grouped[fn][0].metadata;
-        const pageOrLine = parsePageOrRowString(firstMeta);
+        const chunksForFile = grouped[fn].map((doc) => ({
+          pageOrLine: parsePageOrRowString(doc.metadata),
+          content: doc.pageContent,
+        }));
+        console.log(
+          `Line 125 [multiRAGSummarize] Summarizing file="${fn}" with chunksForFile length=`,
+          chunksForFile.length
+        );
 
         const singleFileJson = await doSimpleLLMSummarize(
-          combinedText,
+          chunksForFile, // ← 把数组传进去
           fn,
-          pageOrLine,
-          { language, modelName: 'gpt-4.1', temperature: 0 }
+          { language, modelName: 'gpt-4o-mini', temperature: 0 }
         );
         finalSummaryItems.push(...(singleFileJson.summary_items || []));
         finalSources.push(...(singleFileJson.sources || []));
@@ -135,7 +140,18 @@ ${userQuery}
       // 4) 去重 sources
       const uniqueSources = deduplicateSources(finalSources);
       const summaryStr = buildSummaryString(finalSummaryItems, uniqueSources);
-
+      console.log(
+        'Line 145 [multiRAGSummarize] finalSummaryItems=',
+        finalSummaryItems.length
+      );
+      console.log(
+        'Line 149 [multiRAGSummarize] finalSources=',
+        finalSources.length
+      );
+      console.log(
+        'Line 150 [multiRAGSummarize] returning summary=',
+        summaryStr
+      );
       return {
         summary: summaryStr,
         summary_items: finalSummaryItems,
@@ -311,33 +327,38 @@ function deduplicateSources(arr) {
  *   => 生成 JSON { summary_items, sources }
  */
 async function doSimpleLLMSummarize(
-  text,
+  chunks,
   fileName,
-  pageOrLine,
-  { language = 'en', modelName = 'gpt-4.1', temperature = 0 } = {}
+  // pageOrLine,
+  { language = 'en', modelName = 'gpt-4o-mini', temperature = 0 } = {}
 ) {
+  // 把数组展开为带页码标头的长文本，供 LLM 读取
+  const chunksText = chunks
+    .map((c, i) => `--- [Chunk ${i + 1} | ${c.pageOrLine}] ---\n${c.content}`)
+    .join('\n\n');
   // 1) 准备 systemPrompt: 给AI指令 => 详细分步
   const systemPrompt = `
 You are a senior AEC analyst.
-
 Your ONLY allowed response MUST be valid JSON that conforms exactly to the following schema:
 
-${JSON.stringify(SUMMARY_SCHEMA, null, 2)}
+${SUMMARY_SCHEMA}
 
 General rules:
-- Use ${language} language.
-- For every distinct fact, write a concise sentence (≤ 30 words) and store it in \"summary_items[].content\".
-- Immediately after each sentence create its corresponding \"source\" object using the provided references.
-- Do NOT add markdown, comments, or extra keys.
+- Write in ${language}.
+- Combine information across chunks **from the SAME file** (${fileName}).
+- After each concise fact include its own source object using the page/row
+  shown in each chunk header (e.g. "page 22" or "row 51").
+- Do NOT invent pages; only use those present in the headers.
+- No markdown, no extra keys.
 `.trim();
 
   // 2) humanPrompt: 把具体的 content + fileName/pageOrLine 告诉模型
   const humanPrompt = `
-TEXT TO SUMMARIZE:
-{{text}}
+CHUNKS FROM FILE: ${fileName}
 
-Its source is: ${fileName}, ${pageOrLine}.
-Remember: respond ONLY with JSON that matches the schema above.
+{chunks_text}
+
+Respond ONLY with JSON that matches the schema above.
 `.trim();
 
   // 3) Prompt object
@@ -351,19 +372,29 @@ Remember: respond ONLY with JSON that matches the schema above.
     modelName: process.env.OPENAI_MODEL || modelName,
     openAIApiKey: process.env.OPENAI_API_KEY,
     temperature,
-    response_format: { type: 'json_schema', schema: SUMMARY_SCHEMA },
+    response_format: { type: 'json_schema', schema: SUMMARY_SCHEMA_RAW },
   });
 
   // 5) Chain execution
+  console.log('Line 377 [doSimpleLLMSummarize] text length = ', chunks.length);
+  console.log('Line 378 [doSimpleLLMSummarize] fileName = ', fileName);
   const chain = new LLMChain({ llm: model, prompt });
-  const response = await chain.call({ text });
+  const response = await chain.call({ chunks_text: chunksText });
+  console.log('Line 382 [doSimpleLLMSummarize] input=', chunks);
+  console.log(
+    'Line 375 [doSimpleLLMSummarize] raw LLM response=',
+    response?.text
+  );
   let rawOutput = (response?.text || '').trim();
   rawOutput = stripTripleBackticks(rawOutput);
 
   try {
     return JSON.parse(rawOutput); // { summary_items, sources }
   } catch (err) {
-    console.error('Error parsing Summarize JSON:', err, rawOutput);
+    console.error(
+      'Line 394 [doSimpleLLMSummarize] JSON parse error, rawOutput=',
+      rawOutput
+    );
     throw new Error('LLM returned invalid JSON: ' + rawOutput);
   }
 }
@@ -384,7 +415,7 @@ const SUMMARY_SCHEMA_RAW = {
       items: {
         type: 'object',
         properties: {
-          content: { type: 'string', description: 'Concise statement' },
+          content: { type: 'string' },
           source: {
             type: 'object',
             properties: {

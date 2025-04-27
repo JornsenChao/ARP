@@ -91,8 +91,10 @@ function Step3ParallelTasks() {
   const toggle = () => setExpanded(!expanded);
   const textLenLimit = 1500;
 
-  const [summaryText, setSummaryText] = useState(''); // 生成的 Summarize 结果
+  // const [summaryText, setSummaryText] = useState(''); // 生成的 Summarize 结果
   const [isSummarizing, setIsSummarizing] = useState(false);
+  const [fileSummaries, setFileSummaries] = useState([]);
+  const [allSources, setAllSources] = useState([]);
   // const [summaryItems, setSummaryItems] = useState([]);
   // const [summarySources, setSummarySources] = useState([]);
   // const [doc, setDoc] = useState({ pageContent: '' });
@@ -287,7 +289,9 @@ function Step3ParallelTasks() {
   // === [New] Summarize: 收集“当前Tab docs” 或所有Tab docs？ 这里先演示只针对“当前Tab”
   async function handleSummarize(whichTab) {
     setIsSummarizing(true);
-    setSummaryText('');
+    // 清空旧数据
+    setFileSummaries([]);
+    setAllSources([]);
     try {
       let docs = [];
       if (whichTab === 'A') docs = docsA;
@@ -304,8 +308,14 @@ function Step3ParallelTasks() {
         language,
       });
       // 后端返回 { summary, summary_items, sources }
-      console.log(resp.data);
-      setSummaryText(resp.data.summary || '(empty)');
+      console.log('[handleSummarize] summarize response:', resp.data);
+
+      if (!resp.data || !resp.data.fileSummaries) {
+        alert('No fileSummaries in response');
+      } else {
+        setFileSummaries(resp.data.fileSummaries);
+        setAllSources(resp.data.allSources || []);
+      }
       // setSummaryItems(resp.data.summary_items || []);
       // setSummarySources(resp.data.sources || []);
     } catch (err) {
@@ -476,7 +486,7 @@ function Step3ParallelTasks() {
           <Tab label="Task C: Other Resources" />
 
           {/* === [New] 如果有摘要 */}
-          {(isSummarizing || summaryText) && (
+          {(isSummarizing || fileSummaries.length > 0) && (
             <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
               <Typography variant="subtitle1" gutterBottom>
                 Summarize Result:
@@ -484,21 +494,42 @@ function Step3ParallelTasks() {
               {isSummarizing ? (
                 <CircularProgress size={24} />
               ) : (
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {summaryText}
-                </Typography>
+                fileSummaries.map((fileItem, idx) => (
+                  <Box key={idx} sx={{ mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                      File: {fileItem.fileName}
+                    </Typography>
+
+                    {/* 这里显示 fileItem.summary 简要文本 */}
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-wrap', ml: 2 }}
+                    >
+                      {fileItem.summary || '(no summary)'}
+                    </Typography>
+
+                    {/* 如果想展示 summary_items 详情 */}
+                    {fileItem.summary_items &&
+                      fileItem.summary_items.length > 0 && (
+                        <Box sx={{ mt: 1, ml: 3 }}>
+                          {fileItem.summary_items.map((item, i2) => (
+                            <Box key={i2} sx={{ mb: 1 }}>
+                              <div>
+                                <strong>• {item.content}</strong>
+                              </div>
+                              <div
+                                style={{ fontSize: '0.85rem', color: '#555' }}
+                              >
+                                Source: {item.source.fileName},{' '}
+                                {item.source.pageOrLine}
+                              </div>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+                  </Box>
+                ))
               )}
-              {/* {summaryItems.map((item, idx) => (
-                <div key={idx} style={{ marginBottom: '8px' }}>
-                  <div>
-                    <strong>Content:</strong> {item.content}
-                  </div>
-                  <div>
-                    <strong>Source:</strong> {item.source.fileName},{' '}
-                    {item.source.pageOrLine}
-                  </div>
-                </div>
-              ))} */}
             </Box>
           )}
         </Tabs>
