@@ -1,13 +1,13 @@
-// src/components/CurrentSummaryPanel.jsx
+// src/components/CurrentCollectionPanel.jsx
 import React from 'react';
 import { Typography, List, ListItem, ListItemText } from '@mui/material';
 
-function CurrentSummaryPanel({ summaryItems }) {
+function CurrentCollectionPanel({ collectionItems }) {
   return (
     <div style={{ marginTop: 16 }}>
-      <Typography variant="h6">Current Summary</Typography>
+      <Typography variant="h6">Current Collection</Typography>
       <List dense>
-        {summaryItems.map((item, idx) => (
+        {collectionItems.map((item, idx) => (
           <ListItem key={idx}>
             <ListItemText
               primary={item.content.slice(0, 50) + '...'}
@@ -20,4 +20,4 @@ function CurrentSummaryPanel({ summaryItems }) {
   );
 }
 
-export default CurrentSummaryPanel;
+export default CurrentCollectionPanel;

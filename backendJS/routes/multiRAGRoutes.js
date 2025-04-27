@@ -11,3 +11,6 @@ multiRAGRoutes.post('/queryCoT', multiRAGController.multyRAGQueryCoT);
 
 // POST /multiRAG/buildGraph
 multiRAGRoutes.post('/buildGraph', multiRAGController.buildGraph);
+
+// POST /multiRAG/summarize
+multiRAGRoutes.post('/summarize', multiRAGController.multyRAGSummarize);

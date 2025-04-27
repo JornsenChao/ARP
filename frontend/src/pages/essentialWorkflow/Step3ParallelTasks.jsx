@@ -64,7 +64,7 @@ function Step3ParallelTasks() {
 
   // ======== common RAG states ========
   const [dependencyData, setDependencyData] = useState({});
-  const [summary, setSummary] = useState([]);
+  const [collection, setCollection] = useState([]);
 
   // ======== step2 "selectedRisks" -> 这里我们要匹配 riskResultRow ========
   const [selectedRiskRows, setSelectedRiskRows] = useState([]);
@@ -90,6 +90,11 @@ function Step3ParallelTasks() {
 
   const toggle = () => setExpanded(!expanded);
   const textLenLimit = 1500;
+
+  const [summaryText, setSummaryText] = useState(''); // 生成的 Summarize 结果
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  // const [summaryItems, setSummaryItems] = useState([]);
+  // const [summarySources, setSummarySources] = useState([]);
   // const [doc, setDoc] = useState({ pageContent: '' });
   // const fullText = doc.pageContent || '';
   // const previewText = fullText.slice(0, 1000);
@@ -268,9 +273,9 @@ function Step3ParallelTasks() {
     }
   }
 
-  // ======== Add to Summary ========
-  function handleAddToSummary(doc) {
-    setSummary((prev) => [
+  // ======== Add to Collection ========
+  function handleAddToCollection(doc) {
+    setCollection((prev) => [
       ...prev,
       {
         text: doc.pageContent.slice(0, textLenLimit),
@@ -279,9 +284,40 @@ function Step3ParallelTasks() {
       },
     ]);
   }
+  // === [New] Summarize: 收集“当前Tab docs” 或所有Tab docs？ 这里先演示只针对“当前Tab”
+  async function handleSummarize(whichTab) {
+    setIsSummarizing(true);
+    setSummaryText('');
+    try {
+      let docs = [];
+      if (whichTab === 'A') docs = docsA;
+      else if (whichTab === 'B') docs = docsB;
+      else docs = docsC;
 
+      if (docs.length === 0) {
+        alert('No docs to summarize');
+        setIsSummarizing(false);
+        return;
+      }
+      const resp = await axios.post(`${DOMAIN}/multiRAG/summarize`, {
+        docs,
+        language,
+      });
+      // 后端返回 { summary, summary_items, sources }
+      console.log(resp.data);
+      setSummaryText(resp.data.summary || '(empty)');
+      // setSummaryItems(resp.data.summary_items || []);
+      // setSummarySources(resp.data.sources || []);
+    } catch (err) {
+      console.error('Summarize error:', err);
+      alert('Summarize error: ' + err.message);
+    } finally {
+      setIsSummarizing(false);
+    }
+  }
   // ======== Render tab content ========
   const renderTabContent = (whichTab, query, setQuery, docs, graph) => {
+    const canSummarize = docs.length > 0;
     return (
       <Box>
         <Box sx={{ mb: 2 }}>
@@ -297,6 +333,14 @@ function Step3ParallelTasks() {
         <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
           <Button variant="contained" onClick={() => handleAskRAG(whichTab)}>
             Ask
+          </Button>
+          {/* === [New] Summary Button */}
+          <Button
+            variant="outlined"
+            disabled={!canSummarize}
+            onClick={() => handleSummarize(whichTab)}
+          >
+            Summary
           </Button>
           <Button variant="outlined" onClick={() => handleBuildGraph(whichTab)}>
             Build Graph
@@ -399,8 +443,8 @@ function Step3ParallelTasks() {
               </Typography>
             )}
 
-            <Button variant="text" onClick={() => handleAddToSummary(doc)}>
-              + Add to Summary
+            <Button variant="text" onClick={() => handleAddToCollection(doc)}>
+              + Add to Collection
             </Button>
           </Card>
         ))}
@@ -430,6 +474,33 @@ function Step3ParallelTasks() {
           <Tab label="Task A: Case Study" />
           <Tab label="Task B: Strategy" />
           <Tab label="Task C: Other Resources" />
+
+          {/* === [New] 如果有摘要 */}
+          {(isSummarizing || summaryText) && (
+            <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Summarize Result:
+              </Typography>
+              {isSummarizing ? (
+                <CircularProgress size={24} />
+              ) : (
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {summaryText}
+                </Typography>
+              )}
+              {/* {summaryItems.map((item, idx) => (
+                <div key={idx} style={{ marginBottom: '8px' }}>
+                  <div>
+                    <strong>Content:</strong> {item.content}
+                  </div>
+                  <div>
+                    <strong>Source:</strong> {item.source.fileName},{' '}
+                    {item.source.pageOrLine}
+                  </div>
+                </div>
+              ))} */}
+            </Box>
+          )}
         </Tabs>
 
         {currentTab === 0 &&
@@ -440,7 +511,7 @@ function Step3ParallelTasks() {
           renderTabContent('C', queryC, setQueryC, docsC, graphC)}
       </Box>
 
-      {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentSummary) */}
+      {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentCollection) */}
       <Box
         sx={{
           width: 400,
@@ -620,17 +691,17 @@ function Step3ParallelTasks() {
 
           <Divider />
 
-          {/* (3) Current Summary */}
+          {/* (3) Current Collection */}
           <Accordion>
             <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Current Summary</Typography>
+              <Typography>Current Collection</Typography>
             </AccordionSummary>
             <AccordionDetails>
-              {summary.length === 0 ? (
+              {collection.length === 0 ? (
                 <Typography>No items yet.</Typography>
               ) : (
                 <List dense>
-                  {summary.map((item, idx) => (
+                  {collection.map((item, idx) => (
                     <ListItem key={idx}>
                       <ListItemText
                         primary={item.text}

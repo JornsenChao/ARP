@@ -123,4 +123,22 @@ export const multiRAGController = {
       res.status(500).send(err.message);
     }
   },
+
+  async multyRAGSummarize(req, res) {
+    try {
+      const { docs = [], language = 'en' } = req.body;
+
+      // 调用 service
+      const summaryResult = await multiRAGService.multiRAGSummarize(
+        docs,
+        language
+      );
+
+      // 返回
+      return res.json(summaryResult);
+    } catch (err) {
+      console.error('Error in multyRAGSummarize:', err);
+      res.status(500).send(err.message);
+    }
+  },
 };
