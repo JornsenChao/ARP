@@ -23,6 +23,8 @@ import {
   CircularProgress,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import { linkify } from '../../utils/linkify';
 // import ExpandableText from '../../components/ExpandableText';
@@ -61,14 +63,16 @@ function highlightSynonyms(text, sideContextKeys) {
 function Step3ParallelTasks() {
   // ======== Tab state (A/B/C) ========
   const [currentTab, setCurrentTab] = useState(0);
-
+  const [isPanelOpen, setIsPanelOpen] = useState(true); // 控制面板显示/隐藏
   // ======== common RAG states ========
   const [dependencyData, setDependencyData] = useState({});
   const [collection, setCollection] = useState([]);
 
   // ======== step2 "selectedRisks" -> 这里我们要匹配 riskResultRow ========
   const [selectedRiskRows, setSelectedRiskRows] = useState([]);
-
+  const togglePanel = () => {
+    setIsPanelOpen((prev) => !prev);
+  };
   // For queries in each tab
   const [queryA, setQueryA] = useState('');
   const [docsA, setDocsA] = useState([]);
@@ -81,7 +85,26 @@ function Step3ParallelTasks() {
   const [queryC, setQueryC] = useState('');
   const [docsC, setDocsC] = useState([]);
   const [graphC, setGraphC] = useState(null);
-
+  const [tabSummaryData, setTabSummaryData] = useState({
+    A: {
+      isSummarizing: false,
+      globalSummary: '',
+      globalSources: [],
+      fileSummaryMap: [],
+    },
+    B: {
+      isSummarizing: false,
+      globalSummary: '',
+      globalSources: [],
+      fileSummaryMap: [],
+    },
+    C: {
+      isSummarizing: false,
+      globalSummary: '',
+      globalSources: [],
+      fileSummaryMap: [],
+    },
+  });
   const [language, setLanguage] = useState('en');
   const [framework, setFramework] = useState('');
   const [graphLibrary, setGraphLibrary] = useState('cytoscape');
@@ -91,8 +114,17 @@ function Step3ParallelTasks() {
   const toggle = () => setExpanded(!expanded);
   const textLenLimit = 1500;
 
-  // const [summaryText, setSummaryText] = useState(''); // 生成的 Summarize 结果
+  // 用来表示“是否正在调用后端summarize”
   const [isSummarizing, setIsSummarizing] = useState(false);
+
+  // 存放“跨文件”的最终顶层摘要字符串
+  const [globalSummary, setGlobalSummary] = useState('');
+  // 存放“跨文件”的所有来源
+  const [globalSources, setGlobalSources] = useState([]);
+  // 存放“各文件”的摘要结果数组
+  const [fileSummaryMap, setFileSummaryMap] = useState([]);
+
+  // const [summaryText, setSummaryText] = useState(''); // 生成的 Summarize 结果
   const [fileSummaries, setFileSummaries] = useState([]);
   const [allSources, setAllSources] = useState([]);
   // const [summaryItems, setSummaryItems] = useState([]);
@@ -288,45 +320,99 @@ function Step3ParallelTasks() {
   }
   // === [New] Summarize: 收集“当前Tab docs” 或所有Tab docs？ 这里先演示只针对“当前Tab”
   async function handleSummarize(whichTab) {
-    setIsSummarizing(true);
-    // 清空旧数据
-    setFileSummaries([]);
-    setAllSources([]);
+    // 1) 先把 tabSummaryData 复制出来
+    const newTabSummary = { ...tabSummaryData };
+    // 2) 把 isSummarizing 置为 true
+    newTabSummary[whichTab] = {
+      ...newTabSummary[whichTab],
+      isSummarizing: true,
+      // 清空旧数据
+      globalSummary: '',
+      globalSources: [],
+      fileSummaryMap: [],
+    };
+    setTabSummaryData(newTabSummary);
+
     try {
+      // 根据当前 tab 选择要处理的 docs
       let docs = [];
       if (whichTab === 'A') docs = docsA;
       else if (whichTab === 'B') docs = docsB;
       else docs = docsC;
 
-      if (docs.length === 0) {
+      if (!docs || docs.length === 0) {
         alert('No docs to summarize');
-        setIsSummarizing(false);
+        // 复位 isSummarizing
+        newTabSummary[whichTab].isSummarizing = false;
+        setTabSummaryData({ ...newTabSummary });
         return;
       }
+
+      // 调用后端的 multiRAG/summarize 接口
       const resp = await axios.post(`${DOMAIN}/multiRAG/summarize`, {
         docs,
         language,
       });
-      // 后端返回 { summary, summary_items, sources }
-      console.log('[handleSummarize] summarize response:', resp.data);
+      const data = resp.data;
+      console.log('[handleSummarize] summarize response:', data);
 
-      if (!resp.data || !resp.data.fileSummaries) {
-        alert('No fileSummaries in response');
-      } else {
-        setFileSummaries(resp.data.fileSummaries);
-        setAllSources(resp.data.allSources || []);
+      // 后端返回形如：
+      // {
+      //   summary: "<global summary text>",
+      //   summary_items: {
+      //       "FileA.pdf": {
+      //         summaryStr: "...(该文件二次整合的简要概述)...",
+      //         summaryItems: [ {content:'', source:{}}, ... ],
+      //         sources: [...]
+      //       },
+      //       "FileB.csv": { ... }
+      //   },
+      //   sources: [ {fileName:'', pageOrLine:''}, ... ]
+      // }
+      if (!data || !data.summary_items) {
+        alert('No summary_items in response');
+        newTabSummary[whichTab].isSummarizing = false;
+        setTabSummaryData({ ...newTabSummary });
+        return;
       }
-      // setSummaryItems(resp.data.summary_items || []);
-      // setSummarySources(resp.data.sources || []);
+
+      // 1) 存储全局总结 & 全局来源
+      newTabSummary[whichTab].globalSummary = data.summary || '';
+      newTabSummary[whichTab].globalSources = data.sources || [];
+
+      // 2) 将 summary_items（对象形式）转换为数组，以便在前端渲染时方便 map
+      // data.summary_items => { "FileName.pdf": { summaryStr, summaryItems, sources }, ... }
+      if (data.summary_items && typeof data.summary_items === 'object') {
+        const fileSummaryArr = Object.entries(data.summary_items).map(
+          ([fn, obj]) => ({
+            fileName: fn,
+            summaryStr:
+              typeof obj.summaryStr === 'string'
+                ? obj.summaryStr
+                : JSON.stringify(obj.summaryStr),
+            summaryItems: Array.isArray(obj.summaryItems)
+              ? obj.summaryItems
+              : [],
+            sources: Array.isArray(obj.sources) ? obj.sources : [],
+          })
+        );
+        newTabSummary[whichTab].fileSummaryMap = fileSummaryArr;
+      }
+      // 最终更新
+      newTabSummary[whichTab].isSummarizing = false;
+      setTabSummaryData({ ...newTabSummary });
     } catch (err) {
       console.error('Summarize error:', err);
       alert('Summarize error: ' + err.message);
-    } finally {
-      setIsSummarizing(false);
+      // 出错也要复位
+      const updated = { ...tabSummaryData };
+      updated[whichTab].isSummarizing = false;
+      setTabSummaryData(updated);
     }
   }
   // ======== Render tab content ========
   const renderTabContent = (whichTab, query, setQuery, docs, graph) => {
+    const summaryData = tabSummaryData[whichTab];
     const canSummarize = docs.length > 0;
     return (
       <Box>
@@ -394,6 +480,89 @@ function Step3ParallelTasks() {
             </Select>
           </FormControl>
         </Box>
+        {/* === [New] 如果有摘要 */}
+        {(summaryData.isSummarizing ||
+          summaryData.fileSummaryMap.length > 0) && (
+          <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
+            {summaryData.isSummarizing ? (
+              <CircularProgress size={24} />
+            ) : (
+              <>
+                {/* 全局摘要 */}
+                {summaryData.globalSummary && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                      Global Summary
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-wrap', ml: 2 }}
+                    >
+                      {summaryData.globalSummary}
+                    </Typography>
+                  </Box>
+                )}
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* 分文件显示 */}
+                {summaryData.fileSummaryMap.map((fileItem, idx) => (
+                  <Box key={idx} sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                      File: {fileItem.fileName}
+                    </Typography>
+
+                    {/* 文件级摘要 */}
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'pre-wrap', ml: 2, mb: 1 }}
+                    >
+                      {fileItem.summaryStr}
+                    </Typography>
+
+                    {/* chunk-level items */}
+                    {fileItem.summaryItems &&
+                      fileItem.summaryItems.length > 0 && (
+                        <Box sx={{ ml: 3 }}>
+                          {fileItem.summaryItems.map((itm, i2) => (
+                            <Box key={i2} sx={{ mb: 1 }}>
+                              <div>
+                                <strong>• {itm.content}</strong>
+                              </div>
+                              <div
+                                style={{ fontSize: '0.85rem', color: '#555' }}
+                              >
+                                Source: {itm.source.fileName},{' '}
+                                {itm.source.pageOrLine}
+                              </div>
+                            </Box>
+                          ))}
+                        </Box>
+                      )}
+
+                    {/* 如果需要文件级source */}
+                    {fileItem.sources && fileItem.sources.length > 0 && (
+                      <Box sx={{ mt: 1, ml: 3 }}>
+                        <Typography variant="subtitle2">
+                          File Sources:
+                        </Typography>
+                        {fileItem.sources.map((src, i3) => (
+                          <Typography
+                            key={i3}
+                            variant="body2"
+                            sx={{ fontSize: '0.85rem', color: '#555' }}
+                          >
+                            - {src.fileName}, {src.pageOrLine}
+                          </Typography>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+              </>
+            )}
+          </Box>
+        )}
         {/* Graph */}
         {graph && (
           <Box sx={{ mt: 2 }}>
@@ -484,54 +653,6 @@ function Step3ParallelTasks() {
           <Tab label="Task A: Case Study" />
           <Tab label="Task B: Strategy" />
           <Tab label="Task C: Other Resources" />
-
-          {/* === [New] 如果有摘要 */}
-          {(isSummarizing || fileSummaries.length > 0) && (
-            <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
-              <Typography variant="subtitle1" gutterBottom>
-                Summarize Result:
-              </Typography>
-              {isSummarizing ? (
-                <CircularProgress size={24} />
-              ) : (
-                fileSummaries.map((fileItem, idx) => (
-                  <Box key={idx} sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                      File: {fileItem.fileName}
-                    </Typography>
-
-                    {/* 这里显示 fileItem.summary 简要文本 */}
-                    <Typography
-                      variant="body2"
-                      sx={{ whiteSpace: 'pre-wrap', ml: 2 }}
-                    >
-                      {fileItem.summary || '(no summary)'}
-                    </Typography>
-
-                    {/* 如果想展示 summary_items 详情 */}
-                    {fileItem.summary_items &&
-                      fileItem.summary_items.length > 0 && (
-                        <Box sx={{ mt: 1, ml: 3 }}>
-                          {fileItem.summary_items.map((item, i2) => (
-                            <Box key={i2} sx={{ mb: 1 }}>
-                              <div>
-                                <strong>• {item.content}</strong>
-                              </div>
-                              <div
-                                style={{ fontSize: '0.85rem', color: '#555' }}
-                              >
-                                Source: {item.source.fileName},{' '}
-                                {item.source.pageOrLine}
-                              </div>
-                            </Box>
-                          ))}
-                        </Box>
-                      )}
-                  </Box>
-                ))
-              )}
-            </Box>
-          )}
         </Tabs>
 
         {currentTab === 0 &&
@@ -545,206 +666,233 @@ function Step3ParallelTasks() {
       {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentCollection) */}
       <Box
         sx={{
-          width: 400,
+          width: isPanelOpen ? 300 : 20, // 展开时宽度为300px，隐藏时宽度为40px
           display: 'flex',
           flexDirection: 'column',
           borderLeft: '1px solid #ccc',
           height: '100vh',
           mt: 8,
+          transition: 'width 0.3s ease', // 添加动画效果
+          position: 'relative', // 使按钮可以固定在面板边缘
         }}
       >
-        <Toolbar />
+        {/* 切换按钮 */}
+        <Button
+          onClick={togglePanel}
+          sx={{
+            position: 'absolute',
+            top: 10,
+            left: isPanelOpen ? -20 : 0, // 根据面板状态调整按钮位置
+            minWidth: 'unset',
+            width: 20,
+            height: 40,
+            zIndex: 10,
+            borderRadius: '0 4px 4px 0',
+            backgroundColor: '#f0f0f0',
+            '&:hover': { backgroundColor: '#e0e0e0' },
+          }}
+        >
+          {isPanelOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+        </Button>
 
-        {loading && (
-          <Box sx={{ textAlign: 'center', mt: 2 }}>
-            <CircularProgress />
-          </Box>
-        )}
+        {isPanelOpen && (
+          <>
+            <Toolbar />
 
-        <Box sx={{ flex: 1, overflowY: 'auto' }}>
-          {/* (1) Project Context */}
-          <Accordion defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Project Context</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <DependencySelector
-                onChange={(data) => setDependencyData(data)}
-              />
-            </AccordionDetails>
-            {/* </Accordion> */}
+            {loading && (
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <CircularProgress />
+              </Box>
+            )}
 
-            <Divider />
+            <Box sx={{ flex: 1, overflowY: 'auto' }}>
+              {/* (1) Project Context */}
+              <Accordion defaultExpanded>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography>Project Context</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <DependencySelector
+                    onChange={(data) => setDependencyData(data)}
+                  />
+                </AccordionDetails>
+                {/* </Accordion> */}
 
-            {/* <Accordion defaultExpanded> */}
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Current Selection</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              {/* show the user current dependencyData */}
-              <Typography variant="subtitle4">Climate Risks:</Typography>
-              <List dense>
-                {dependencyData.climateRisks?.values?.map((val) => (
-                  <ListItem key={val} disableGutters>
-                    <ListItemText primary={val} />
-                  </ListItem>
-                ))}
-              </List>
-              {/* <Typography variant="caption">
+                <Divider />
+
+                {/* <Accordion defaultExpanded> */}
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography>Current Selection</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {/* show the user current dependencyData */}
+                  <Typography variant="subtitle4">Climate Risks:</Typography>
+                  <List dense>
+                    {dependencyData.climateRisks?.values?.map((val) => (
+                      <ListItem key={val} disableGutters>
+                        <ListItemText primary={val} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {/* <Typography variant="caption">
                 Type: {dependencyData.climateRisks?.type}
               </Typography> */}
-              {/* Similarly for regulations, projectTypes, environment, scale */}
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2">Regulations:</Typography>
-              <List dense>
-                {dependencyData.regulations?.values?.map((val) => (
-                  <ListItem key={val} disableGutters>
-                    <ListItemText primary={val} />
-                  </ListItem>
-                ))}
-              </List>
-              {/* <Typography variant="caption">
+                  {/* Similarly for regulations, projectTypes, environment, scale */}
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2">Regulations:</Typography>
+                  <List dense>
+                    {dependencyData.regulations?.values?.map((val) => (
+                      <ListItem key={val} disableGutters>
+                        <ListItemText primary={val} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {/* <Typography variant="caption">
                 Type: {dependencyData.regulations?.type}
               </Typography> */}
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2">Project Types:</Typography>
-              <List dense>
-                {dependencyData.projectTypes?.values?.map((val) => (
-                  <ListItem key={val} disableGutters>
-                    <ListItemText primary={val} />
-                  </ListItem>
-                ))}
-              </List>
-              {/* <Typography variant="caption">
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2">Project Types:</Typography>
+                  <List dense>
+                    {dependencyData.projectTypes?.values?.map((val) => (
+                      <ListItem key={val} disableGutters>
+                        <ListItemText primary={val} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {/* <Typography variant="caption">
                 Type: {dependencyData.projectTypes?.type}
               </Typography> */}
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2">Environment:</Typography>
-              <List dense>
-                {dependencyData.environment?.values?.map((val) => (
-                  <ListItem key={val} disableGutters>
-                    <ListItemText primary={val} />
-                  </ListItem>
-                ))}
-              </List>
-              {/* <Typography variant="caption">
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2">Environment:</Typography>
+                  <List dense>
+                    {dependencyData.environment?.values?.map((val) => (
+                      <ListItem key={val} disableGutters>
+                        <ListItemText primary={val} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {/* <Typography variant="caption">
                 Type: {dependencyData.environment?.type}
               </Typography> */}
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2">Scale:</Typography>
-              <List dense>
-                {dependencyData.scale?.values?.map((val) => (
-                  <ListItem key={val} disableGutters>
-                    <ListItemText primary={val} />
-                  </ListItem>
-                ))}
-              </List>
-              {/* <Typography variant="caption">
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2">Scale:</Typography>
+                  <List dense>
+                    {dependencyData.scale?.values?.map((val) => (
+                      <ListItem key={val} disableGutters>
+                        <ListItemText primary={val} />
+                      </ListItem>
+                    ))}
+                  </List>
+                  {/* <Typography variant="caption">
                 Type: {dependencyData.scale?.type}
               </Typography> */}
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="subtitle2">Other Info:</Typography>
-              <Typography variant="body2">
-                {dependencyData.additional || '(none)'}
-              </Typography>
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2">Other Info:</Typography>
+                  <Typography variant="body2">
+                    {dependencyData.additional || '(none)'}
+                  </Typography>
 
-              <Divider sx={{ my: 2 }} />
+                  <Divider sx={{ my: 2 }} />
 
-              {/* ========== 新增：显示自定义字段 otherData ========== */}
-              <Typography variant="subtitle2">Custom Fields:</Typography>
-              {/* 如果没有任何自定义字段 */}
-              {Object.keys(dependencyData.otherData || {}).length === 0 ? (
-                <Typography variant="body2">(none)</Typography>
-              ) : (
-                // 遍历 each fieldName => array of string
-                Object.entries(dependencyData.otherData).map(
-                  ([fieldName, arrOfVals]) => (
-                    <div key={fieldName} style={{ marginTop: '0.5rem' }}>
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ fontWeight: 'bold' }}
-                      >
-                        {fieldName}
-                      </Typography>
-                      {arrOfVals?.length > 0 ? (
-                        <List dense>
-                          {arrOfVals.map((val) => (
-                            <ListItem key={val} disableGutters>
-                              <ListItemText primary={val} />
-                            </ListItem>
-                          ))}
-                        </List>
-                      ) : (
-                        <Typography variant="body2" sx={{ ml: 2 }}>
-                          (no values)
-                        </Typography>
-                      )}
-                    </div>
-                  )
-                )
-              )}
-            </AccordionDetails>
-          </Accordion>
+                  {/* ========== 新增：显示自定义字段 otherData ========== */}
+                  <Typography variant="subtitle2">Custom Fields:</Typography>
+                  {/* 如果没有任何自定义字段 */}
+                  {Object.keys(dependencyData.otherData || {}).length === 0 ? (
+                    <Typography variant="body2">(none)</Typography>
+                  ) : (
+                    // 遍历 each fieldName => array of string
+                    Object.entries(dependencyData.otherData).map(
+                      ([fieldName, arrOfVals]) => (
+                        <div key={fieldName} style={{ marginTop: '0.5rem' }}>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 'bold' }}
+                          >
+                            {fieldName}
+                          </Typography>
+                          {arrOfVals?.length > 0 ? (
+                            <List dense>
+                              {arrOfVals.map((val) => (
+                                <ListItem key={val} disableGutters>
+                                  <ListItemText primary={val} />
+                                </ListItem>
+                              ))}
+                            </List>
+                          ) : (
+                            <Typography variant="body2" sx={{ ml: 2 }}>
+                              (no values)
+                            </Typography>
+                          )}
+                        </div>
+                      )
+                    )
+                  )}
+                </AccordionDetails>
+              </Accordion>
 
-          <Divider />
+              <Divider />
 
-          {/* (2) Selected Risks */}
-          <Accordion defaultExpanded>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Selected Risks (from Step2)</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              {selectedRiskRows.length === 0 ? (
-                <Typography>No risk selected or all are zeroed out.</Typography>
-              ) : (
-                <List dense>
-                  {selectedRiskRows.map((r, idx) => (
-                    <ListItem key={idx}>
-                      <ListItemText
-                        primary={`${r.hazard} / ${r.systemName} / ${r.subSystemName}`}
-                        secondary={`Impact=${r.impactRating}, Likelihood=${r.likelihoodRating}, Score=${r.riskScore}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-              {/* 还可加个“Refresh”按钮：重新获取step2最新 */}
-              <Button
-                variant="outlined"
-                size="small"
-                sx={{ mt: 2 }}
-                onClick={fetchSelectedRisksAndBuildRows}
-              >
-                Refresh
-              </Button>
-            </AccordionDetails>
-          </Accordion>
+              {/* (2) Selected Risks */}
+              <Accordion defaultExpanded>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography>Selected Risks (from Step2)</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {selectedRiskRows.length === 0 ? (
+                    <Typography>
+                      No risk selected or all are zeroed out.
+                    </Typography>
+                  ) : (
+                    <List dense>
+                      {selectedRiskRows.map((r, idx) => (
+                        <ListItem key={idx}>
+                          <ListItemText
+                            primary={`${r.hazard} / ${r.systemName} / ${r.subSystemName}`}
+                            secondary={`Impact=${r.impactRating}, Likelihood=${r.likelihoodRating}, Score=${r.riskScore}`}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                  {/* 还可加个“Refresh”按钮：重新获取step2最新 */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    sx={{ mt: 2 }}
+                    onClick={fetchSelectedRisksAndBuildRows}
+                  >
+                    Refresh
+                  </Button>
+                </AccordionDetails>
+              </Accordion>
 
-          <Divider />
+              <Divider />
 
-          {/* (3) Current Collection */}
-          <Accordion>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography>Current Collection</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              {collection.length === 0 ? (
-                <Typography>No items yet.</Typography>
-              ) : (
-                <List dense>
-                  {collection.map((item, idx) => (
-                    <ListItem key={idx}>
-                      <ListItemText
-                        primary={item.text}
-                        secondary={`Added at ${item.addedAt}`}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </AccordionDetails>
-          </Accordion>
-        </Box>
+              {/* (3) Current Collection */}
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Typography>Current Collection</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {collection.length === 0 ? (
+                    <Typography>No items yet.</Typography>
+                  ) : (
+                    <List dense>
+                      {collection.map((item, idx) => (
+                        <ListItem key={idx}>
+                          <ListItemText
+                            primary={item.text}
+                            secondary={`Added at ${item.addedAt}`}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </AccordionDetails>
+              </Accordion>
+            </Box>
+          </>
+        )}
       </Box>
     </Box>
   );
