@@ -22,7 +22,7 @@ export const multiRAGService = {
     userQuery,
     language = 'en',
     customFields = [],
-    topK = 3
+    topK = 10
   ) {
     const combinedQuery = combineDependencyUserQuery(
       dependencyData,

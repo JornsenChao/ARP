@@ -64,6 +64,14 @@ function Step1IdentifyHazard() {
     EssentialWorkflowContext
   );
 
+  /**
+   * 3) 如果 workflowState 还没加载完，就先显示 Loading UI
+   *    但不能在此处定义新 Hook，否则会报“Rendered more hooks...”错误
+   */
+  if (!workflowState) {
+    return <Box sx={{ mt: 8, p: 2 }}>Loading Step1...</Box>;
+  }
+
   // -------------- 搜索相关 --------------
   const [searchMode, setSearchMode] = useState('state'); // "state" or "county"
   const [locationInput, setLocationInput] = useState('');
@@ -77,14 +85,68 @@ function Step1IdentifyHazard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (!workflowState) {
-    return <Box sx={{ mt: 8, p: 2 }}>Loading Step1...</Box>;
-  }
-
-  // 用户已选 hazards
+  /**
+   * 4) 获取 hazards 数组
+   */
   const selectedHazards = workflowState.step1.hazards || [];
 
-  // 点击“Fetch FEMA Hazards” => 调后端
+  /**
+   * 5) 当 workflowState 有数据后，把后端 step1 的
+   *    location / searchMode 同步到本地
+   *    (仅在初次或 workflowState 变更时执行)
+   */
+  useEffect(() => {
+    if (workflowState.step1) {
+      // 获取后端保存的 step1.location & step1.searchMode
+      // 1) searchMode
+      const savedMode = workflowState.step1.searchMode || 'state';
+      setSearchMode(savedMode);
+
+      // 2) location
+      const savedLoc = workflowState.step1.location || '';
+      setLocationInput(savedLoc);
+
+      // 3) femaRecords
+      const savedFema = workflowState.step1.femaRecords || [];
+      setAllRecords(savedFema);
+
+      // 4) start/end date
+      const savedStart = workflowState.step1.startDate || '';
+      setStartDate(savedStart);
+      const savedEnd = workflowState.step1.endDate || '';
+      setEndDate(savedEnd);
+    }
+  }, [workflowState]);
+
+  /**
+   * 6) 函数实现
+   */
+
+  // 用户切换 searchMode => 写回后端
+  function handleSearchModeChange(e) {
+    const newMode = e.target.value;
+    setSearchMode(newMode);
+
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.searchMode = newMode;
+      return updated;
+    });
+  }
+
+  // 用户输入 location => 写回后端
+  function handleLocationChange(e) {
+    const val = e.target.value;
+    setLocationInput(val);
+
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.location = val;
+      return updated;
+    });
+  }
+
+  // 拉取 FEMA
   async function fetchFemaData() {
     setLoading(true);
     setError('');
@@ -142,8 +204,27 @@ function Step1IdentifyHazard() {
       return updated;
     });
   }
-
   // -------------- 时间段过滤 --------------
+  function handleStartDateChange(e) {
+    const val = e.target.value;
+    setStartDate(val);
+
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.startDate = val;
+      return updated;
+    });
+  }
+  function handleEndDateChange(e) {
+    const val = e.target.value;
+    setEndDate(val);
+
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.endDate = val;
+      return updated;
+    });
+  }
   function filterByDateRange(records) {
     if (!startDate && !endDate) return records;
 
@@ -181,15 +262,11 @@ function Step1IdentifyHazard() {
       {/* 搜索模式 */}
       <Box sx={{ mb: 2 }}>
         <FormLabel>Search Mode</FormLabel>
-        <RadioGroup
-          row
-          value={searchMode}
-          onChange={(e) => setSearchMode(e.target.value)}
-        >
+        <RadioGroup row value={searchMode} onChange={handleSearchModeChange}>
           <FormControlLabel
             value="state"
             control={<Radio />}
-            label='Search by State (e.g. "MA")'
+            label='Search by State (e.g. "WA")'
           />
           <FormControlLabel
             value="county"
@@ -207,7 +284,7 @@ function Step1IdentifyHazard() {
             : 'Enter County, State (e.g. King, WA)'
         }
         value={locationInput}
-        onChange={(e) => setLocationInput(e.target.value)}
+        onChange={handleLocationChange}
         sx={{ mb: 1, mr: 1 }}
       />
       <Button variant="outlined" onClick={fetchFemaData}>
@@ -225,14 +302,14 @@ function Step1IdentifyHazard() {
           label="Start Date"
           type="date"
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
+          onChange={handleStartDateChange}
           InputLabelProps={{ shrink: true }}
         />
         <TextField
           label="End Date"
           type="date"
           value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
+          onChange={handleEndDateChange}
           InputLabelProps={{ shrink: true }}
         />
       </Box>
@@ -251,9 +328,6 @@ function Step1IdentifyHazard() {
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              {/* 
-                自定义 Y 轴 tick, 让用户可点击 hazardType 
-              */}
               <YAxis
                 dataKey="type"
                 type="category"
@@ -273,7 +347,7 @@ function Step1IdentifyHazard() {
         </Box>
       )}
 
-      {/* 事件列表：可点击“标题”来查看信息 or 点击其 incidentType 也能选中 */}
+      {/* 事件列表 */}
       <Typography variant="h6">
         Fetched Disaster Records (Filtered by Date)
       </Typography>
@@ -316,22 +390,13 @@ function Step1IdentifyHazard() {
         })}
       </List>
 
-      {/* 显示目前选中的 hazards */}
+      {/* 显示选中的 hazards */}
       <Box sx={{ mt: 2 }}>
         <Typography variant="body1">
           Selected Hazards: {selectedHazards.join(', ') || 'None'}
         </Typography>
       </Box>
 
-      {/* <Box sx={{ mt: 2 }}>
-        <Button
-          variant="contained"
-          disabled={allRecords.length === 0}
-          onClick={saveAllRecordsToState}
-        >
-          Save FEMA Records to State
-        </Button>
-      </Box> */}
       <Box sx={{ mt: 1 }}>
         <Button
           variant="outlined"
@@ -343,7 +408,7 @@ function Step1IdentifyHazard() {
         </Button>
       </Box>
 
-      {/* 下一步按钮 */}
+      {/* “Next Step” */}
       <Box sx={{ mt: 2 }}>
         <Button
           variant="contained"

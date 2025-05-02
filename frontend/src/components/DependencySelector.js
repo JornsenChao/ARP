@@ -1,4 +1,8 @@
-// src/components/DependencySelector.js
+/* 
+  frontend/src/components/DependencySelector.js
+  ============= 全量可复制粘贴示例 =============
+*/
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Checkbox, Input, Button, Select, Typography, message } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
@@ -44,8 +48,15 @@ const scalePresets = [
  *  3) each block has a "type" => 'dep'|'ref'|'strategy'
  *  4) onChange => { climateRisks, regulations, projectTypes, environment, scale, otherData }
  */
-const DependencySelector = ({ onChange }) => {
-  // ---------- A. state for 5 major blocks ----------
+const DependencySelector = ({
+  // CHANGES: 新增 props.value
+  value,
+  onChange,
+}) => {
+  // 如果没有传进来，就给个空对象
+  const incoming = value || {};
+
+  // ========== State for 5 major blocks ==========
   const [climateRisksData, setClimateRisksData] = useState({
     set: new Set(),
     type: 'dependency',
@@ -89,8 +100,61 @@ const DependencySelector = ({ onChange }) => {
   const [currentFieldName, setCurrentFieldName] = useState(''); // user selects an existing fieldName
   const [otherFieldValueInput, setOtherFieldValueInput] = useState('');
 
-  // ========== onChange effect ==========
   const prevDataRef = useRef();
+  // ========== useEffect: 当父组件传入 "value"(dependencyData) 变更时，把它初始化到本组件 state ==========
+  useEffect(() => {
+    // 1) climateRisks => values, type
+    if (incoming.climateRisks) {
+      setClimateRisksData({
+        set: new Set(incoming.climateRisks.values || []),
+        type: incoming.climateRisks.type || 'dependency',
+      });
+    }
+    if (incoming.regulations) {
+      setRegulationsData({
+        set: new Set(incoming.regulations.values || []),
+        type: incoming.regulations.type || 'dependency',
+      });
+    }
+    if (incoming.projectTypes) {
+      setProjectTypesData({
+        set: new Set(incoming.projectTypes.values || []),
+        type: incoming.projectTypes.type || 'dependency',
+      });
+    }
+    if (incoming.environment) {
+      setEnvironmentData({
+        set: new Set(incoming.environment.values || []),
+        type: incoming.environment.type || 'dependency',
+      });
+    }
+    if (incoming.scale) {
+      setScaleData({
+        set: new Set(incoming.scale.values || []),
+        type: incoming.scale.type || 'dependency',
+      });
+    }
+
+    // 2) otherData => { fieldName: string[] }
+    if (incoming.otherData) {
+      const tempObj = {};
+      Object.entries(incoming.otherData).forEach(([fn, arr]) => {
+        tempObj[fn] = new Set(arr);
+      });
+      setOtherData(tempObj);
+    } else {
+      setOtherData({});
+    }
+
+    // 3) additional
+    if (incoming.additional) {
+      setAdditional(incoming.additional);
+    } else {
+      setAdditional('');
+    }
+  }, [incoming]); // 如果 props.value 改变就重新赋值
+
+  // ========== 每次 local state 变 => 调用 onChange => 把合成的大对象传给父组件 =============
   useEffect(() => {
     const newData = {
       climateRisks: blockToOutput(climateRisksData),
@@ -324,32 +388,17 @@ const DependencySelector = ({ onChange }) => {
     });
     return arr;
   }
-
-  const climateRiskOpts = useMemo(() => {
-    return buildOptions(climateRiskPresets, climateRisksData.set);
-    // eslint-disable-next-line
-  }, [climateRisksData.set]);
-
-  const regulationsOpts = useMemo(() => {
-    return buildOptions(regulatoryPresets, regulationsData.set);
-    // eslint-disable-next-line
-  }, [regulationsData.set]);
-
-  const projectTypeOpts = useMemo(() => {
-    return buildOptions(projectTypePresets, projectTypesData.set);
-    // eslint-disable-next-line
-  }, [projectTypesData.set]);
-
-  const environmentOpts = useMemo(() => {
-    return buildOptions(environmentPresets, environmentData.set);
-    // eslint-disable-next-line
-  }, [environmentData.set]);
-
-  const scaleOpts = useMemo(() => {
-    return buildOptions(scalePresets, scaleData.set);
-    // eslint-disable-next-line
-  }, [scaleData.set]);
-
+  const climateRiskOpts = buildOptions(
+    climateRiskPresets,
+    climateRisksData.set
+  );
+  const regulationsOpts = buildOptions(regulatoryPresets, regulationsData.set);
+  const projectTypeOpts = buildOptions(
+    projectTypePresets,
+    projectTypesData.set
+  );
+  const environmentOpts = buildOptions(environmentPresets, environmentData.set);
+  const scaleOpts = buildOptions(scalePresets, scaleData.set);
   // build array for otherData fields
   const otherFieldNames = Object.keys(otherData);
 

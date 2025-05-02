@@ -25,9 +25,41 @@ let workflowState = {
     isCompleted: false,
   },
   step3: {
-    taskA: { data: [], isCompleted: false },
-    taskB: { data: [], isCompleted: false },
-    taskC: { data: [], isCompleted: false },
+    taskA: {
+      data: [],
+      summary: {
+        globalSummary: '',
+        globalSources: [],
+        fileSummaryMap: [],
+        graph: null, // 若需要保存图的节点/边结构
+        graphLibrary: '', // 若需要保存用户选择的可视化方式
+      },
+      isCompleted: false,
+    },
+    taskB: {
+      data: [],
+      summary: {
+        globalSummary: '',
+        globalSources: [],
+        fileSummaryMap: [],
+        graph: null, // 若需要保存图的节点/边结构
+        graphLibrary: '', // 若需要保存用户选择的可视化方式
+      },
+      isCompleted: false,
+    },
+    taskC: {
+      data: [],
+      summary: {
+        globalSummary: '',
+        globalSources: [],
+        fileSummaryMap: [],
+        graph: null, // 若需要保存图的节点/边结构
+        graphLibrary: '', // 若需要保存用户选择的可视化方式
+      },
+      isCompleted: false,
+    },
+    context: {}, // 用于存dependencyData
+    collection: [], // 用于存用户添加的collection
   },
   step4: {
     collectionData: {},

@@ -1,5 +1,5 @@
 // frontend/src/pages/essentialWorkflow/Step3ParallelTasks.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -27,7 +27,6 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
 import { linkify } from '../../utils/linkify';
-// import ExpandableText from '../../components/ExpandableText';
 import DOMPurify from 'dompurify';
 import DependencySelector from '../../components/DependencySelector';
 import GraphViewer from '../../components/GraphViewer';
@@ -35,76 +34,208 @@ import axios from 'axios';
 
 const DOMAIN = 'http://localhost:8000';
 
+// 示例同义词映射
 const SYNONYM_MAP = {
   coastal: ['coastal', 'oceanfront', 'marine', 'near the sea'],
-  flood: ['flood', 'inundation'],
-  // ...
-};
+  flood: [
+    'flooding',
+    'flood',
+    'inundation',
+    'deluge',
+    'overflow',
+    'flash flood',
+    'water inundation',
+  ],
+  drought: [
+    'drought',
+    'water scarcity',
+    'dry spell',
+    'arid conditions',
+    'water shortage',
+    'prolonged dry period',
+    'aridity',
+  ],
+  heatwave: [
+    'heatwave',
+    'heat wave',
+    'extreme heat',
+    'hot spell',
+    'heat spell',
+    'temperature spike',
+    'hot snap',
+  ],
+  'sea level rise': [
+    'sea level rise',
+    'rising seas',
+    'ocean level rise',
+    'tidal rise',
+    'coastal inundation',
+    'marine encroachment',
+    'tidal increase',
+  ],
+  landslide: [
+    'landslide',
+    'mudslide',
+    'debris flow',
+    'slope failure',
+    'earth slide',
+    'land collapse',
+    'debris avalanche',
+  ],
 
-function highlightSynonyms(text, sideContextKeys) {
-  // sideContextKeys: e.g. ['coastal','flood'] from user selection
-  // expand with synonyms
-  let allKeys = new Set();
-  sideContextKeys.forEach((k) => {
-    allKeys.add(k);
-    if (synonyms[k]) {
-      synonyms[k].forEach((syn) => allKeys.add(syn));
-    }
-  });
-  // naive implementation: replace them ignoring case
-  let result = text;
-  allKeys.forEach((term) => {
-    const re = new RegExp(`\\b(${term})\\b`, 'gi');
-    result = result.replace(re, `<mark>$1</mark>`);
-  });
-  return result;
-}
+  'height limit': [
+    'height limit',
+    'max height',
+    'height cap',
+    'elevation cap',
+    'building height restriction',
+    'height zoning',
+    'vertical restriction',
+  ],
+  wetland: [
+    'wetland',
+    'marsh',
+    'bog',
+    'swamp',
+    'fen',
+    'peatland',
+    'wet meadow',
+  ],
+
+  'public building': [
+    'public building',
+    'civic infrastructure',
+    'government facility',
+    'community center',
+    'municipal facility',
+    'public facility',
+    'civic building',
+  ],
+  residential: [
+    'residential',
+    'housing',
+    'dwelling',
+    'residential development',
+    'living spaces',
+    'residences',
+    'housing project',
+  ],
+  'commercial complex': [
+    'commercial complex',
+    'retail center',
+    'shopping mall',
+    'business complex',
+    'commercial development',
+    'commercial facility',
+    'retail complex',
+  ],
+
+  coastal: [
+    'coastal',
+    'oceanfront',
+    'marine',
+    'seaside',
+    'shoreline',
+    'littoral',
+    'near the sea',
+  ],
+  inland: [
+    'inland',
+    'interior',
+    'continental',
+    'landlocked',
+    'upland',
+    'interior region',
+  ],
+  mountain: [
+    'mountain',
+    'alpine',
+    'montane',
+    'highland',
+    'mountainous region',
+    'upland',
+  ],
+
+  'small-scale site': [
+    'small-scale site',
+    'site-level',
+    'individual site',
+    'single site',
+    'localized area',
+    'parcel scale',
+  ],
+  'medium-scale site': [
+    'medium-scale site',
+    'building-scale',
+    'structure-scale',
+    'building-level',
+    'mid-scale site',
+    'site scale',
+  ],
+  'large-scale region': [
+    'large-scale region',
+    'regional scale',
+    'campus-scale',
+    'district-scale',
+    'macro scale',
+    'broad area',
+    'large area',
+  ],
+};
 
 function Step3ParallelTasks() {
   // ======== Tab state (A/B/C) ========
   const [currentTab, setCurrentTab] = useState(0);
   const [isPanelOpen, setIsPanelOpen] = useState(true); // 控制面板显示/隐藏
-  // ======== common RAG states ========
-  const [dependencyData, setDependencyData] = useState({});
-  const [collection, setCollection] = useState([]);
 
-  // ======== step2 "selectedRisks" -> 这里我们要匹配 riskResultRow ========
+  // ============== Step3 local states ==============
+  // 1) context -> dependencyData
+  const [dependencyData, setDependencyData] = useState({});
+  // 2) collection
+  const [collection, setCollection] = useState([]);
+  // ============== from step2: selectedRisks ==============
   const [selectedRiskRows, setSelectedRiskRows] = useState([]);
   const togglePanel = () => {
     setIsPanelOpen((prev) => !prev);
   };
-  // For queries in each tab
+  // 3) tasks data
+  // ============== CHANGES: 额外保存“用户输入的问题” ==============
   const [queryA, setQueryA] = useState('');
   const [docsA, setDocsA] = useState([]);
-  const [graphA, setGraphA] = useState(null);
-
   const [queryB, setQueryB] = useState('');
   const [docsB, setDocsB] = useState([]);
-  const [graphB, setGraphB] = useState(null);
-
   const [queryC, setQueryC] = useState('');
   const [docsC, setDocsC] = useState([]);
-  const [graphC, setGraphC] = useState(null);
+
+  // 4) tasks summary
   const [tabSummaryData, setTabSummaryData] = useState({
     A: {
       isSummarizing: false,
       globalSummary: '',
       globalSources: [],
       fileSummaryMap: [],
+      graph: null,
+      graphLibrary: '',
     },
     B: {
       isSummarizing: false,
       globalSummary: '',
       globalSources: [],
       fileSummaryMap: [],
+      graph: null,
+      graphLibrary: '',
     },
     C: {
       isSummarizing: false,
       globalSummary: '',
       globalSources: [],
       fileSummaryMap: [],
+      graph: null,
+      graphLibrary: '',
     },
   });
+
+  // ============== other states ==============
   const [language, setLanguage] = useState('en');
   const [framework, setFramework] = useState('');
   const [graphLibrary, setGraphLibrary] = useState('cytoscape');
@@ -114,33 +245,103 @@ function Step3ParallelTasks() {
   const toggle = () => setExpanded(!expanded);
   const textLenLimit = 1500;
 
-  // 用来表示“是否正在调用后端summarize”
-  const [isSummarizing, setIsSummarizing] = useState(false);
+  // =========================
+  // 0) 组件初始化：从后端抓取 step3，填入本地
+  // =========================
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const wfRes = await fetch(`${DOMAIN}/workflow`);
+        if (!wfRes.ok) {
+          throw new Error('Failed to fetch workflow');
+        }
+        const wfData = await wfRes.json();
 
-  // 存放“跨文件”的最终顶层摘要字符串
-  const [globalSummary, setGlobalSummary] = useState('');
-  // 存放“跨文件”的所有来源
-  const [globalSources, setGlobalSources] = useState([]);
-  // 存放“各文件”的摘要结果数组
-  const [fileSummaryMap, setFileSummaryMap] = useState([]);
+        const s3 = wfData.step3 || {};
 
-  // const [summaryText, setSummaryText] = useState(''); // 生成的 Summarize 结果
-  const [fileSummaries, setFileSummaries] = useState([]);
-  const [allSources, setAllSources] = useState([]);
-  // const [summaryItems, setSummaryItems] = useState([]);
-  // const [summarySources, setSummarySources] = useState([]);
-  // const [doc, setDoc] = useState({ pageContent: '' });
-  // const fullText = doc.pageContent || '';
-  // const previewText = fullText.slice(0, 1000);
-  // const showToggle = fullText.length > 1000;
+        // 1) context
+        setDependencyData(s3.context || {});
 
-  function getDocTypeForTab(whichTab) {
-    if (whichTab === 'A') return 'caseStudy';
-    if (whichTab === 'B') return 'strategy';
-    return 'otherResource';
-  }
+        // 2) collection
+        setCollection(s3.collection || []);
+
+        // 3) taskA/B/C => data
+        setDocsA(s3.taskA?.data || []);
+        setDocsB(s3.taskB?.data || []);
+        setDocsC(s3.taskC?.data || []);
+
+        // 4) summaries
+        setTabSummaryData({
+          A: {
+            isSummarizing: false,
+            ...s3.taskA?.summary,
+          },
+          B: {
+            isSummarizing: false,
+            ...s3.taskB?.summary,
+          },
+          C: {
+            isSummarizing: false,
+            ...s3.taskC?.summary,
+          },
+        });
+
+        // 5) CHANGES: 如果 step3.taskA.query / taskB.query / taskC.query 有的话，也回填
+        if (s3.taskA?.query) setQueryA(s3.taskA.query);
+        if (s3.taskB?.query) setQueryB(s3.taskB.query);
+        if (s3.taskC?.query) setQueryC(s3.taskC.query);
+
+        // 6) graphLibrary 如果某个 summary有，就取来
+        const glA = s3.taskA?.summary?.graphLibrary;
+        if (glA) setGraphLibrary(glA);
+
+        // ========== step2 selected risks
+        const riskRes = wfData.step2?.riskResult || [];
+        const selectedRefs = wfData.step2?.selectedRisks || [];
+        const matched = selectedRefs.map((ref) =>
+          riskRes.find(
+            (row) =>
+              row.hazard === ref.hazard &&
+              row.systemName === ref.systemName &&
+              row.subSystemName === ref.subSystemName
+          )
+        );
+        const validRows = matched.filter(Boolean);
+        setSelectedRiskRows(validRows);
+      } catch (err) {
+        console.error('Error init Step3:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // =========================
+  // 1) 每当本地 step3 数据变化 => 自动保存到后端
+  // =========================
+  const firstRenderRef = useRef(true);
+  useEffect(() => {
+    // 避免初次加载时马上POST覆盖
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      return;
+    }
+    saveStep3ToBackend();
+  }, [
+    dependencyData,
+    collection,
+    docsA,
+    docsB,
+    docsC,
+    tabSummaryData,
+    queryA,
+    queryB,
+    queryC,
+    graphLibrary,
+  ]);
   function getSynonymMatches(docContent) {
-    const lower = docContent.toLowerCase();
+    const lower = (docContent || '').toLowerCase();
     const found = [];
     Object.entries(SYNONYM_MAP).forEach(([label, synonyms]) => {
       for (const s of synonyms) {
@@ -152,23 +353,76 @@ function Step3ParallelTasks() {
     });
     return found;
   }
-  function renderChunkContent(rawText) {
-    // 1) 调用 linkify
-    const replaced = linkify(rawText);
-    // 2) 再做 DOMPurify 清理
-    const safeHtml = DOMPurify.sanitize(replaced);
-    // 3) dangerouslySetInnerHTML
-    return <div dangerouslySetInnerHTML={{ __html: safeHtml }} />;
+  async function saveStep3ToBackend() {
+    try {
+      // 1) 先获取原workflow
+      const wfRes = await fetch(`${DOMAIN}/workflow`);
+      if (!wfRes.ok) return console.error('Failed GET /workflow');
+      const oldWf = await wfRes.json();
+
+      // 2) 构造新的 step3
+      const newWf = { ...oldWf };
+      if (!newWf.step3) newWf.step3 = {};
+
+      // context
+      newWf.step3.context = dependencyData;
+      // collection
+      newWf.step3.collection = collection;
+
+      // taskA
+      newWf.step3.taskA = newWf.step3.taskA || {};
+      newWf.step3.taskA.data = docsA;
+      newWf.step3.taskA.summary = {
+        globalSummary: tabSummaryData.A.globalSummary || '',
+        globalSources: tabSummaryData.A.globalSources || [],
+        fileSummaryMap: tabSummaryData.A.fileSummaryMap || [],
+        graph: tabSummaryData.A.graph || null,
+        graphLibrary: tabSummaryData.A.graphLibrary || graphLibrary || '',
+      };
+      // CHANGES: 新增保存 query
+      newWf.step3.taskA.query = queryA;
+
+      // taskB
+      newWf.step3.taskB = newWf.step3.taskB || {};
+      newWf.step3.taskB.data = docsB;
+      newWf.step3.taskB.summary = {
+        globalSummary: tabSummaryData.B.globalSummary || '',
+        globalSources: tabSummaryData.B.globalSources || [],
+        fileSummaryMap: tabSummaryData.B.fileSummaryMap || [],
+        graph: tabSummaryData.B.graph || null,
+        graphLibrary: tabSummaryData.B.graphLibrary || graphLibrary || '',
+      };
+      newWf.step3.taskB.query = queryB;
+
+      // taskC
+      newWf.step3.taskC = newWf.step3.taskC || {};
+      newWf.step3.taskC.data = docsC;
+      newWf.step3.taskC.summary = {
+        globalSummary: tabSummaryData.C.globalSummary || '',
+        globalSources: tabSummaryData.C.globalSources || [],
+        fileSummaryMap: tabSummaryData.C.fileSummaryMap || [],
+        graph: tabSummaryData.C.graph || null,
+        graphLibrary: tabSummaryData.C.graphLibrary || graphLibrary || '',
+      };
+      newWf.step3.taskC.query = queryC;
+
+      // 3) POST 回后端
+      const postRes = await fetch(`${DOMAIN}/workflow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newWf),
+      });
+      if (!postRes.ok) {
+        console.error('Failed to POST /workflow for step3');
+      }
+    } catch (err) {
+      console.error('saveStep3ToBackend error:', err);
+    }
   }
-  /**
-   * 一进 Step3，或后续想刷新时，都可以获取 workflow
-   * -> 读 step2.selectedRisks[] (仅 references)
-   * -> 读 step2.riskResult[] (最新score)
-   * -> 对应匹配 => build selectedRiskRows
-   */
-  useEffect(() => {
-    fetchSelectedRisksAndBuildRows();
-  }, []);
+
+  // =========================
+  // 2) 其余业务逻辑
+  // =========================
 
   async function fetchSelectedRisksAndBuildRows() {
     try {
@@ -176,24 +430,18 @@ function Step3ParallelTasks() {
       const wfRes = await fetch(`${DOMAIN}/workflow`);
       const wfData = await wfRes.json();
 
-      // step2.riskResult
       const riskRes = wfData.step2?.riskResult || [];
-      // step2.selectedRisks: [{hazard, systemName, subSystemName}, ...]
       const selectedRefs = wfData.step2?.selectedRisks || [];
 
-      // 用 selectedRefs 去匹配 riskRes 里的行
-      // 这样就能拿到最新的 impact/likelihood/riskScore
-      const matched = selectedRefs.map((ref) => {
-        return riskRes.find(
+      const matched = selectedRefs.map((ref) =>
+        riskRes.find(
           (row) =>
             row.hazard === ref.hazard &&
             row.systemName === ref.systemName &&
             row.subSystemName === ref.subSystemName
-        );
-      });
-      // 过滤掉 null/undefined
+        )
+      );
       const validRows = matched.filter(Boolean);
-
       setSelectedRiskRows(validRows);
     } catch (err) {
       console.error('Error loading selected risks', err);
@@ -205,27 +453,7 @@ function Step3ParallelTasks() {
   const handleChangeTab = (event, newValue) => {
     setCurrentTab(newValue);
   };
-  /**
-   * 1) 先拿 /files/list => 过滤出 docType=xxx => fileKeys
-   */
-  const getFileKeysByDocType = async (docTypeName) => {
-    try {
-      const res = await axios.get(`${DOMAIN}/files/list`);
-      const all = res.data || [];
-      const filtered = all.filter(
-        (f) => f.docType === docTypeName && f.storeBuilt
-      );
-      return filtered.map((f) => f.fileKey);
-    } catch (err) {
-      console.error(err);
-      return [];
-    }
-  };
 
-  /**
-   * 2) handleAskRAG: 先拿 fileKeys (by docType),
-   *   再 multiRAG/query
-   */
   const handleAskRAG = async (whichTab) => {
     setLoading(true);
     try {
@@ -248,15 +476,16 @@ function Step3ParallelTasks() {
         return;
       }
 
-      // 先 get fileKeys by docType
-      const fileKeys = await getFileKeysByDocType(targetDocType);
-      console.log('fileKeys', fileKeys);
-      console.log('targetDocType', targetDocType);
+      const listRes = await axios.get(`${DOMAIN}/files/list`);
+      const all = listRes.data || [];
+      const filtered = all.filter(
+        (f) => f.docType === targetDocType && f.storeBuilt
+      );
+      const fileKeys = filtered.map((f) => f.fileKey);
 
-      // call multiRAG
       const resp = await axios.post(`${DOMAIN}/multiRAG/query`, {
         fileKeys,
-        dependencyData, // optional, depends on your backend
+        dependencyData,
         userQuery: query,
         language,
         customFields: [],
@@ -285,10 +514,17 @@ function Step3ParallelTasks() {
   async function handleBuildGraph(whichTab) {
     try {
       let docs = [];
-      if (whichTab === 'A') docs = docsA;
-      else if (whichTab === 'B') docs = docsB;
-      else docs = docsC;
-
+      let summaryKey = 'A';
+      if (whichTab === 'A') {
+        docs = docsA;
+        summaryKey = 'A';
+      } else if (whichTab === 'B') {
+        docs = docsB;
+        summaryKey = 'B';
+      } else {
+        docs = docsC;
+        summaryKey = 'C';
+      }
       if (docs.length === 0) {
         alert('No docs found, search first');
         return;
@@ -298,16 +534,22 @@ function Step3ParallelTasks() {
         frameworkName: framework,
       });
       const { graphData } = resp.data;
-      if (whichTab === 'A') setGraphA(graphData);
-      else if (whichTab === 'B') setGraphB(graphData);
-      else setGraphC(graphData);
+
+      setTabSummaryData((prev) => {
+        const newVal = { ...prev };
+        newVal[summaryKey] = {
+          ...prev[summaryKey],
+          graph: graphData,
+          graphLibrary,
+        };
+        return newVal;
+      });
     } catch (err) {
       console.error(err);
       alert('Graph error:' + err.message);
     }
   }
 
-  // ======== Add to Collection ========
   function handleAddToCollection(doc) {
     setCollection((prev) => [
       ...prev,
@@ -318,7 +560,7 @@ function Step3ParallelTasks() {
       },
     ]);
   }
-  // === [New] Summarize: 收集“当前Tab docs” 或所有Tab docs？ 这里先演示只针对“当前Tab”
+
   async function handleSummarize(whichTab) {
     // 1) 先把 tabSummaryData 复制出来
     const newTabSummary = { ...tabSummaryData };
@@ -404,14 +646,12 @@ function Step3ParallelTasks() {
     } catch (err) {
       console.error('Summarize error:', err);
       alert('Summarize error: ' + err.message);
-      // 出错也要复位
-      const updated = { ...tabSummaryData };
-      updated[whichTab].isSummarizing = false;
-      setTabSummaryData(updated);
+      newTabSummary[whichTab].isSummarizing = false;
+      setTabSummaryData(newTabSummary);
     }
   }
-  // ======== Render tab content ========
-  const renderTabContent = (whichTab, query, setQuery, docs, graph) => {
+
+  function renderTabContent(whichTab, query, setQuery, docs) {
     const summaryData = tabSummaryData[whichTab];
     const canSummarize = docs.length > 0;
     return (
@@ -482,7 +722,8 @@ function Step3ParallelTasks() {
         </Box>
         {/* === [New] 如果有摘要 */}
         {(summaryData.isSummarizing ||
-          summaryData.fileSummaryMap.length > 0) && (
+          summaryData.fileSummaryMap?.length > 0 ||
+          summaryData.globalSummary) && (
           <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
             {summaryData.isSummarizing ? (
               <CircularProgress size={24} />
@@ -505,8 +746,7 @@ function Step3ParallelTasks() {
 
                 <Divider sx={{ my: 2 }} />
 
-                {/* 分文件显示 */}
-                {summaryData.fileSummaryMap.map((fileItem, idx) => (
+                {summaryData.fileSummaryMap?.map((fileItem, idx) => (
                   <Box key={idx} sx={{ mb: 3 }}>
                     <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                       File: {fileItem.fileName}
@@ -520,28 +760,24 @@ function Step3ParallelTasks() {
                       {fileItem.summaryStr}
                     </Typography>
 
-                    {/* chunk-level items */}
-                    {fileItem.summaryItems &&
-                      fileItem.summaryItems.length > 0 && (
-                        <Box sx={{ ml: 3 }}>
-                          {fileItem.summaryItems.map((itm, i2) => (
-                            <Box key={i2} sx={{ mb: 1 }}>
-                              <div>
-                                <strong>• {itm.content}</strong>
-                              </div>
-                              <div
-                                style={{ fontSize: '0.85rem', color: '#555' }}
-                              >
-                                Source: {itm.source.fileName},{' '}
-                                {itm.source.pageOrLine}
-                              </div>
-                            </Box>
-                          ))}
-                        </Box>
-                      )}
+                    {fileItem.summaryItems?.length > 0 && (
+                      <Box sx={{ ml: 3 }}>
+                        {fileItem.summaryItems.map((itm, i2) => (
+                          <Box key={i2} sx={{ mb: 1 }}>
+                            <div>
+                              <strong>• {itm.content}</strong>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: '#555' }}>
+                              Source: {itm.source.fileName},{' '}
+                              {itm.source.pageOrLine}
+                            </div>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
 
                     {/* 如果需要文件级source */}
-                    {fileItem.sources && fileItem.sources.length > 0 && (
+                    {fileItem.sources?.length > 0 && (
                       <Box sx={{ mt: 1, ml: 3 }}>
                         <Typography variant="subtitle2">
                           File Sources:
@@ -563,36 +799,37 @@ function Step3ParallelTasks() {
             )}
           </Box>
         )}
-        {/* Graph */}
-        {graph && (
+
+        {summaryData.graph && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="subtitle1">Graph Visualization:</Typography>
             <Box sx={{ height: 400, border: '1px solid #ccc' }}>
-              <GraphViewer library={graphLibrary} graphData={graph} />
+              <GraphViewer
+                library={graphLibrary}
+                graphData={summaryData.graph}
+              />
             </Box>
           </Box>
         )}
-        {/* Results */}
-        <Typography variant="subtitle1">Search Results:</Typography>
+
+        <Typography variant="subtitle1" sx={{ mt: 2 }}>
+          Search Results:
+        </Typography>
         {docs.length === 0 && <Typography>No results yet.</Typography>}
+
         {docs.map((doc, idx) => (
           <Card key={idx} sx={{ mb: 1, p: 1 }}>
-            {/* {renderChunkContent(doc.pageContent)} */}
-            {/* 1) 同义词匹配 highlight */}
+            {/* ============== NEW: 显示 highlightLabels if any ============== */}
             {doc.highlightLabels && doc.highlightLabels.length > 0 && (
               <Box sx={{ color: 'red', fontWeight: 'bold' }}>
                 Matched synonyms: {doc.highlightLabels.join(', ')}
               </Box>
             )}
-
-            {/* 2) 如果是 CSV/XLSX chunk, metadata.columnData 存在 => 列名+info/meta */}
+            {/* CSV/XLSX chunk? */}
             {doc.metadata?.columnData ? (
               <Box>
                 {doc.metadata.columnData.map((col, cidx) => {
-                  // 把 col.cellValue 里的链接 转成 <a>  (linkify)
-                  // linkify 返回带 <a> 的HTML => dangerouslySetInnerHTML
                   const htmlVal = linkify(col.cellValue || '');
-
                   return (
                     <Box key={cidx} sx={{ mb: 1 }}>
                       <strong>
@@ -612,8 +849,6 @@ function Step3ParallelTasks() {
                   ? doc.pageContent
                   : doc.pageContent.slice(0, textLenLimit) +
                     (doc.pageContent.length > textLenLimit ? '…' : '')}
-                {/* {fullText.slice(0, textLenLimit)}... */}
-
                 {doc.pageContent.length > textLenLimit && (
                   <Button size="small" onClick={toggle}>
                     {expanded ? '收起' : '展开全文'}
@@ -629,7 +864,7 @@ function Step3ParallelTasks() {
         ))}
       </Box>
     );
-  };
+  }
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -646,7 +881,7 @@ function Step3ParallelTasks() {
       >
         <Toolbar />
         <Typography variant="h5" gutterBottom>
-          Step 3: Parallel Tasks (A/B/C)
+          Step 3: Navigate Resource
         </Typography>
 
         <Tabs value={currentTab} onChange={handleChangeTab} sx={{ mb: 2 }}>
@@ -655,12 +890,9 @@ function Step3ParallelTasks() {
           <Tab label="Task C: Other Resources" />
         </Tabs>
 
-        {currentTab === 0 &&
-          renderTabContent('A', queryA, setQueryA, docsA, graphA)}
-        {currentTab === 1 &&
-          renderTabContent('B', queryB, setQueryB, docsB, graphB)}
-        {currentTab === 2 &&
-          renderTabContent('C', queryC, setQueryC, docsC, graphC)}
+        {currentTab === 0 && renderTabContent('A', queryA, setQueryA, docsA)}
+        {currentTab === 1 && renderTabContent('B', queryB, setQueryB, docsB)}
+        {currentTab === 2 && renderTabContent('C', queryC, setQueryC, docsC)}
       </Box>
 
       {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentCollection) */}
@@ -713,135 +945,21 @@ function Step3ParallelTasks() {
                 </AccordionSummary>
                 <AccordionDetails>
                   <DependencySelector
+                    value={dependencyData}
                     onChange={(data) => setDependencyData(data)}
                   />
-                </AccordionDetails>
-                {/* </Accordion> */}
-
-                <Divider />
-
-                {/* <Accordion defaultExpanded> */}
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography>Current Selection</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {/* show the user current dependencyData */}
-                  <Typography variant="subtitle4">Climate Risks:</Typography>
-                  <List dense>
-                    {dependencyData.climateRisks?.values?.map((val) => (
-                      <ListItem key={val} disableGutters>
-                        <ListItemText primary={val} />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {/* <Typography variant="caption">
-                Type: {dependencyData.climateRisks?.type}
-              </Typography> */}
-                  {/* Similarly for regulations, projectTypes, environment, scale */}
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle2">Regulations:</Typography>
-                  <List dense>
-                    {dependencyData.regulations?.values?.map((val) => (
-                      <ListItem key={val} disableGutters>
-                        <ListItemText primary={val} />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {/* <Typography variant="caption">
-                Type: {dependencyData.regulations?.type}
-              </Typography> */}
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle2">Project Types:</Typography>
-                  <List dense>
-                    {dependencyData.projectTypes?.values?.map((val) => (
-                      <ListItem key={val} disableGutters>
-                        <ListItemText primary={val} />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {/* <Typography variant="caption">
-                Type: {dependencyData.projectTypes?.type}
-              </Typography> */}
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle2">Environment:</Typography>
-                  <List dense>
-                    {dependencyData.environment?.values?.map((val) => (
-                      <ListItem key={val} disableGutters>
-                        <ListItemText primary={val} />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {/* <Typography variant="caption">
-                Type: {dependencyData.environment?.type}
-              </Typography> */}
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle2">Scale:</Typography>
-                  <List dense>
-                    {dependencyData.scale?.values?.map((val) => (
-                      <ListItem key={val} disableGutters>
-                        <ListItemText primary={val} />
-                      </ListItem>
-                    ))}
-                  </List>
-                  {/* <Typography variant="caption">
-                Type: {dependencyData.scale?.type}
-              </Typography> */}
-                  <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle2">Other Info:</Typography>
-                  <Typography variant="body2">
-                    {dependencyData.additional || '(none)'}
-                  </Typography>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  {/* ========== 新增：显示自定义字段 otherData ========== */}
-                  <Typography variant="subtitle2">Custom Fields:</Typography>
-                  {/* 如果没有任何自定义字段 */}
-                  {Object.keys(dependencyData.otherData || {}).length === 0 ? (
-                    <Typography variant="body2">(none)</Typography>
-                  ) : (
-                    // 遍历 each fieldName => array of string
-                    Object.entries(dependencyData.otherData).map(
-                      ([fieldName, arrOfVals]) => (
-                        <div key={fieldName} style={{ marginTop: '0.5rem' }}>
-                          <Typography
-                            variant="subtitle2"
-                            sx={{ fontWeight: 'bold' }}
-                          >
-                            {fieldName}
-                          </Typography>
-                          {arrOfVals?.length > 0 ? (
-                            <List dense>
-                              {arrOfVals.map((val) => (
-                                <ListItem key={val} disableGutters>
-                                  <ListItemText primary={val} />
-                                </ListItem>
-                              ))}
-                            </List>
-                          ) : (
-                            <Typography variant="body2" sx={{ ml: 2 }}>
-                              (no values)
-                            </Typography>
-                          )}
-                        </div>
-                      )
-                    )
-                  )}
                 </AccordionDetails>
               </Accordion>
 
               <Divider />
 
-              {/* (2) Selected Risks */}
               <Accordion defaultExpanded>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography>Selected Risks (from Step2)</Typography>
                 </AccordionSummary>
                 <AccordionDetails>
                   {selectedRiskRows.length === 0 ? (
-                    <Typography>
-                      No risk selected or all are zeroed out.
-                    </Typography>
+                    <Typography>No risk selected or all are zero.</Typography>
                   ) : (
                     <List dense>
                       {selectedRiskRows.map((r, idx) => (
@@ -868,8 +986,7 @@ function Step3ParallelTasks() {
 
               <Divider />
 
-              {/* (3) Current Collection */}
-              <Accordion>
+              <Accordion defaultExpanded>
                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                   <Typography>Current Collection</Typography>
                 </AccordionSummary>
