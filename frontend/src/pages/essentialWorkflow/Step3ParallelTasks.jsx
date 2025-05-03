@@ -842,6 +842,15 @@ function Step3ParallelTasks() {
                     </Box>
                   );
                 })}
+                <Typography
+                  variant="body4"
+                  sx={{
+                    fontWeight: 'bold',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
+                </Typography>
               </Box>
             ) : (
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
@@ -854,6 +863,16 @@ function Step3ParallelTasks() {
                     {expanded ? '收起' : '展开全文'}
                   </Button>
                 )}
+                <br />
+                <Typography
+                  variant="body4"
+                  sx={{
+                    fontWeight: 'bold',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  {`Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
+                </Typography>
               </Typography>
             )}
 
