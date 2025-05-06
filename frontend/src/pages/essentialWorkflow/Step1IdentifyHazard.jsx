@@ -1,5 +1,5 @@
 // src/pages/essentialWorkflow/Step1IdentifyHazard.jsx
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -28,9 +28,9 @@ import {
 } from 'recharts';
 
 /**
- * 自定义 Y 轴 tick，让用户可点灾害名称。
- *  - props里重要的是 payload.value (灾害类型)
- *  - 以及我们注入的 toggleHazard / selectedHazards
+ * CustomYAxisTick:
+ *   - 点击图表左侧hazard名即可选中/取消 hazard
+ *   - 已选hazard高亮显示
  */
 function CustomYAxisTick(props) {
   const { x, y, payload, toggleHazard, selectedHazards } = props;
@@ -45,9 +45,9 @@ function CustomYAxisTick(props) {
     <text
       x={x}
       y={y}
-      dy={4} // 让文字居中
+      dy={4}
       textAnchor="end"
-      fill={isSelected ? '#1976d2' : '#666'} // 选中后高亮
+      fill={isSelected ? '#1976d2' : '#666'}
       style={{
         cursor: 'pointer',
         fontWeight: isSelected ? 'bold' : 'normal',
@@ -64,90 +64,119 @@ function Step1IdentifyHazard() {
     EssentialWorkflowContext
   );
 
-  /**
-   * 3) 如果 workflowState 还没加载完，就先显示 Loading UI
-   *    但不能在此处定义新 Hook，否则会报“Rendered more hooks...”错误
-   */
+  // 如果workflowState还没加载，就先“Loading”
   if (!workflowState) {
     return <Box sx={{ mt: 8, p: 2 }}>Loading Step1...</Box>;
   }
 
-  // -------------- 搜索相关 --------------
-  const [searchMode, setSearchMode] = useState('state'); // "state" or "county"
-  const [locationInput, setLocationInput] = useState('');
-  const [allRecords, setAllRecords] = useState([]); // 后端返回的 FEMA数据
+  // ======= 1) 从后端workflow里拿到 step1 数据  =======
+  // 选中的 hazards
+  const selectedHazards = workflowState.step1.hazards || [];
+  // searchMode, location, femaRecords, startDate, endDate
+  // 这些属性在后端: workflowState.step1.xxx
 
-  // -------------- 时间段筛选 --------------
+  // ======= 2) 本地 state =======
+  const [searchMode, setSearchMode] = useState('state');
+  const [locationInput, setLocationInput] = useState('');
+  // 本地保存“所有 FEMA 记录”，供前端做日期筛选
+  const [allRecords, setAllRecords] = useState([]);
+  // date filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // -------------- 加载状态 / 错误 --------------
+  // Loading & Error
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  /**
-   * 4) 获取 hazards 数组
-   */
-  const selectedHazards = workflowState.step1.hazards || [];
-
-  /**
-   * 5) 当 workflowState 有数据后，把后端 step1 的
-   *    location / searchMode 同步到本地
-   *    (仅在初次或 workflowState 变更时执行)
-   */
+  // ======= 3) 把后端 step1.* 同步到本地 state =======
   useEffect(() => {
-    if (workflowState.step1) {
-      // 获取后端保存的 step1.location & step1.searchMode
-      // 1) searchMode
-      const savedMode = workflowState.step1.searchMode || 'state';
-      setSearchMode(savedMode);
+    if (!workflowState.step1) return;
 
-      // 2) location
-      const savedLoc = workflowState.step1.location || '';
-      setLocationInput(savedLoc);
-
-      // 3) femaRecords
-      const savedFema = workflowState.step1.femaRecords || [];
-      setAllRecords(savedFema);
-
-      // 4) start/end date
-      const savedStart = workflowState.step1.startDate || '';
-      setStartDate(savedStart);
-      const savedEnd = workflowState.step1.endDate || '';
-      setEndDate(savedEnd);
-    }
+    setSearchMode(workflowState.step1.searchMode || 'state');
+    setLocationInput(workflowState.step1.location || '');
+    setAllRecords(workflowState.step1.femaRecords || []);
+    setStartDate(workflowState.step1.startDate || '');
+    setEndDate(workflowState.step1.endDate || '');
   }, [workflowState]);
 
-  /**
-   * 6) 函数实现
-   */
+  // ======= 4) 修改地点 => 立刻清空 hazards / femaRecords / start/endDate =======
+  function handleLocationChange(e) {
+    const newLoc = e.target.value;
+    const oldLoc = workflowState.step1.location || '';
+    // 如果和后端存的不一样 => 重置
+    if (newLoc.trim().toLowerCase() !== oldLoc.trim().toLowerCase()) {
+      // 1) 后端清空
+      setWorkflowState((prev) => {
+        const updated = { ...prev };
+        updated.step1.hazards = [];
+        updated.step1.femaRecords = [];
+        updated.step1.startDate = '';
+        updated.step1.endDate = '';
+        updated.step1.location = newLoc;
+        return updated;
+      });
+      // 2) 前端本地也清空
+      setLocationInput(newLoc);
+      setAllRecords([]);
+      setStartDate('');
+      setEndDate('');
+    } else {
+      // 否则就只是同步下本地输入
+      setLocationInput(newLoc);
+    }
+  }
 
-  // 用户切换 searchMode => 写回后端
+  // ======= 5) 修改 searchMode => 立刻清空 hazards / femaRecords / start/endDate =======
   function handleSearchModeChange(e) {
     const newMode = e.target.value;
-    setSearchMode(newMode);
-
-    setWorkflowState((prev) => {
-      const updated = { ...prev };
-      updated.step1.searchMode = newMode;
-      return updated;
-    });
+    const oldMode = workflowState.step1.searchMode || 'state';
+    if (newMode !== oldMode) {
+      setWorkflowState((prev) => {
+        const updated = { ...prev };
+        updated.step1.hazards = [];
+        updated.step1.femaRecords = [];
+        updated.step1.startDate = '';
+        updated.step1.endDate = '';
+        updated.step1.searchMode = newMode;
+        updated.step1.location = ''; // 也可把location一起重置 => 看需求
+        return updated;
+      });
+      setSearchMode(newMode);
+      // 前端本地清空
+      setLocationInput('');
+      setAllRecords([]);
+      setStartDate('');
+      setEndDate('');
+    } else {
+      setSearchMode(newMode);
+    }
   }
 
-  // 用户输入 location => 写回后端
-  function handleLocationChange(e) {
+  // ======= 6) 修改 startDate/endDate => 后端也一起存 =======
+  function handleStartDateChange(e) {
     const val = e.target.value;
-    setLocationInput(val);
-
+    setStartDate(val);
+    // 立即写回后端
     setWorkflowState((prev) => {
       const updated = { ...prev };
-      updated.step1.location = val;
+      updated.step1.startDate = val;
+      return updated;
+    });
+  }
+  function handleEndDateChange(e) {
+    const val = e.target.value;
+    setEndDate(val);
+    // 立即写回后端
+    setWorkflowState((prev) => {
+      const updated = { ...prev };
+      updated.step1.endDate = val;
       return updated;
     });
   }
 
-  // 拉取 FEMA
+  // ======= 7) Fetch FEMA Data => 仅当用户点击按钮 =======
   async function fetchFemaData() {
+    if (!locationInput.trim()) return;
     setLoading(true);
     setError('');
     setAllRecords([]);
@@ -161,11 +190,22 @@ function Step1IdentifyHazard() {
         throw new Error(`Server responded with status ${res.status}`);
       }
       const data = await res.json();
-      if (data.records) {
-        setAllRecords(data.records);
-      } else {
-        setError('No "records" array in response');
-      }
+      const records = data.records || [];
+
+      // 前端保存
+      setAllRecords(records);
+
+      // 后端也保存 => step1.femaRecords, location, searchMode
+      setWorkflowState((prev) => {
+        const updated = { ...prev };
+        updated.step1.femaRecords = records;
+        updated.step1.location = locationInput;
+        updated.step1.searchMode = searchMode;
+        // startDate/endDate 留当前值即可
+        updated.step1.startDate = startDate;
+        updated.step1.endDate = endDate;
+        return updated;
+      });
     } catch (err) {
       setError(err.message || 'Error fetching from server');
       console.error(err);
@@ -174,79 +214,55 @@ function Step1IdentifyHazard() {
     }
   }
 
-  // 切换 hazards 选中
+  // ======= 8) 选中/取消 hazard => 改后端 step1.hazards =======
   function toggleHazard(hazard) {
-    if (selectedHazards.includes(hazard)) {
-      updateStep1Hazards(selectedHazards.filter((h) => h !== hazard));
+    const has = selectedHazards.includes(hazard);
+    let newArr;
+    if (has) {
+      newArr = selectedHazards.filter((h) => h !== hazard);
     } else {
-      updateStep1Hazards([...selectedHazards, hazard]);
+      newArr = [...selectedHazards, hazard];
     }
-  }
-
-  // 更新 step1.hazards + 同步到后端
-  function updateStep1Hazards(newHazards) {
     setWorkflowState((prev) => {
       const updated = { ...prev };
-      updated.step1.hazards = newHazards;
+      updated.step1.hazards = newArr;
       return updated;
     });
   }
 
+  // ======= 9) Clear hazards 手动按钮 =======
   function clearSelectedHazards() {
-    updateStep1Hazards([]);
-  }
-
-  // 将 allRecords 存入 workflowState.step1.femaRecords
-  function saveAllRecordsToState() {
     setWorkflowState((prev) => {
       const updated = { ...prev };
-      updated.step1.femaRecords = allRecords;
+      updated.step1.hazards = [];
       return updated;
     });
   }
-  // -------------- 时间段过滤 --------------
-  function handleStartDateChange(e) {
-    const val = e.target.value;
-    setStartDate(val);
 
-    setWorkflowState((prev) => {
-      const updated = { ...prev };
-      updated.step1.startDate = val;
-      return updated;
-    });
-  }
-  function handleEndDateChange(e) {
-    const val = e.target.value;
-    setEndDate(val);
+  // ======= 10) 仅前端过滤 => startDate/endDate 不改变 allRecords =======
+  const filteredRecords = useMemo(() => {
+    if (!allRecords.length) return [];
+    if (!startDate && !endDate) return allRecords;
 
-    setWorkflowState((prev) => {
-      const updated = { ...prev };
-      updated.step1.endDate = val;
-      return updated;
-    });
-  }
-  function filterByDateRange(records) {
-    if (!startDate && !endDate) return records;
+    const s = startDate ? new Date(startDate) : null;
+    const e = endDate ? new Date(endDate) : null;
 
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    return records.filter((r) => {
-      if (!r.incidentBeginDate) return false;
-      const d = new Date(r.incidentBeginDate);
-      if (start && d < start) return false;
-      if (end && d > end) return false;
+    return allRecords.filter((rec) => {
+      const dtStr = rec.incidentBeginDate;
+      if (!dtStr) return false;
+      const dt = new Date(dtStr);
+      if (s && dt < s) return false;
+      if (e && dt > e) return false;
       return true;
     });
-  }
-  const filteredRecords = filterByDateRange(allRecords);
+  }, [allRecords, startDate, endDate]);
 
-  // -------------- 计算 incidentType 频率 --------------
+  // 统计 freq
   const freqMap = {};
-  filteredRecords.forEach((rec) => {
-    const t = rec.incidentType || 'Unknown';
+  filteredRecords.forEach((r) => {
+    const t = r.incidentType || 'Unknown';
     freqMap[t] = (freqMap[t] || 0) + 1;
   });
-  // 转为 Recharts 数据
   const chartData = Object.entries(freqMap).map(([type, count]) => ({
     type,
     count,
@@ -255,11 +271,11 @@ function Step1IdentifyHazard() {
   return (
     <Box sx={{ mt: 8, p: 2 }}>
       <Toolbar />
+
       <Typography variant="h5" gutterBottom>
         Step 1: Identify Hazard
       </Typography>
 
-      {/* 搜索模式 */}
       <Box sx={{ mb: 2 }}>
         <FormLabel>Search Mode</FormLabel>
         <RadioGroup row value={searchMode} onChange={handleSearchModeChange}>
@@ -276,7 +292,6 @@ function Step1IdentifyHazard() {
         </RadioGroup>
       </Box>
 
-      {/* 输入框 + 搜索按钮 */}
       <TextField
         label={
           searchMode === 'state'
@@ -296,7 +311,6 @@ function Step1IdentifyHazard() {
         <Typography sx={{ mt: 2, color: 'red' }}>Error: {error}</Typography>
       )}
 
-      {/* 时间段筛选 */}
       <Box sx={{ mt: 2, mb: 2, display: 'flex', gap: 2 }}>
         <TextField
           label="Start Date"
@@ -314,7 +328,6 @@ function Step1IdentifyHazard() {
         />
       </Box>
 
-      {/* 频率分布图 */}
       {filteredRecords.length > 0 && (
         <Box sx={{ height: 300, width: '100%', mb: 3 }}>
           <Typography variant="h6">
@@ -347,10 +360,7 @@ function Step1IdentifyHazard() {
         </Box>
       )}
 
-      {/* 事件列表 */}
-      <Typography variant="h6">
-        Fetched Disaster Records (Filtered by Date)
-      </Typography>
+      <Typography variant="h6">Fetched Disaster Records (Filtered)</Typography>
       <List
         sx={{
           maxHeight: 200,
@@ -390,9 +400,8 @@ function Step1IdentifyHazard() {
         })}
       </List>
 
-      {/* 显示选中的 hazards */}
       <Box sx={{ mt: 2 }}>
-        <Typography variant="body1">
+        <Typography>
           Selected Hazards: {selectedHazards.join(', ') || 'None'}
         </Typography>
       </Box>
@@ -408,12 +417,11 @@ function Step1IdentifyHazard() {
         </Button>
       </Box>
 
-      {/* “Next Step” */}
+      {/* NextStep: 只有选了hazard才可前往 step2 */}
       <Box sx={{ mt: 2 }}>
         <Button
           variant="contained"
           disabled={selectedHazards.length === 0}
-          onClick={saveAllRecordsToState}
           component={Link}
           to="/workflow/step2"
         >

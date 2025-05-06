@@ -44,7 +44,7 @@ export async function getFemaHazards(req, res) {
     }
 
     // 先按州过滤
-    const femaUrl = `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=state%20eq%20'${stateOnly}'&$top=1000&$format=json`;
+    const femaUrl = `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries?$filter=state%20eq%20'${stateOnly}'&$top=5000&$format=json`;
 
     const response = await fetch(femaUrl);
     if (!response.ok) {
