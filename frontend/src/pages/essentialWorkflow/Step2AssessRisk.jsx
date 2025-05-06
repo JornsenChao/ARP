@@ -515,7 +515,9 @@ function SystemRow({
   ===========================================
 */
 const LikelihoodAssessment = () => {
-  const { workflowState } = useContext(EssentialWorkflowContext);
+  const { workflowState, setWorkflowState } = useContext(
+    EssentialWorkflowContext
+  );
 
   // 1) 从 Step1 获取用户选中的 hazards + FEMA记录
   const selectedHazards = workflowState?.step1?.hazards || [];
@@ -530,6 +532,10 @@ const LikelihoodAssessment = () => {
   //   如果 userFocusHazards.length===0 表示显示全部 selectedHazards
   const [userFocusHazards, setUserFocusHazards] = useState([]);
 
+  // ===== 新增：模型模式 & 解释方式 =====
+  const [modelApproach, setModelApproach] = useState('quickGamma'); // or "metroGamma"
+  const [interpretation, setInterpretation] = useState('prob30'); // or "annual30"
+
   useEffect(() => {
     buildLocalLikelihoodFromServer();
   }, []);
@@ -538,6 +544,7 @@ const LikelihoodAssessment = () => {
   const buildLocalLikelihoodFromServer = async () => {
     try {
       const res = await fetch('http://localhost:8000/workflow');
+      if (!res.ok) throw new Error('Failed to fetch workflow');
       const fullState = await res.json();
       const arr = fullState?.step2?.likelihoodData || [];
       const tempMap = {};
@@ -584,6 +591,73 @@ const LikelihoodAssessment = () => {
       });
     } catch (err) {
       console.error('Error saving likelihood:', err);
+    }
+  }
+
+  // =========== 新增：Auto-Fill from Bayesian Model =============
+  async function handleAutoFill() {
+    try {
+      // 调用后端 model-likelihood
+      const url = `http://localhost:8000/workflow/step2/model-likelihood?modelApproach=${modelApproach}&interpretation=${interpretation}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to get model-likelihood');
+      const data = await res.json();
+      // data.data => e.g. [ { hazard, eventCount, annualLambda, suggestedValue }, ... ]
+
+      // 对每个 hazard => POST
+      for (const item of data.data) {
+        let rating = item.suggestedValue;
+        // interpretation=prob30 => rating is 1..5
+        // interpretation=annual30 => rating 可能是float，需要转 1..5
+        if (interpretation === 'annual30') {
+          // 例如先round
+          let r = Math.round(rating);
+          if (r < 1) r = 1;
+          if (r > 5) r = 5;
+          rating = r;
+        }
+        // POST /workflow/step2/likelihood
+        const resp = await fetch(
+          'http://localhost:8000/workflow/step2/likelihood',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              hazard: item.hazard,
+              likelihoodRating: rating,
+            }),
+          }
+        );
+        if (!resp.ok)
+          console.warn('Failed to post hazard', item.hazard, rating);
+      }
+
+      // 全部提交后，刷新state
+      await refreshWorkflow();
+      alert('Auto-Fill done.');
+    } catch (err) {
+      console.error(err);
+      alert('Auto-Fill error: ' + err.message);
+    }
+  }
+
+  // 重新获取workflow => 更新likelihoodMap
+  async function refreshWorkflow() {
+    try {
+      const stRes = await fetch('http://localhost:8000/workflow');
+      const wf = await stRes.json();
+      // 更新全局
+      setWorkflowState(wf);
+
+      // 同时更新本组件
+      const arr = wf?.step2?.likelihoodData || [];
+      const tempMap = {};
+      arr.forEach((item) => {
+        tempMap[item.hazard] = item.likelihoodRating;
+      });
+      setLikelihoodMap(tempMap);
+    } catch (err) {
+      console.error('Error refreshWorkflow:', err);
     }
   }
 
@@ -645,14 +719,10 @@ const LikelihoodAssessment = () => {
   const grouped = {};
   parsed.forEach((item) => {
     const xVal = getXVal(item.year);
-    if (!grouped[xVal]) {
-      grouped[xVal] = {};
-    }
-    const hazard = item.incidentType;
-    if (!grouped[xVal][hazard]) {
-      grouped[xVal][hazard] = 0;
-    }
-    grouped[xVal][hazard]++;
+    if (!grouped[xVal]) grouped[xVal] = {};
+    const hz = item.incidentType;
+    if (!grouped[xVal][hz]) grouped[xVal][hz] = 0;
+    grouped[xVal][hz]++;
   });
 
   // 4) 按 aggregator => 构造 xVals
@@ -728,10 +798,6 @@ const LikelihoodAssessment = () => {
       }
     });
   }
-  // if userFocusHazards is empty => means show all
-  function isHazardFocused(hz) {
-    return userFocusHazards.length ? userFocusHazards.includes(hz) : true; // default all
-  }
 
   return (
     <Box>
@@ -740,18 +806,52 @@ const LikelihoodAssessment = () => {
       </Typography>
       <Typography paragraph>
         1) Each hazard's frequency by year or decade. 2) Assign a 1~5
-        likelihood. 3) Clear if needed.
+        likelihood. 3) Clear if needed. 4) You can also use the Bayesian Model
+        to auto-fill.
       </Typography>
 
-      {/* Clear */}
-      <Button
-        variant="outlined"
-        color="error"
-        onClick={handleClearLikelihood}
-        sx={{ mb: 2 }}
-      >
-        Clear Current Input
-      </Button>
+      {/* ============== 上方按钮 & 下拉 ============= */}
+      <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={handleClearLikelihood}
+        >
+          Clear Current
+        </Button>
+
+        {/* modelApproach */}
+        <FormControl size="small">
+          <InputLabel>Model Approach</InputLabel>
+          <Select
+            label="Model Approach"
+            value={modelApproach}
+            onChange={(e) => setModelApproach(e.target.value)}
+            sx={{ width: 130 }}
+          >
+            <MenuItem value="quickGamma">QuickGamma</MenuItem>
+            <MenuItem value="metroGamma">MetroGamma</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* interpretation */}
+        <FormControl size="small">
+          <InputLabel>Interpretation</InputLabel>
+          <Select
+            label="Interpretation"
+            value={interpretation}
+            onChange={(e) => setInterpretation(e.target.value)}
+            sx={{ width: 130 }}
+          >
+            <MenuItem value="prob30">prob30 (1-5 rating)</MenuItem>
+            <MenuItem value="annual30">annual30 (float→1-5)</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Button variant="contained" onClick={handleAutoFill}>
+          Auto-Fill
+        </Button>
+      </Box>
 
       {/* Aggregator Switch */}
       <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
@@ -808,23 +908,12 @@ const LikelihoodAssessment = () => {
               <XAxis
                 dataKey="xval"
                 tickFormatter={xAxisTickFormatter}
-                interval={0} // ensure we check every tick
+                interval={0}
               />
               <YAxis />
               <RTooltip />
               <Legend />
-              {/* For each hazard in chartHazards => one <Bar dataKey=hz> */}
               {chartHazards.map((hz, idx) => {
-                // pick color? you can define a color array
-                // const colorArr = [
-                //   '#8884d8',
-                //   '#82ca9d',
-                //   '#ffc658',
-                //   '#d84f52',
-                //   '#6a9cf3',
-                //   '#29cae4',
-                // ];
-                // const barColor = colorArr[idx % colorArr.length];
                 const barColor = getColorForHazard(hz);
                 return <Bar key={hz} dataKey={hz} fill={barColor} />;
               })}
@@ -832,7 +921,57 @@ const LikelihoodAssessment = () => {
           </ResponsiveContainer>
         )}
       </Paper>
+      <Box sx={{ my: 2, p: 2, border: '1px dashed #ccc' }}>
+        <Typography variant="subtitle1" gutterBottom>
+          How do these options work?
+        </Typography>
+        <Typography variant="body2" paragraph>
+          <strong>Model Approach</strong> – We offer two Bayesian methods:
+          <ul>
+            <li>
+              <strong>QuickGamma</strong>: A simpler method with a fixed small
+              prior (e.g. α=1, β=5). It’s fast and straightforward for quickly
+              estimating hazard frequency when data are sparse.
+            </li>
+            <li>
+              <strong>MetroGamma</strong>: A slightly more advanced approach
+              that uses a mini “Metropolis” sampling under a similar prior. This
+              can yield more robust posterior estimates in some cases, but is
+              computationally heavier.
+            </li>
+          </ul>
+        </Typography>
 
+        <Typography variant="body2" paragraph>
+          <strong>Interpretation</strong> – This determines how we convert the
+          Bayesian estimate (<em>annual rate λ</em>) into a 1–5 rating:
+          <ul>
+            <li>
+              <strong>prob30</strong>: We first calculate the probability of at
+              least one event over the next 30 years (
+              <em>
+                p = 1 - e<sup>−30λ</sup>
+              </em>
+              ), then map that to a 1–5 scale using thresholds (e.g., &lt;5% =
+              1, &lt;20% = 2, etc.).
+            </li>
+            <li>
+              <strong>annual30</strong>: We interpret your annual rate as a
+              rough index of how many times per year (on average) a hazard might
+              occur over a 30-year horizon, then map that rate to 1–5. Hazards
+              with very low rates will show up as 1 (rare), while higher rates
+              become 4–5, etc.
+            </li>
+          </ul>
+        </Typography>
+
+        <Typography variant="body2">
+          <em>
+            Note: After Auto-Fill, you can still manually adjust any hazard's
+            final 1–5 rating if needed.
+          </em>
+        </Typography>
+      </Box>
       {/* Likelihood input table */}
       <Typography variant="subtitle1" sx={{ mb: 1 }}>
         Set Likelihood (1~5)

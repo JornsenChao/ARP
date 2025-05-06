@@ -4,6 +4,7 @@ import {
   saveWorkflowState,
 } from './essentialWorkflowController.js';
 import { impactCategories } from '../mockData/impactCategories.js';
+import { computeBayesianLikelihoodForHazards } from '../services/bayesModelService.js';
 
 function ensureImpactCategoriesInState() {
   const state = getWorkflowState();
@@ -297,4 +298,42 @@ export function setSelectedRisk(req, res) {
     message: 'Selection updated',
     selectedRisks: state.step2.selectedRisks,
   });
+}
+
+/**
+ * 新增:
+ * GET /workflow/step2/model-likelihood
+ *   - 读取 workflowState 中 step1.hazards, step1.femaRecords
+ *   - 调用 bayesModelService 的 computeBayesianLikelihoodForHazards
+ *   - 返回 { hazard, suggestedRating, horizonProb, ...}
+ */
+export function getBayesianModelLikelihood(req, res) {
+  try {
+    const { modelApproach, interpretation } = req.query;
+    // default fallback
+    const approach = modelApproach || 'quickGamma';
+    const interpret = interpretation || 'prob30';
+    const horizonYears = 30;
+
+    const state = getWorkflowState();
+    const hazards = state.step1?.hazards || [];
+    const records = state.step1?.femaRecords || [];
+
+    const result = computeBayesianLikelihoodForHazards({
+      hazards,
+      femaRecords: records,
+      horizonYears,
+      modelApproach: approach,
+      interpretation: interpret,
+    });
+
+    res.json({
+      modelApproach: approach,
+      interpretation: interpret,
+      data: result,
+    });
+  } catch (err) {
+    console.error('getBayesianModelLikelihood error:', err);
+    res.status(500).json({ error: err.message });
+  }
 }

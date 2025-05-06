@@ -18,6 +18,7 @@ import {
   clearImpactData,
   clearLikelihoodData,
   setSelectedRisk,
+  getBayesianModelLikelihood,
 } from '../controllers/step2Controller.js';
 
 const router = Router();
@@ -49,6 +50,7 @@ router.post('/step2/add-subsystem', addSubSystem);
 // 影响/可能性打分
 router.post('/step2/impact', setImpactRating);
 router.post('/step2/likelihood', setLikelihoodRating);
+router.get('/step2/model-likelihood', getBayesianModelLikelihood);
 
 // 计算risk
 router.get('/step2/risk', calculateAndGetRisk);

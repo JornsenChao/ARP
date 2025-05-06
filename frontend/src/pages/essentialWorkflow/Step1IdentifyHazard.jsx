@@ -113,6 +113,11 @@ function Step1IdentifyHazard() {
         updated.step1.startDate = '';
         updated.step1.endDate = '';
         updated.step1.location = newLoc;
+        // 同时清空 step2 相关
+        updated.step2.impactData = [];
+        updated.step2.likelihoodData = [];
+        updated.step2.selectedRisks = [];
+        updated.step2.impactCategories = [];
         return updated;
       });
       // 2) 前端本地也清空

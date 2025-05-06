@@ -22,6 +22,25 @@ function mapProbToBand(p) {
   return 5;
 }
 
+/**
+ * 新增: mapRateToBand(annualLambda)
+ *  - 给 annualLambda 做一组自定义阈值 => 1..5
+ *  - 下面仅作示例，可根据需要增大或减小间隔
+ */
+function mapRateToBand(lambda) {
+  // 例如:
+  //  <0.01 => 1
+  //  <0.05 => 2
+  //  <0.15 => 3
+  //  <0.30 => 4
+  //  else => 5
+  if (lambda < 0.01) return 1;
+  if (lambda < 0.05) return 2;
+  if (lambda < 0.15) return 3;
+  if (lambda < 0.3) return 4;
+  return 5;
+}
+
 /** QuickGamma approach:
  *  - alpha=1, beta=5 (fixed)
  *  - annual lambda = (count + alpha)/(years + beta)
@@ -41,8 +60,9 @@ function quickGammaMethod(hazard, femaRecords) {
   const k = recs.length;
   const T = Math.max(1, currentYear - YEAR_START + 1);
 
-  const lambda = (k + alpha) / (T + beta);
-  return { eventCount: k, annualLambda: lambda };
+  // 2) posterior lambda
+  const lam = (k + alpha) / (T + beta);
+  return { eventCount: k, annualLambda: lam };
 }
 
 /** MetroGamma approach (简化metropolis):
@@ -65,28 +85,24 @@ function metroGammaMethod(hazard, femaRecords) {
   const k = recs.length;
   const T = Math.max(1, currentYear - YEAR_START + 1);
 
-  // posterior log-likelihood (up to constant)
-  // Poisson-Gamma => posterior in lam is Gamma( alpha0+k, beta0+T ),
-  // but let's pretend we do metropolis:
-  const postLog = (lam) => {
+  // posterior log-likelihood ~ (alpha0-1+k)*ln(lam)-(beta0+T)*lam
+  const logPost = (lam) => {
     if (lam <= 0) return -Infinity;
-    // priorGamma( lam| alpha0, beta0 ) => (alpha0-1)*ln(lam) - beta0*lam
-    // likelihood ~ Poisson => k*ln(lam) - lam*T
-    // combine => (alpha0-1+k)*ln(lam) - (beta0+T)*lam
     return (alpha0 - 1 + k) * Math.log(lam) - (beta0 + T) * lam;
   };
 
-  let lam = (k + 1) / (T + 5); // initial guess
-  let lp = postLog(lam);
+  let lam = (k + 1) / (T + 5);
+  let lp = logPost(lam);
   const draws = 800,
     burn = 200;
   const step = lam * 0.5 || 0.1;
   const samples = [];
+
   for (let i = 0; i < draws + burn; i++) {
-    const candidate = Math.abs(lam + (Math.random() * 2 - 1) * step);
-    const lp2 = postLog(candidate);
+    const cand = Math.abs(lam + (Math.random() * 2 - 1) * step);
+    const lp2 = logPost(cand);
     if (Math.log(Math.random()) < lp2 - lp) {
-      lam = candidate;
+      lam = cand;
       lp = lp2;
     }
     if (i >= burn) samples.push(lam);
@@ -97,9 +113,11 @@ function metroGammaMethod(hazard, femaRecords) {
 
 /**
  * computeBayesianLikelihoodForHazards
- *   - Receives { hazards, femaRecords, horizonYears, modelApproach, interpretation }
- *   - modelApproach = "quickGamma" | "metroGamma"
- *   - interpretation= "prob30" or "annual30"
+ *   - hazards: string[]
+ *   - femaRecords: array
+ *   - horizonYears=30
+ *   - modelApproach='quickGamma' | 'metroGamma'
+ *   - interpretation='prob30' or 'annual30'
  */
 export function computeBayesianLikelihoodForHazards({
   hazards,
@@ -108,9 +126,7 @@ export function computeBayesianLikelihoodForHazards({
   modelApproach = 'quickGamma',
   interpretation = 'prob30',
 }) {
-  // We'll compute each hazard's annualLambda => then interpret
-
-  // pick the method
+  // pick a method
   const methodFn =
     modelApproach === 'metroGamma' ? metroGammaMethod : quickGammaMethod;
 
@@ -118,22 +134,17 @@ export function computeBayesianLikelihoodForHazards({
   const results = hazards.map((hz) => {
     const { eventCount, annualLambda } = methodFn(hz, femaRecords);
 
-    // interpret => finalValue
-    let finalValue = 1;
+    let finalValue = 1; // default
     if (interpretation === 'prob30') {
-      // p = 1 - e^(-30*lambda)
+      // p = 1 - e^(- horizon * lam)
       const p = probAtLeastOne(annualLambda, horizonYears);
       // p => 1..5 rating or numeric?
       // let's return a 1..5 scale
       finalValue = mapProbToBand(p);
     } else if (interpretation === 'annual30') {
-      // in 30 yrs => expected count = 30*lambda
-      // we then do (30*lambda)/30 => = lambda
-      // So finalValue = annualLambda, but we might scale it to 1..5 ??? Or just store raw?
-      finalValue = annualLambda; // or map to ???
-
-      // If you want a 1..5 mapping from annual rate, define some custom logic.
-      // e.g. finalValue = mapRateToSomeBand(annualLambda)
+      // interpret annualLambda => mapRateToBand
+      // so you get e.g. 1..5 with more nuance
+      finalValue = mapRateToBand(annualLambda);
     }
 
     return {
