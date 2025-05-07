@@ -117,7 +117,6 @@ function Step1IdentifyHazard() {
         updated.step2.impactData = [];
         updated.step2.likelihoodData = [];
         updated.step2.selectedRisks = [];
-        updated.step2.impactCategories = [];
         return updated;
       });
       // 2) 前端本地也清空
