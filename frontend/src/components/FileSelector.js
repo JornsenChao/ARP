@@ -1,69 +1,91 @@
 // src/components/FileSelector.js
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Select, Button, Input, message } from 'antd';
+import {
+  Box,
+  Stack,
+  Select,
+  MenuItem,
+  Button,
+  TextField,
+  Typography,
+  Snackbar,
+  Alert,
+} from '@mui/material';
 
-const { Option } = Select;
 const DOMAIN = 'http://localhost:8000';
 
-const FileSelector = ({
-  fileList = [],
-  fetchFileList,
-  activeFile,
-  setActiveFile,
-}) => {
+const FileSelector = ({ fileList = [], fetchFileList, activeFile, setActiveFile }) => {
   const [demoName, setDemoName] = useState('');
+  const [snack, setSnack] = useState({ open: false, text: '', severity: 'success' });
+  const openSnack = (text, severity = 'success') =>
+    setSnack({ open: true, text, severity });
+  const closeSnack = () => setSnack({ open: false, text: '', severity: 'success' });
 
-  // 用户点击 "Load Demo"
   const loadDemo = async () => {
-    if (!demoName) return;
+    if (!demoName.trim()) return;
     try {
-      const res = await axios.get(`${DOMAIN}/useDemo?fileKey=${demoName}`);
+      const res = await axios.get(`${DOMAIN}/useDemo?fileKey=${demoName.trim()}`);
       if (res.status === 200) {
-        message.success(`Demo "${demoName}" loaded!`);
-        // 刷新 fileList
+        openSnack(`Demo "${demoName}" loaded!`);
         fetchFileList();
-        // 切到这个 demo
-        setActiveFile(demoName);
+        setActiveFile(demoName.trim());
       }
     } catch (err) {
       console.error(err);
-      message.error('Load demo failed');
+      openSnack('Load demo failed', 'error');
     }
   };
 
   return (
-    <div style={{ marginBottom: '20px' }}>
-      <div>
+    <Box mb={2}>
+      <Stack direction="row" alignItems="center" spacing={1}>
         <Select
-          style={{ width: 200 }}
-          placeholder="Select file"
-          value={activeFile}
-          onChange={(val) => setActiveFile(val)}
+          size="small"
+          sx={{ width: 200 }}
+          displayEmpty
+          value={activeFile || ''}
+          onChange={(e) => setActiveFile(e.target.value)}
         >
+          <MenuItem value="" disabled>
+            Select file
+          </MenuItem>
           {fileList.map((fileKey) => (
-            <Option key={fileKey} value={fileKey}>
+            <MenuItem key={fileKey} value={fileKey}>
               {fileKey}
-            </Option>
+            </MenuItem>
           ))}
         </Select>
-        <span style={{ marginLeft: '10px' }}>
-          Current: {activeFile || 'None'}
-        </span>
-      </div>
+        <Typography variant="body2">
+          Current:&nbsp;{activeFile || 'None'}
+        </Typography>
+      </Stack>
 
-      <div style={{ marginTop: '10px' }}>
-        <Input
-          style={{ width: 120 }}
+      <Stack direction="row" spacing={1} mt={1}>
+        <TextField
+          size="small"
+          sx={{ width: 120 }}
           placeholder="pdf / csv ..."
           value={demoName}
           onChange={(e) => setDemoName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && loadDemo()}
         />
-        <Button style={{ marginLeft: '5px' }} onClick={loadDemo}>
+        <Button variant="contained" onClick={loadDemo}>
           Load Demo
         </Button>
-      </div>
-    </div>
+      </Stack>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={closeSnack}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity={snack.severity} onClose={closeSnack} sx={{ width: '100%' }}>
+          {snack.text}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 };
 

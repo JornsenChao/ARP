@@ -1,28 +1,40 @@
-import React, { useState, useEffect } from 'react';
+// src/pages/FileManagement.js
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
-  Table,
+  Box,
+  Stack,
   Button,
-  Modal,
-  Input,
-  message,
-  Upload,
-  Space,
-  Card,
+  IconButton,
+  Typography,
   Select,
-  Form,
-} from 'antd';
-import { UploadOutlined, CloseOutlined } from '@ant-design/icons';
+  MenuItem,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Paper,
+  Card,
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Divider,
+} from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CloseIcon from '@mui/icons-material/Close';
 import ColumnMapper from '../components/ColumnMapper';
-
-// === Chat/QA 相关组件 ===
 import RenderQA from '../components/RenderQA';
 import ChatComponent from '../components/ChatComponent';
 
 const DOMAIN = 'http://localhost:8000';
 const LOCALSTORAGE_PREFIX = 'fileChat_conversation_';
 
-// 新增 docType 选项
 const DOC_TYPE_OPTIONS = [
   { label: 'Case Study', value: 'caseStudy' },
   { label: 'Strategy', value: 'strategy' },
@@ -30,52 +42,60 @@ const DOC_TYPE_OPTIONS = [
 ];
 
 function FileManagement() {
+  /* ---------------- state ---------------- */
   const [fileList, setFileList] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // For upload
+  /** Upload dialog */
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadTags, setUploadTags] = useState([]);
-  const [uploadDocType, setUploadDocType] = useState('otherResource'); // default
+  const [uploadDocType, setUploadDocType] = useState('otherResource');
+  const uploadInputRef = useRef(null);
 
-  // For edit
+  /** Edit dialog */
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editRecord, setEditRecord] = useState(null);
   const [editName, setEditName] = useState('');
   const [editTags, setEditTags] = useState([]);
   const [editDocType, setEditDocType] = useState('otherResource');
 
-  // For map columns
+  /** Map dialog */
   const [mapModalVisible, setMapModalVisible] = useState(false);
   const [mapRecord, setMapRecord] = useState(null);
-  // columnSchema => [ { columnName, infoCategory, metaCategory }...]
   const [columnSchema, setColumnSchema] = useState([]);
   const [availableCols, setAvailableCols] = useState([]);
 
-  // 当前聊天文件
+  /** Chat */
   const [activeChatFile, setActiveChatFile] = useState('');
   const [conversation, setConversation] = useState([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
 
+  /** Snackbar */
+  const [snack, setSnack] = useState({ open: false, text: '', severity: 'info' });
+  const openSnack = (text, severity = 'info') =>
+    setSnack({ open: true, text, severity });
+  const closeSnack = () => setSnack({ ...snack, open: false });
+
+  /* ---------------- fetch files on mount ---------------- */
   useEffect(() => {
     fetchFiles();
   }, []);
 
   const fetchFiles = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await axios.get(`${DOMAIN}/files/list`);
       setFileList(res.data);
     } catch (err) {
       console.error(err);
-      message.error('Failed to fetch file list');
+      openSnack('Failed to fetch file list', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // ------- Upload -------
-  const handleUploadFile = async ({ file }) => {
+  /* ---------------- upload ---------------- */
+  const handleUploadFile = async (file) => {
     try {
       const formData = new FormData();
       uploadTags.forEach((tag) => formData.append('tags', tag));
@@ -84,36 +104,34 @@ function FileManagement() {
       formData.append('file', file);
 
       const res = await axios.post(`${DOMAIN}/files/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (res.data.fileKey) {
-        message.success('File uploaded');
+        openSnack('File uploaded', 'success');
         fetchFiles();
       }
     } catch (err) {
       console.error(err);
-      message.error('Upload failed');
+      openSnack('Upload failed', 'error');
     }
   };
 
-  // ------- Delete -------
+  /* ---------------- delete ---------------- */
   const handleDelete = async (record) => {
     if (!window.confirm(`Are you sure to delete file: ${record.fileName}?`))
       return;
     try {
       await axios.delete(`${DOMAIN}/files/${record.fileKey}`);
-      message.success('File deleted');
+      openSnack('File deleted', 'success');
       fetchFiles();
       if (activeChatFile === record.fileKey) setActiveChatFile('');
     } catch (err) {
       console.error(err);
-      message.error('Delete failed');
+      openSnack('Delete failed', 'error');
     }
   };
 
-  // ------- Edit -------
+  /* ---------------- edit ---------------- */
   const openEditModal = (record) => {
     setEditRecord(record);
     setEditName(record.fileName);
@@ -121,6 +139,7 @@ function FileManagement() {
     setEditDocType(record.docType || 'otherResource');
     setEditModalVisible(true);
   };
+
   const handleEditOk = async () => {
     try {
       await axios.patch(`${DOMAIN}/files/${editRecord.fileKey}`, {
@@ -128,73 +147,65 @@ function FileManagement() {
         tags: editTags,
         docType: editDocType,
       });
-      message.success('File updated');
+      openSnack('File updated', 'success');
       setEditModalVisible(false);
       fetchFiles();
     } catch (err) {
       console.error(err);
-      message.error('Update failed');
+      openSnack('Update failed', 'error');
     }
   };
 
-  // ------- map & build -------
+  /* ---------------- map / build ---------------- */
   const openMapModal = async (record) => {
     setMapRecord(record);
-
     try {
       const res = await axios.get(`${DOMAIN}/files/${record.fileKey}/columns`);
       setAvailableCols(res.data || []);
     } catch (err) {
       console.error(err);
-      message.error('Failed to get columns');
+      openSnack('Failed to get columns', 'error');
       setAvailableCols([]);
     }
-
-    // 如果 record.columnSchema 已经有了，就回填
-    const existingSchema = record.columnSchema || [];
-    setColumnSchema(existingSchema);
-
+    setColumnSchema(record.columnSchema || []);
     setMapModalVisible(true);
   };
 
   const handleMapOk = async () => {
     if (!mapRecord) return;
     try {
-      // POST /files/:fileKey/mapColumns  body: { columnSchema }
       await axios.post(`${DOMAIN}/files/${mapRecord.fileKey}/mapColumns`, {
         columnSchema,
       });
-      message.success('Column map saved');
-
-      // 然后 buildStore
+      openSnack('Column map saved', 'success');
       await axios.post(`${DOMAIN}/files/${mapRecord.fileKey}/buildStore`);
-      message.success('Vector store built');
+      openSnack('Vector store built', 'success');
       setMapModalVisible(false);
       fetchFiles();
     } catch (err) {
       console.error(err);
-      message.error('Map/Build failed');
+      openSnack('Map/Build failed', 'error');
     }
   };
 
-  // ------- loadDemo -------
+  /* ---------------- load demo ---------------- */
   const loadDemo = async (demoName) => {
     try {
       const res = await axios.get(`${DOMAIN}/files/loadDemo`, {
         params: { demoName },
       });
       if (res.data.fileKey) {
-        message.success(res.data.message || 'Demo file loaded');
+        openSnack(res.data.message || 'Demo file loaded', 'success');
         await fetchFiles();
         setActiveChatFile(res.data.fileKey);
       }
     } catch (err) {
       console.error(err);
-      message.error('Load demo failed');
+      openSnack('Load demo failed', 'error');
     }
   };
 
-  // ------- Chat memory -------
+  /* ---------------- chat memory ---------------- */
   useEffect(() => {
     if (!activeChatFile) {
       setConversation([]);
@@ -202,259 +213,318 @@ function FileManagement() {
     }
     const localKey = LOCALSTORAGE_PREFIX + activeChatFile;
     const savedVal = localStorage.getItem(localKey);
-    if (savedVal) {
-      setConversation(JSON.parse(savedVal));
-    } else {
-      setConversation([]);
-    }
+    setConversation(savedVal ? JSON.parse(savedVal) : []);
   }, [activeChatFile]);
 
   useEffect(() => {
     if (!activeChatFile) return;
-    const localKey = LOCALSTORAGE_PREFIX + activeChatFile;
-    localStorage.setItem(localKey, JSON.stringify(conversation));
+    localStorage.setItem(
+      LOCALSTORAGE_PREFIX + activeChatFile,
+      JSON.stringify(conversation)
+    );
   }, [activeChatFile, conversation]);
 
-  const handleResp = (question, answer) => {
+  const handleResp = (question, answer) =>
     setConversation((prev) => [...prev, { question, answer }]);
-  };
 
-  const columns = [
-    {
-      title: 'File Name',
-      dataIndex: 'fileName',
-    },
-    {
-      title: 'Tags',
-      dataIndex: 'tags',
-      render: (tags) =>
-        tags?.map((t) => (
-          <span key={t} style={{ marginRight: 6 }}>
-            {t}
-          </span>
-        )),
-    },
-    {
-      title: 'docType',
-      dataIndex: 'docType',
-      render: (val) => val || '',
-    },
-    {
-      title: 'FileType',
-      dataIndex: 'fileType',
-    },
-    {
-      title: 'StoreBuilt',
-      dataIndex: 'storeBuilt',
-      render: (val) => (val ? 'Yes' : 'No'),
-    },
-    {
-      title: 'Created At',
-      dataIndex: 'createdAt',
-      render: (val) => {
-        if (!val) return '';
-        const dt = new Date(val);
-        return dt.toLocaleString();
-      },
-    },
-    {
-      title: 'Actions',
-      render: (text, record) => (
-        <Space>
-          <Button onClick={() => openEditModal(record)}>Edit</Button>
-          <Button danger onClick={() => handleDelete(record)}>
-            Delete
-          </Button>
-          {['.csv', '.xlsx', '.xls'].includes(record.fileType) && (
-            <Button onClick={() => openMapModal(record)}>Map & Build</Button>
-          )}
-          {['.pdf', '.txt'].includes(record.fileType) && !record.storeBuilt && (
-            <Button
-              onClick={async () => {
-                try {
-                  await axios.post(
-                    `${DOMAIN}/files/${record.fileKey}/buildStore`
-                  );
-                  message.success('Store built');
-                  fetchFiles();
-                } catch (err) {
-                  console.error(err);
-                  message.error('Build store failed');
-                }
-              }}
-            >
-              BuildStore
-            </Button>
-          )}
-          {record.storeBuilt && (
-            <Button
-              type="primary"
-              onClick={() => {
-                setActiveChatFile(record.fileKey);
-                message.info(`Now chatting about file: ${record.fileName}`);
-              }}
-            >
-              Chat
-            </Button>
-          )}
-        </Space>
-      ),
-    },
-  ];
+  /* ---------------- table helpers ---------------- */
+  const renderTags = (tags = []) =>
+    tags.map((t) => (
+      <Typography
+        key={t}
+        variant="caption"
+        sx={{ mr: 0.75, bgcolor: '#eee', px: 0.5, borderRadius: 0.5 }}
+      >
+        {t}
+      </Typography>
+    ));
 
+  /* ---------------- UI ---------------- */
   return (
-    <div>
-      <h2>File Management with Chat</h2>
+    <Box>
+      <Typography variant="h5" gutterBottom>
+        File Management with Chat
+      </Typography>
 
-      <div style={{ marginBottom: 10 }}>
-        <Button type="primary" onClick={() => setUploadModalVisible(true)}>
+      {/* top actions */}
+      <Stack direction="row" spacing={1} mb={2}>
+        <Button variant="contained" onClick={() => setUploadModalVisible(true)}>
           Upload New File
         </Button>
-        <span style={{ marginLeft: 10 }}>Load Demo: </span>
-        <Button onClick={() => loadDemo('demo.pdf')} style={{ marginRight: 8 }}>
+        <Divider orientation="vertical" flexItem />
+        <Typography variant="body2" sx={{ mt: 0.75 }}>
+          Load Demo:
+        </Typography>
+        <Button size="small" onClick={() => loadDemo('demo.pdf')}>
           Demo PDF
         </Button>
-        <Button onClick={() => loadDemo('demo.csv')}>Demo CSV</Button>
-      </div>
+        <Button size="small" onClick={() => loadDemo('demo.csv')}>
+          Demo CSV
+        </Button>
+      </Stack>
 
-      <Table
-        columns={columns}
-        dataSource={fileList}
-        rowKey="fileKey"
-        loading={loading}
-      />
+      {/* file table */}
+      <Paper variant="outlined">
+        {loading ? (
+          <Box display="flex" justifyContent="center" p={3}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                {
+                  [
+                    'File Name',
+                    'Tags',
+                    'docType',
+                    'FileType',
+                    'StoreBuilt',
+                    'Created At',
+                    'Actions',
+                  ].map((h) => (
+                    <TableCell key={h}>{h}</TableCell>
+                  ))
+                }
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {fileList.map((row) => (
+                <TableRow key={row.fileKey}>
+                  <TableCell>{row.fileName}</TableCell>
+                  <TableCell>{renderTags(row.tags)}</TableCell>
+                  <TableCell>{row.docType || ''}</TableCell>
+                  <TableCell>{row.fileType}</TableCell>
+                  <TableCell>{row.storeBuilt ? 'Yes' : 'No'}</TableCell>
+                  <TableCell>
+                    {row.createdAt
+                      ? new Date(row.createdAt).toLocaleString()
+                      : ''}
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5}>
+                      <Button size="small" onClick={() => openEditModal(row)}>
+                        Edit
+                      </Button>
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => handleDelete(row)}
+                      >
+                        Delete
+                      </Button>
 
-      {/* Upload Modal */}
-      <Modal
-        title="Upload File"
-        visible={uploadModalVisible}
-        onCancel={() => setUploadModalVisible(false)}
-        footer={null}
+                      {['.csv', '.xlsx', '.xls'].includes(row.fileType) && (
+                        <Button size="small" onClick={() => openMapModal(row)}>
+                          Map&nbsp;&amp;&nbsp;Build
+                        </Button>
+                      )}
+
+                      {['.pdf', '.txt'].includes(row.fileType) &&
+                        !row.storeBuilt && (
+                          <Button
+                            size="small"
+                            onClick={async () => {
+                              try {
+                                await axios.post(
+                                  `${DOMAIN}/files/${row.fileKey}/buildStore`
+                                );
+                                openSnack('Store built', 'success');
+                                fetchFiles();
+                              } catch (err) {
+                                console.error(err);
+                                openSnack('Build store failed', 'error');
+                              }
+                            }}
+                          >
+                            BuildStore
+                          </Button>
+                        )}
+
+                      {row.storeBuilt && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => {
+                            setActiveChatFile(row.fileKey);
+                            openSnack(
+                              `Now chatting about file: ${row.fileName}`,
+                              'info'
+                            );
+                          }}
+                        >
+                          Chat
+                        </Button>
+                      )}
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Paper>
+
+      {/* ---------------- Upload Dialog ---------------- */}
+      <Dialog
+        open={uploadModalVisible}
+        onClose={() => setUploadModalVisible(false)}
+        maxWidth="sm"
+        fullWidth
       >
-        <Form layout="vertical">
-          <Form.Item label="Tags (comma separated):">
-            <Input
-              placeholder="e.g. climate, reference"
+        <DialogTitle>Upload File</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              label="Tags (comma separated)"
               onChange={(e) =>
-                setUploadTags(e.target.value.split(',').map((t) => t.trim()))
+                setUploadTags(
+                  e.target.value
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter(Boolean)
+                )
               }
             />
-          </Form.Item>
-          <Form.Item label="Document Type">
-            <Select
-              value={uploadDocType}
-              onChange={(val) => setUploadDocType(val)}
-              style={{ width: 200 }}
-            >
-              {DOC_TYPE_OPTIONS.map((opt) => (
-                <Select.Option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="body2">Document Type:</Typography>
+              <Select
+                size="small"
+                value={uploadDocType}
+                onChange={(e) => setUploadDocType(e.target.value)}
+                sx={{ width: 200 }}
+              >
+                {DOC_TYPE_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Stack>
 
-        <Upload
-          beforeUpload={(file) => {
-            handleUploadFile({ file });
-            return false; // prevent default
-          }}
-          multiple={false}
-          showUploadList={false}
-        >
-          <Button icon={<UploadOutlined />}>Select file</Button>
-        </Upload>
-      </Modal>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <input
+                type="file"
+                hidden
+                ref={uploadInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadFile(file);
+                }}
+              />
+              <Button
+                variant="outlined"
+                startIcon={<CloudUploadIcon />}
+                onClick={() => uploadInputRef.current?.click()}
+              >
+                Select file
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUploadModalVisible(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
-      {/* Edit modal */}
-      <Modal
-        title="Edit File"
-        visible={editModalVisible}
-        onCancel={() => setEditModalVisible(false)}
-        onOk={handleEditOk}
+      {/* ---------------- Edit Dialog ---------------- */}
+      <Dialog
+        open={editModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        maxWidth="sm"
+        fullWidth
       >
-        <Form layout="vertical">
-          <Form.Item label="New Name:">
-            <Input
-              style={{ marginBottom: 10 }}
+        <DialogTitle>Edit File</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              label="New Name"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
             />
-          </Form.Item>
-          <Form.Item label="Tags (comma separated):">
-            <Input
+            <TextField
+              label="Tags (comma separated)"
               value={editTags.join(', ')}
               onChange={(e) =>
-                setEditTags(e.target.value.split(',').map((x) => x.trim()))
+                setEditTags(
+                  e.target.value
+                    .split(',')
+                    .map((x) => x.trim())
+                    .filter(Boolean)
+                )
               }
             />
-          </Form.Item>
-          <Form.Item label="docType">
-            <Select
-              value={editDocType}
-              onChange={(val) => setEditDocType(val)}
-              style={{ width: 200 }}
-            >
-              {DOC_TYPE_OPTIONS.map((opt) => (
-                <Select.Option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Typography variant="body2">Document Type:</Typography>
+              <Select
+                size="small"
+                value={editDocType}
+                onChange={(e) => setEditDocType(e.target.value)}
+                sx={{ width: 200 }}
+              >
+                {DOC_TYPE_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditModalVisible(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleEditOk}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-      {/* Map & Build modal */}
-      <Modal
-        title="Map Columns & Build Store"
-        visible={mapModalVisible}
-        onOk={handleMapOk}
-        onCancel={() => setMapModalVisible(false)}
-        width={800}
+      {/* ---------------- Map Dialog ---------------- */}
+      <Dialog
+        open={mapModalVisible}
+        onClose={() => setMapModalVisible(false)}
+        maxWidth="md"
+        fullWidth
       >
-        <ColumnMapper
-          columns={availableCols}
-          columnSchema={columnSchema}
-          setColumnSchema={setColumnSchema}
-        />
-      </Modal>
+        <DialogTitle>Map Columns &amp; Build Store</DialogTitle>
+        <DialogContent dividers>
+          <ColumnMapper
+            columns={availableCols}
+            columnSchema={columnSchema}
+            setColumnSchema={setColumnSchema}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMapModalVisible(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleMapOk}>
+            Save &amp; Build
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-      {/* 聊天面板 */}
+      {/* ---------------- Chat Panel ---------------- */}
       {activeChatFile && (
-        <Card style={{ marginTop: 20, background: '#f9f9f9' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <h3>Chat about file: {activeChatFile}</h3>
-            <Button
-              type="text"
-              icon={<CloseOutlined />}
-              style={{ color: 'red' }}
-              onClick={() => {
-                setActiveChatFile('');
-              }}
-            >
-              Close
-            </Button>
-          </div>
-          <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 10 }}>
-            <RenderQA conversation={conversation} isLoading={isChatLoading} />
+        <Card sx={{ mt: 3, background: '#f9f9f9', p: 2 }}>
+          <Stack direction="row" justifyContent="space-between">
+            <Typography variant="h6">
+              Chat about file: {activeChatFile}
+            </Typography>
+            <IconButton color="error" onClick={() => setActiveChatFile('')}>
+              <CloseIcon />
+            </IconButton>
+          </Stack>
 
-            {/* 这里可以放你的 RenderQA 或其他对话组件 */}
-            {/* {conversation.map((each, idx) => (
-              <div key={idx} style={{ marginBottom: 8 }}>
-                <div>
-                  <strong>User:</strong> {each.question}
-                </div>
-                <div>
-                  <strong>AI:</strong> {each.answer}
-                </div>
-              </div>
-            ))} */}
-            {isChatLoading && <div>Loading...</div>}
-          </div>
-          {/* 这里也可以放 ChatComponent */}
-          {/* <p>(Chat input here... omitted for brevity in this example)</p> */}
+          <Box
+            sx={{
+              maxHeight: 300,
+              overflowY: 'auto',
+              mb: 2,
+              pr: 1,
+            }}
+          >
+            <RenderQA conversation={conversation} isLoading={isChatLoading} />
+          </Box>
+
           <ChatComponent
             handleResp={handleResp}
             isLoading={isChatLoading}
@@ -464,7 +534,19 @@ function FileManagement() {
           />
         </Card>
       )}
-    </div>
+
+      {/* ---------------- Snackbar ---------------- */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={closeSnack}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity={snack.severity} onClose={closeSnack} sx={{ width: '100%' }}>
+          {snack.text}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
 

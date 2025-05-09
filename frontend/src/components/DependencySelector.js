@@ -1,15 +1,23 @@
-/* 
-  frontend/src/components/DependencySelector.js
-  ============= 全量可复制粘贴示例 =============
-*/
+// frontend/src/components/DependencySelector.js
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  Box,
+  Stack,
+  Button,
+  Checkbox,
+  FormGroup,
+  FormControlLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Typography,
+  Snackbar,
+  Alert,
+  IconButton,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Checkbox, Input, Button, Select, Typography, message } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
-
-const { TextArea } = Input;
-
-// ========== 预设数组 ========== //
+// ---------- Presets ----------
 const climateRiskPresets = [
   { label: 'Flooding', value: 'flooding' },
   { label: 'Drought', value: 'drought' },
@@ -41,52 +49,48 @@ const scalePresets = [
   { label: 'Campus', value: 'large-scale region' },
 ];
 
-/**
- * DependencySelector:
- *  1) climateRisks, regulations, projectTypes, environment, scale => 用 Set + 预设 + 自定义
- *  2) otherData => { [fieldName: string]: Set<string> }
- *  3) each block has a "type" => 'dep'|'ref'|'strategy'
- *  4) onChange => { climateRisks, regulations, projectTypes, environment, scale, otherData }
- */
-const DependencySelector = ({
-  // CHANGES: 新增 props.value
-  value,
-  onChange,
-}) => {
-  // 如果没有传进来，就给个空对象
-  const incoming = value || {};
+// ---------- Small helpers ----------
+const blockToOutput = (b) => ({ values: Array.from(b.set), type: b.type });
+const convertOtherDataToOutput = (obj) =>
+  Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, Array.from(v)]));
 
-  // ========== State for 5 major blocks ==========
-  const [climateRisksData, setClimateRisksData] = useState({
-    set: new Set(),
-    type: 'dependency',
-  });
-  const [regulationsData, setRegulationsData] = useState({
-    set: new Set(),
-    type: 'dependency',
-  });
-  const [projectTypesData, setProjectTypesData] = useState({
-    set: new Set(),
-    type: 'dependency',
-  });
-  const [environmentData, setEnvironmentData] = useState({
-    set: new Set(),
-    type: 'dependency',
-  });
-  const [scaleData, setScaleData] = useState({
-    set: new Set(),
-    type: 'dependency',
-  });
+// ---------- Reusable checkbox group (MUI) ----------
+const CheckGroup = ({ options, value, onChange }) => {
+  const toggle = (v) => {
+    const next = value.includes(v) ? value.filter((x) => x !== v) : [...value, v];
+    onChange(next);
+  };
+  return (
+    <FormGroup row>
+      {options.map(({ label, value: v }) => (
+        <FormControlLabel
+          key={v}
+          control={
+            <Checkbox
+              checked={value.includes(v)}
+              onChange={() => toggle(v)}
+              size="small"
+            />
+          }
+          label={<Typography variant="body2">{label}</Typography>}
+          sx={{ mr: 1 }}
+        />
+      ))}
+    </FormGroup>
+  );
+};
 
-  // ========== B. "otherData" as { [fieldName: string]: Set<string> } ==========
+const DependencySelector = ({ value, onChange }) => {
+  // ---------- local state blocks ----------
+  const [climateRisksData, setClimateRisksData] = useState({ set: new Set(), type: 'dependency' });
+  const [regulationsData, setRegulationsData] = useState({ set: new Set(), type: 'dependency' });
+  const [projectTypesData, setProjectTypesData] = useState({ set: new Set(), type: 'dependency' });
+  const [environmentData, setEnvironmentData] = useState({ set: new Set(), type: 'dependency' });
+  const [scaleData, setScaleData] = useState({ set: new Set(), type: 'dependency' });
   const [otherData, setOtherData] = useState({});
-
-  // ========== 其他补充（若需要） ==========
-  // 你原先 additional = string
-  // 这里可选保留 or remove
   const [additional, setAdditional] = useState('');
 
-  // ========== block: "customInput" for the 5 blocks' single-line input ==========
+  // ui helpers
   const [customInput, setCustomInput] = useState({
     climateRisk: '',
     regulation: '',
@@ -94,69 +98,57 @@ const DependencySelector = ({
     environment: '',
     scale: '',
   });
-
-  // ========== C. "other" part: custom fieldName + fieldValue input  ==========
   const [otherFieldNameInput, setOtherFieldNameInput] = useState('');
-  const [currentFieldName, setCurrentFieldName] = useState(''); // user selects an existing fieldName
+  const [currentFieldName, setCurrentFieldName] = useState('');
   const [otherFieldValueInput, setOtherFieldValueInput] = useState('');
 
-  const prevDataRef = useRef();
-  // ========== useEffect: 当父组件传入 "value"(dependencyData) 变更时，把它初始化到本组件 state ==========
+  // snackbar (replaces message.warn)
+  const [snack, setSnack] = useState({ open: false, text: '' });
+  const openSnack = (text) => setSnack({ open: true, text });
+  const closeSnack = () => setSnack({ open: false, text: '' });
+
+  // ---------- sync incoming value ----------
   useEffect(() => {
-    // 1) climateRisks => values, type
-    if (incoming.climateRisks) {
+    const incoming = value || {};
+    if (incoming.climateRisks)
       setClimateRisksData({
         set: new Set(incoming.climateRisks.values || []),
         type: incoming.climateRisks.type || 'dependency',
       });
-    }
-    if (incoming.regulations) {
+    if (incoming.regulations)
       setRegulationsData({
         set: new Set(incoming.regulations.values || []),
         type: incoming.regulations.type || 'dependency',
       });
-    }
-    if (incoming.projectTypes) {
+    if (incoming.projectTypes)
       setProjectTypesData({
         set: new Set(incoming.projectTypes.values || []),
         type: incoming.projectTypes.type || 'dependency',
       });
-    }
-    if (incoming.environment) {
+    if (incoming.environment)
       setEnvironmentData({
         set: new Set(incoming.environment.values || []),
         type: incoming.environment.type || 'dependency',
       });
-    }
-    if (incoming.scale) {
+    if (incoming.scale)
       setScaleData({
         set: new Set(incoming.scale.values || []),
         type: incoming.scale.type || 'dependency',
       });
-    }
 
-    // 2) otherData => { fieldName: string[] }
     if (incoming.otherData) {
-      const tempObj = {};
-      Object.entries(incoming.otherData).forEach(([fn, arr]) => {
-        tempObj[fn] = new Set(arr);
-      });
-      setOtherData(tempObj);
-    } else {
-      setOtherData({});
-    }
+      const od = {};
+      Object.entries(incoming.otherData).forEach(([k, arr]) => (od[k] = new Set(arr)));
+      setOtherData(od);
+    } else setOtherData({});
 
-    // 3) additional
-    if (incoming.additional) {
-      setAdditional(incoming.additional);
-    } else {
-      setAdditional('');
-    }
-  }, [incoming]); // 如果 props.value 改变就重新赋值
+    setAdditional(incoming.additional || '');
+  }, [value]);
 
-  // ========== 每次 local state 变 => 调用 onChange => 把合成的大对象传给父组件 =============
+  // ---------- push upwards ----------
+  const prevRef = useRef();
   useEffect(() => {
-    const newData = {
+    const out = {
       climateRisks: blockToOutput(climateRisksData),
       regulations: blockToOutput(regulationsData),
       projectTypes: blockToOutput(projectTypesData),
@@ -165,9 +157,9 @@ const DependencySelector = ({
       otherData: convertOtherDataToOutput(otherData),
       additional,
     };
-    if (JSON.stringify(prevDataRef.current) !== JSON.stringify(newData)) {
-      prevDataRef.current = newData;
-      onChange?.(newData);
+    if (JSON.stringify(prevRef.current) !== JSON.stringify(out)) {
+      prevRef.current = out;
+      onChange?.(out);
     }
   }, [
     climateRisksData,
@@ -180,615 +172,413 @@ const DependencySelector = ({
     onChange,
   ]);
 
-  // helper: block => { values, type }
-  function blockToOutput(b) {
-    return {
-      values: Array.from(b.set),
-      type: b.type,
+  // ---------- small mutators ----------
+  const addValueToSet = (block, val) => ({ ...block, set: new Set(block.set).add(val) });
+  const removeValueFromSet = (block, val) => {
+    const next = new Set(block.set);
+    next.delete(val);
+    return { ...block, set: next };
+  };
+
+  const handleCheckboxChange = (key, vals) => {
+    const map = {
+      climateRisks: setClimateRisksData,
+      regulations: setRegulationsData,
+      projectTypes: setProjectTypesData,
+      environment: setEnvironmentData,
+      scale: setScaleData,
     };
-  }
-  // helper: otherData => { fieldName: string[], ... } or keep as map-of-arr?
-  // we keep it as { [fieldName]: string[] }
-  function convertOtherDataToOutput(od) {
-    const result = {};
-    for (const fieldName in od) {
-      result[fieldName] = Array.from(od[fieldName]);
-    }
-    return result;
-  }
+    map[key]?.((prev) => ({ ...prev, set: new Set(vals) }));
+  };
 
-  // ========== 1) handle checkbox blocks ==========
-  // merges new array => new Set
-  function handleCheckboxChange(fieldKey, newArr) {
-    switch (fieldKey) {
-      case 'climateRisks':
-        setClimateRisksData((prev) => ({ ...prev, set: new Set(newArr) }));
-        break;
-      case 'regulations':
-        setRegulationsData((prev) => ({ ...prev, set: new Set(newArr) }));
-        break;
-      case 'projectTypes':
-        setProjectTypesData((prev) => ({ ...prev, set: new Set(newArr) }));
-        break;
-      case 'environment':
-        setEnvironmentData((prev) => ({ ...prev, set: new Set(newArr) }));
-        break;
-      case 'scale':
-        setScaleData((prev) => ({ ...prev, set: new Set(newArr) }));
-        break;
-      default:
-        break;
-    }
-  }
+  const handleTypeChange = (key, newType) => {
+    const map = {
+      climateRisks: setClimateRisksData,
+      regulations: setRegulationsData,
+      projectTypes: setProjectTypesData,
+      environment: setEnvironmentData,
+      scale: setScaleData,
+    };
+    map[key]?.((prev) => ({ ...prev, type: newType }));
+  };
 
-  // ========== 2) handle type select (dep/ref/str) ==========
-  function handleTypeChange(fieldKey, newType) {
-    switch (fieldKey) {
-      case 'climateRisks':
-        setClimateRisksData((prev) => ({ ...prev, type: newType }));
-        break;
-      case 'regulations':
-        setRegulationsData((prev) => ({ ...prev, type: newType }));
-        break;
-      case 'projectTypes':
-        setProjectTypesData((prev) => ({ ...prev, type: newType }));
-        break;
-      case 'environment':
-        setEnvironmentData((prev) => ({ ...prev, type: newType }));
-        break;
-      case 'scale':
-        setScaleData((prev) => ({ ...prev, type: newType }));
-        break;
-      default:
-        break;
-    }
-  }
-
-  // ========== 3) handle add custom for the 5 blocks ==========
-  function handleAddBlockCustom(fieldKey) {
+  const handleAddBlockCustom = (fieldKey) => {
     const val = customInput[fieldKey]?.trim();
     if (!val) return;
-    switch (fieldKey) {
-      case 'climateRisk':
-        setClimateRisksData((prev) => addValueToSet(prev, val));
-        break;
-      case 'regulation':
-        setRegulationsData((prev) => addValueToSet(prev, val));
-        break;
-      case 'projectType':
-        setProjectTypesData((prev) => addValueToSet(prev, val));
-        break;
-      case 'environment':
-        setEnvironmentData((prev) => addValueToSet(prev, val));
-        break;
-      case 'scale':
-        setScaleData((prev) => addValueToSet(prev, val));
-        break;
-      default:
-        break;
-    }
-    setCustomInput({ ...customInput, [fieldKey]: '' });
-  }
+    const setter = {
+      climateRisk: setClimateRisksData,
+      regulation: setRegulationsData,
+      projectType: setProjectTypesData,
+      environment: setEnvironmentData,
+      scale: setScaleData,
+    }[fieldKey];
+    setter?.((prev) => addValueToSet(prev, val));
+    setCustomInput((c) => ({ ...c, [fieldKey]: '' }));
+  };
 
-  function addValueToSet(block, val) {
-    const newSet = new Set(block.set);
-    newSet.add(val);
-    return { ...block, set: newSet };
-  }
+  const removeBlockCustom = (fieldKey, val) => {
+    const setter = {
+      climateRisk: setClimateRisksData,
+      regulation: setRegulationsData,
+      projectType: setProjectTypesData,
+      environment: setEnvironmentData,
+      scale: setScaleData,
+    }[fieldKey];
+    setter?.((prev) => removeValueFromSet(prev, val));
+  };
 
-  function removeBlockCustom(fieldKey, val) {
-    switch (fieldKey) {
-      case 'climateRisk':
-        setClimateRisksData((prev) => removeValueFromSet(prev, val));
-        break;
-      case 'regulation':
-        setRegulationsData((prev) => removeValueFromSet(prev, val));
-        break;
-      case 'projectType':
-        setProjectTypesData((prev) => removeValueFromSet(prev, val));
-        break;
-      case 'environment':
-        setEnvironmentData((prev) => removeValueFromSet(prev, val));
-        break;
-      case 'scale':
-        setScaleData((prev) => removeValueFromSet(prev, val));
-        break;
-      default:
-        break;
-    }
-  }
-
-  function removeValueFromSet(block, val) {
-    const newSet = new Set(block.set);
-    newSet.delete(val);
-    return { ...block, set: newSet };
-  }
-
-  // ========== 4) otherData: custom fields + values ==========
-  // shape: { "Budget": Set["1 million","2 million"], "Timeline": Set["3 months"] }
-  // we want:
-  //   a) user can add new fieldName (if not exist)
-  //   b) user selects "currentFieldName"
-  //   c) add new "fieldValue"
-  //   d) remove fieldValue or entire field
-  //   e) fieldName duplication => ignore, fieldValue duplication => ignore
-
-  function addOtherFieldName() {
+  // ---------- otherData helpers ----------
+  const handleAddOtherFieldName = () => {
     const fn = otherFieldNameInput.trim();
     if (!fn) return;
-    setOtherData((prev) => {
-      if (prev[fn]) {
-        // already exist => ignore
-        return prev;
-      }
-      return {
-        ...prev,
-        [fn]: new Set(),
-      };
-    });
+    if (otherData[fn]) {
+      setCurrentFieldName(fn);
+      return;
+    }
+    setOtherData((p) => ({ ...p, [fn]: new Set() }));
+    setCurrentFieldName(fn);
     setOtherFieldNameInput('');
-    setCurrentFieldName(fn); // auto select it
-  }
+  };
 
-  function addOtherFieldValue() {
+  const handleAddOtherFieldValue = () => {
     if (!currentFieldName) {
-      message.warn('Please select a field name first');
+      openSnack('Please select a field name first or create a new one');
       return;
     }
     const val = otherFieldValueInput.trim();
     if (!val) return;
-    setOtherData((prev) => {
-      const oldSet = prev[currentFieldName] || new Set();
-      if (oldSet.has(val)) {
-        return prev; // ignore duplicate
-      }
-      const newSet = new Set(oldSet);
-      newSet.add(val);
-      return {
-        ...prev,
-        [currentFieldName]: newSet,
-      };
+    setOtherData((p) => {
+      const old = p[currentFieldName] || new Set();
+      if (old.has(val)) return p;
+      const next = new Set(old).add(val);
+      return { ...p, [currentFieldName]: next };
     });
     setOtherFieldValueInput('');
-  }
+  };
 
-  function removeOtherFieldValue(fn, val) {
-    setOtherData((prev) => {
-      const oldSet = prev[fn];
-      if (!oldSet) return prev;
-      const newSet = new Set(oldSet);
-      newSet.delete(val);
-      return {
-        ...prev,
-        [fn]: newSet,
-      };
+  const removeOtherFieldValue = (fn, val) =>
+    setOtherData((p) => {
+      const old = p[fn];
+      if (!old) return p;
+      const next = new Set(old);
+      next.delete(val);
+      return { ...p, [fn]: next };
     });
-  }
 
-  function removeOtherFieldName(fn) {
-    setOtherData((prev) => {
-      const newObj = { ...prev };
-      delete newObj[fn];
-      return newObj;
+  const removeOtherFieldName = (fn) => {
+    setOtherData((p) => {
+      const tmp = { ...p };
+      delete tmp[fn];
+      return tmp;
     });
-    // if currentFieldName === fn => set it empty
-    if (currentFieldName === fn) {
-      setCurrentFieldName('');
-    }
-  }
+    if (currentFieldName === fn) setCurrentFieldName('');
+  };
 
-  // ========== build block options => preset + custom ==========
-  function buildOptions(presets, setOfVals) {
-    const arr = [...presets];
+  // ---------- build option arrays ----------
+  const build = (presets, set) => {
     const presetVals = new Set(presets.map((p) => p.value));
-    setOfVals.forEach((v) => {
-      if (!presetVals.has(v)) {
-        arr.push({ label: v, value: v });
-      }
-    });
+    const arr = [...presets];
+    set.forEach((v) => !presetVals.has(v) && arr.push({ label: v, value: v }));
     return arr;
-  }
-  const climateRiskOpts = buildOptions(
-    climateRiskPresets,
-    climateRisksData.set
+  };
+  const climateRiskOpts = build(climateRiskPresets, climateRisksData.set);
+  const regulationsOpts = build(regulatoryPresets, regulationsData.set);
+  const projectTypeOpts = build(projectTypePresets, projectTypesData.set);
+  const environmentOpts = build(environmentPresets, environmentData.set);
+  const scaleOpts = build(scalePresets, scaleData.set);
+
+  // ---------- UI ----------
+  const renderCustomList = (data, presets, fieldKey) => (
+    <Box ml={3} mt={0.5}>
+      {[...data.set]
+        .filter((v) => !presets.some((p) => p.value === v))
+        .map((val) => (
+          <Stack key={val} direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="body2">{val}</Typography>
+            <IconButton
+              size="small"
+              onClick={() => removeBlockCustom(fieldKey, val)}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Stack>
+        ))}
+    </Box>
   );
-  const regulationsOpts = buildOptions(regulatoryPresets, regulationsData.set);
-  const projectTypeOpts = buildOptions(
-    projectTypePresets,
-    projectTypesData.set
+
+  const TypeSelect = ({ value, onChange }) => (
+    <Select
+      size="small"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      sx={{ width: 120 }}
+    >
+      <MenuItem value="dependency">dep</MenuItem>
+      <MenuItem value="reference">ref</MenuItem>
+      <MenuItem value="strategy">str</MenuItem>
+    </Select>
   );
-  const environmentOpts = buildOptions(environmentPresets, environmentData.set);
-  const scaleOpts = buildOptions(scalePresets, scaleData.set);
-  // build array for otherData fields
-  const otherFieldNames = Object.keys(otherData);
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      {/* ========== Climate Risks ========== */}
-      <h4>Climate Hazard(s)</h4>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Checkbox.Group
+    <Box mb={2}>
+      {/* ===== Climate Risks ===== */}
+      <Typography variant="h6" gutterBottom>
+        Climate Hazard(s)
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <CheckGroup
           options={climateRiskOpts}
           value={Array.from(climateRisksData.set)}
           onChange={(vals) => handleCheckboxChange('climateRisks', vals)}
         />
-        <Select
-          style={{ width: 120 }}
+        <TypeSelect
           value={climateRisksData.type}
           onChange={(val) => handleTypeChange('climateRisks', val)}
-        >
-          <Select.Option value="dependency">dep</Select.Option>
-          <Select.Option value="reference">ref</Select.Option>
-          <Select.Option value="strategy">str</Select.Option>
-        </Select>
-      </div>
-      <div style={{ marginTop: 5 }}>
-        <Input
-          style={{ width: 180 }}
+        />
+      </Stack>
+      <Stack direction="row" spacing={1} mt={0.5}>
+        <TextField
+          size="small"
+          sx={{ width: 180 }}
           placeholder="Add custom hazard"
           value={customInput.climateRisk}
           onChange={(e) =>
-            setCustomInput({ ...customInput, climateRisk: e.target.value })
+            setCustomInput((c) => ({ ...c, climateRisk: e.target.value }))
           }
-          onPressEnter={() => handleAddBlockCustom('climateRisk')}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('climateRisk')}
         />
-        <Button
-          style={{ marginLeft: 5 }}
-          onClick={() => handleAddBlockCustom('climateRisk')}
-        >
-          Add
-        </Button>
-      </div>
-      {/* Display custom climateRisks */}
-      <div style={{ marginLeft: 24, marginTop: 5 }}>
-        {[...climateRisksData.set]
-          .filter((v) => !climateRiskPresets.some((p) => p.value === v))
-          .map((val) => (
-            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
-              <Typography style={{ marginRight: 4 }}>{val}</Typography>
-              <Button
-                size="small"
-                onClick={() => removeBlockCustom('climateRisk', val)}
-              >
-                <CloseOutlined />
-              </Button>
-            </div>
-          ))}
-      </div>
+        <Button onClick={() => handleAddBlockCustom('climateRisk')}>Add</Button>
+      </Stack>
+      {renderCustomList(climateRisksData, climateRiskPresets, 'climateRisk')}
 
-      {/* ========== Regulations ========== */}
-      <h4 style={{ marginTop: 20 }}>Code/Regulatory Requirement</h4>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Checkbox.Group
+      {/* ===== Regulations ===== */}
+      <Typography variant="h6" mt={3} gutterBottom>
+        Code/Regulatory Requirement
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <CheckGroup
           options={regulationsOpts}
           value={Array.from(regulationsData.set)}
           onChange={(vals) => handleCheckboxChange('regulations', vals)}
         />
-        <Select
-          style={{ width: 120 }}
+        <TypeSelect
           value={regulationsData.type}
           onChange={(val) => handleTypeChange('regulations', val)}
-        >
-          <Select.Option value="dependency">dep</Select.Option>
-          <Select.Option value="reference">ref</Select.Option>
-          <Select.Option value="strategy">str</Select.Option>
-        </Select>
-      </div>
-      <div style={{ marginTop: 5 }}>
-        <Input
-          style={{ width: 180 }}
+        />
+      </Stack>
+      <Stack direction="row" spacing={1} mt={0.5}>
+        <TextField
+          size="small"
+          sx={{ width: 180 }}
           placeholder="Add custom regulation"
           value={customInput.regulation}
           onChange={(e) =>
-            setCustomInput({ ...customInput, regulation: e.target.value })
+            setCustomInput((c) => ({ ...c, regulation: e.target.value }))
           }
-          onPressEnter={() => handleAddBlockCustom('regulation')}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('regulation')}
         />
-        <Button
-          style={{ marginLeft: 5 }}
-          onClick={() => handleAddBlockCustom('regulation')}
-        >
-          Add
-        </Button>
-      </div>
-      <div style={{ marginLeft: 24, marginTop: 5 }}>
-        {[...regulationsData.set]
-          .filter((v) => !regulatoryPresets.some((p) => p.value === v))
-          .map((val) => (
-            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
-              <Typography style={{ marginRight: 4 }}>{val}</Typography>
-              <Button
-                size="small"
-                onClick={() => removeBlockCustom('regulation', val)}
-              >
-                <CloseOutlined />
-              </Button>
-            </div>
-          ))}
-      </div>
+        <Button onClick={() => handleAddBlockCustom('regulation')}>Add</Button>
+      </Stack>
+      {renderCustomList(regulationsData, regulatoryPresets, 'regulation')}
 
-      {/* ========== Project Types ========== */}
-      <h4 style={{ marginTop: 20 }}>Project Type</h4>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Checkbox.Group
+      {/* ===== Project Types ===== */}
+      <Typography variant="h6" mt={3} gutterBottom>
+        Project Type
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <CheckGroup
           options={projectTypeOpts}
           value={Array.from(projectTypesData.set)}
           onChange={(vals) => handleCheckboxChange('projectTypes', vals)}
         />
-        <Select
-          style={{ width: 120 }}
+        <TypeSelect
           value={projectTypesData.type}
           onChange={(val) => handleTypeChange('projectTypes', val)}
-        >
-          <Select.Option value="dependency">dep</Select.Option>
-          <Select.Option value="reference">ref</Select.Option>
-          <Select.Option value="strategy">str</Select.Option>
-        </Select>
-      </div>
-      <div style={{ marginTop: 5 }}>
-        <Input
-          style={{ width: 180 }}
+        />
+      </Stack>
+      <Stack direction="row" spacing={1} mt={0.5}>
+        <TextField
+          size="small"
+          sx={{ width: 180 }}
           placeholder="Add custom projectType"
           value={customInput.projectType}
           onChange={(e) =>
-            setCustomInput({ ...customInput, projectType: e.target.value })
+            setCustomInput((c) => ({ ...c, projectType: e.target.value }))
           }
-          onPressEnter={() => handleAddBlockCustom('projectType')}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('projectType')}
         />
-        <Button
-          style={{ marginLeft: 5 }}
-          onClick={() => handleAddBlockCustom('projectType')}
-        >
-          Add
-        </Button>
-      </div>
-      <div style={{ marginLeft: 24, marginTop: 5 }}>
-        {[...projectTypesData.set]
-          .filter((v) => !projectTypePresets.some((p) => p.value === v))
-          .map((val) => (
-            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
-              <Typography style={{ marginRight: 4 }}>{val}</Typography>
-              <Button
-                size="small"
-                onClick={() => removeBlockCustom('projectType', val)}
-              >
-                <CloseOutlined />
-              </Button>
-            </div>
-          ))}
-      </div>
+        <Button onClick={() => handleAddBlockCustom('projectType')}>Add</Button>
+      </Stack>
+      {renderCustomList(projectTypesData, projectTypePresets, 'projectType')}
 
-      {/* ========== Environment ========== */}
-      <h4 style={{ marginTop: 20 }}>Project Geolocation</h4>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Checkbox.Group
+      {/* ===== Environment ===== */}
+      <Typography variant="h6" mt={3} gutterBottom>
+        Project Geolocation
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <CheckGroup
           options={environmentOpts}
           value={Array.from(environmentData.set)}
           onChange={(vals) => handleCheckboxChange('environment', vals)}
         />
-        <Select
-          style={{ width: 120 }}
+        <TypeSelect
           value={environmentData.type}
           onChange={(val) => handleTypeChange('environment', val)}
-        >
-          <Select.Option value="dependency">dep</Select.Option>
-          <Select.Option value="reference">ref</Select.Option>
-          <Select.Option value="strategy">str</Select.Option>
-        </Select>
-      </div>
-      <div style={{ marginTop: 5 }}>
-        <Input
-          style={{ width: 180 }}
+        />
+      </Stack>
+      <Stack direction="row" spacing={1} mt={0.5}>
+        <TextField
+          size="small"
+          sx={{ width: 180 }}
           placeholder="Add custom environment"
           value={customInput.environment}
           onChange={(e) =>
-            setCustomInput({ ...customInput, environment: e.target.value })
+            setCustomInput((c) => ({ ...c, environment: e.target.value }))
           }
-          onPressEnter={() => handleAddBlockCustom('environment')}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('environment')}
         />
-        <Button
-          style={{ marginLeft: 5 }}
-          onClick={() => handleAddBlockCustom('environment')}
-        >
-          Add
-        </Button>
-      </div>
-      <div style={{ marginLeft: 24, marginTop: 5 }}>
-        {[...environmentData.set]
-          .filter((v) => !environmentPresets.some((p) => p.value === v))
-          .map((val) => (
-            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
-              <Typography style={{ marginRight: 4 }}>{val}</Typography>
-              <Button
-                size="small"
-                onClick={() => removeBlockCustom('environment', val)}
-              >
-                <CloseOutlined />
-              </Button>
-            </div>
-          ))}
-      </div>
+        <Button onClick={() => handleAddBlockCustom('environment')}>Add</Button>
+      </Stack>
+      {renderCustomList(environmentData, environmentPresets, 'environment')}
 
-      {/* ========== Scale ========== */}
-      <h4 style={{ marginTop: 20 }}>Project Scale</h4>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Checkbox.Group
+      {/* ===== Scale ===== */}
+      <Typography variant="h6" mt={3} gutterBottom>
+        Project Scale
+      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1}>
+        <CheckGroup
           options={scaleOpts}
           value={Array.from(scaleData.set)}
           onChange={(vals) => handleCheckboxChange('scale', vals)}
         />
-        <Select
-          style={{ width: 120 }}
+        <TypeSelect
           value={scaleData.type}
           onChange={(val) => handleTypeChange('scale', val)}
-        >
-          <Select.Option value="dependency">dep</Select.Option>
-          <Select.Option value="reference">ref</Select.Option>
-          <Select.Option value="strategy">str</Select.Option>
-        </Select>
-      </div>
-      <div style={{ marginTop: 5 }}>
-        <Input
-          style={{ width: 180 }}
+        />
+      </Stack>
+      <Stack direction="row" spacing={1} mt={0.5}>
+        <TextField
+          size="small"
+          sx={{ width: 180 }}
           placeholder="Add custom scale"
           value={customInput.scale}
           onChange={(e) =>
-            setCustomInput({ ...customInput, scale: e.target.value })
+            setCustomInput((c) => ({ ...c, scale: e.target.value }))
           }
-          onPressEnter={() => handleAddBlockCustom('scale')}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('scale')}
         />
-        <Button
-          style={{ marginLeft: 5 }}
-          onClick={() => handleAddBlockCustom('scale')}
-        >
-          Add
-        </Button>
-      </div>
-      <div style={{ marginLeft: 24, marginTop: 5 }}>
-        {[...scaleData.set]
-          .filter((v) => !scalePresets.some((p) => p.value === v))
-          .map((val) => (
-            <div key={val} style={{ display: 'flex', alignItems: 'center' }}>
-              <Typography style={{ marginRight: 4 }}>{val}</Typography>
-              <Button
-                size="small"
-                onClick={() => removeBlockCustom('scale', val)}
-              >
-                <CloseOutlined />
-              </Button>
-            </div>
-          ))}
-      </div>
+        <Button onClick={() => handleAddBlockCustom('scale')}>Add</Button>
+      </Stack>
+      {renderCustomList(scaleData, scalePresets, 'scale')}
 
-      {/* ========== Other Data ========== */}
-      <h4 style={{ marginTop: 20 }}>Other Info (Key -- multiple Values)</h4>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        <Input
-          style={{ width: 160 }}
+      {/* ===== Other Info ===== */}
+      <Typography variant="h6" mt={3}>
+        Other Info (Key — multiple Values)
+      </Typography>
+      <Stack direction="row" spacing={1} mb={1}>
+        <TextField
+          size="small"
+          sx={{ width: 160 }}
           placeholder="Add new field name"
           value={otherFieldNameInput}
           onChange={(e) => setOtherFieldNameInput(e.target.value)}
         />
         <Button onClick={handleAddOtherFieldName}>Add Field</Button>
-      </div>
+      </Stack>
 
-      {/* fieldName list => user pick current */}
       {Object.keys(otherData).length > 0 && (
         <Select
-          style={{ width: 180 }}
-          placeholder="Select a field"
-          value={currentFieldName || undefined}
-          onChange={(val) => setCurrentFieldName(val)}
+          size="small"
+          sx={{ width: 180 }}
+          displayEmpty
+          value={currentFieldName || ''}
+          onChange={(e) => setCurrentFieldName(e.target.value)}
         >
+          <MenuItem value="" disabled>
+            Select a field
+          </MenuItem>
           {Object.keys(otherData).map((fn) => (
-            <Select.Option key={fn} value={fn}>
+            <MenuItem key={fn} value={fn}>
               {fn}
-            </Select.Option>
+            </MenuItem>
           ))}
         </Select>
       )}
 
-      {/* add fieldValue => to the chosen field */}
-      <div
-        style={{ marginTop: 8, display: 'flex', gap: 4, alignItems: 'center' }}
-      >
-        <Input
-          style={{ width: 160 }}
+      <Stack direction="row" spacing={1} mt={1}>
+        <TextField
+          size="small"
+          sx={{ width: 160 }}
           placeholder="field value"
           value={otherFieldValueInput}
           onChange={(e) => setOtherFieldValueInput(e.target.value)}
-          onPressEnter={handleAddOtherFieldValue}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddOtherFieldValue()}
         />
         <Button onClick={handleAddOtherFieldValue}>Add Value</Button>
-      </div>
+      </Stack>
 
-      {/* show all fieldName => each with multiple values */}
-      <div style={{ marginTop: 12 }}>
+      <Box mt={1.5}>
         {Object.keys(otherData).length === 0 ? (
-          <Typography type="secondary">No other info yet.</Typography>
+          <Typography variant="body2" color="text.secondary">
+            No other info yet.
+          </Typography>
         ) : (
           Object.entries(otherData).map(([fn, valSet]) => (
-            <div key={fn} style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Typography strong>{fn}</Typography>
-                <Button
-                  size="small"
-                  onClick={() => removeOtherFieldName(fn)}
-                  icon={<CloseOutlined />}
-                />
-              </div>
+            <Box key={fn} mb={1}>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Typography variant="subtitle2">{fn}</Typography>
+                <IconButton size="small" onClick={() => removeOtherFieldName(fn)}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Stack>
               {[...valSet].map((v) => (
-                <div
+                <Stack
                   key={v}
-                  style={{ marginLeft: 24, display: 'flex', gap: 4 }}
+                  direction="row"
+                  alignItems="center"
+                  spacing={0.5}
+                  ml={3}
                 >
-                  <Typography>- {v}</Typography>
-                  <Button
+                  <Typography variant="body2">- {v}</Typography>
+                  <IconButton
                     size="small"
                     onClick={() => removeOtherFieldValue(fn, v)}
-                    icon={<CloseOutlined />}
-                  />
-                </div>
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
               ))}
-            </div>
+            </Box>
           ))
         )}
-      </div>
+      </Box>
 
-      {/* ========== Additional (if you want to keep it) ========== */}
-      <h4 style={{ marginTop: 20 }}>Additional Text</h4>
-      <TextArea
+      {/* ===== Additional ===== */}
+      <Typography variant="h6" mt={3}>
+        Additional Text
+      </Typography>
+      <TextField
+        multiline
         rows={3}
         placeholder="e.g. budget limited, time sensitive, etc."
-        style={{ width: '100%' }}
+        fullWidth
         value={additional}
         onChange={(e) => setAdditional(e.target.value)}
       />
-    </div>
+
+      {/* snackbar */}
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={closeSnack}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={closeSnack} severity="warning" sx={{ width: '100%' }}>
+          {snack.text}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
-
-  // =========== function for "Add Field" ===========
-  function handleAddOtherFieldName() {
-    const fn = otherFieldNameInput.trim();
-    if (!fn) return;
-    // check if exist
-    if (otherData[fn]) {
-      // duplicate => skip
-      setCurrentFieldName(fn);
-      return;
-    }
-    // create empty set
-    setOtherData((prev) => ({
-      ...prev,
-      [fn]: new Set(),
-    }));
-    setCurrentFieldName(fn);
-    setOtherFieldNameInput('');
-  }
-
-  // =========== function for "Add Value" in current field ===========
-  function handleAddOtherFieldValue() {
-    if (!currentFieldName) {
-      message.warn('Please select a field name first or create a new one');
-      return;
-    }
-    const val = otherFieldValueInput.trim();
-    if (!val) return;
-    setOtherData((prev) => {
-      const oldSet = prev[currentFieldName] || new Set();
-      if (oldSet.has(val)) {
-        // duplicate => skip
-        return prev;
-      }
-      const newSet = new Set(oldSet);
-      newSet.add(val);
-      return {
-        ...prev,
-        [currentFieldName]: newSet,
-      };
-    });
-    setOtherFieldValueInput('');
-  }
 };
 
 export default DependencySelector;

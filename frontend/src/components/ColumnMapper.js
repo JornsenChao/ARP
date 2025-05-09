@@ -1,20 +1,21 @@
+// src/components/ColumnMapper.js
 import React, { useState, useEffect } from 'react';
-import { Select, Table, Space } from 'antd';
-const { Option } = Select;
+import {
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Select,
+  MenuItem,
+} from '@mui/material';
 
 /**
  * ColumnMapper
  *   props:
- *     columns: array of columnName (strings)
- *     columnMap, setColumnMap -> 之前是 dependencyCol/strategyCol
- *   改成 columnSchema + setColumnSchema
- *
- * Demo usage:
- *   <ColumnMapper
- *     columns={columns}  // e.g. ['Project Name','Climate','Strategy','Budget']
- *     columnSchema={columnSchema} // e.g. [ { columnName:'Project Name', infoCategory:'项目类型', metaCategory:'输入条件'}, ...]
- *     setColumnSchema={setColumnSchema}
- *   />
+ *     columns:        array   → e.g. ['Project Name', 'Climate', 'Strategy', 'Budget']
+ *     columnSchema:   array   → e.g. [{ columnName:'Project Name', infoCategory:'location', metaCategory:'input condition' }]
+ *     setColumnSchema: setter → updates parent state
  */
 const infoCategories = [
   // '地理位置',
@@ -68,26 +69,24 @@ const ColumnMapper = ({ columns, columnSchema, setColumnSchema }) => {
     columns.forEach((col) => {
       const existing = columnSchema.find((x) => x.columnName === col);
       temp[col] = existing
-        ? {
-            infoCategory: existing.infoCategory,
+        ? { 
+          infoCategory: existing.infoCategory, 
             metaCategory: existing.metaCategory,
-          }
+        }
         : { infoCategory: '', metaCategory: '' };
     });
     setSchemaMap(temp);
   }, [columns, columnSchema]);
 
-  // 当用户选 infoCategory/metaCategory 时:
-  const handleChange = (colName, field, val) => {
-    const newMap = { ...schemaMap };
-    newMap[colName] = {
-      ...newMap[colName],
-      [field]: val,
+  const handleChange = (colName, field, value) => {
+    const updated = {
+      ...schemaMap,
+      [colName]: { ...schemaMap[colName], [field]: value },
     };
-    setSchemaMap(newMap);
+    setSchemaMap(updated);
 
-    // 同时回写到 columnSchema
-    const newSchemaArray = Object.entries(newMap).map(([columnName, obj]) => ({
+    // flatten back to array for parent
+    const newSchemaArray = Object.entries(updated).map(([columnName, obj]) => ({
       columnName,
       infoCategory: obj.infoCategory,
       metaCategory: obj.metaCategory,
@@ -95,74 +94,69 @@ const ColumnMapper = ({ columns, columnSchema, setColumnSchema }) => {
     setColumnSchema(newSchemaArray);
   };
 
-  // 用 antd Table 做一个表格，每行 = 1个 columnName
-  // 两列下拉 => infoCategory, metaCategory
-  const dataSource = columns.map((col) => ({
-    key: col,
-    columnName: col,
-    infoCategory: schemaMap[col]?.infoCategory || '',
-    metaCategory: schemaMap[col]?.metaCategory || '',
-  }));
-
-  const tableColumns = [
-    {
-      title: 'Column',
-      dataIndex: 'columnName',
-      key: 'columnName',
-    },
-    {
-      title: 'Info Category',
-      dataIndex: 'infoCategory',
-      key: 'infoCategory',
-      render: (val, record) => (
-        <Select
-          style={{ width: 150 }}
-          placeholder="Select Info Category"
-          value={val}
-          onChange={(value) =>
-            handleChange(record.columnName, 'infoCategory', value)
-          }
-        >
-          {infoCategories.map((ic) => (
-            <Option key={ic} value={ic}>
-              {ic}
-            </Option>
-          ))}
-        </Select>
-      ),
-    },
-    {
-      title: 'Meta Category',
-      dataIndex: 'metaCategory',
-      key: 'metaCategory',
-      render: (val, record) => (
-        <Select
-          style={{ width: 150 }}
-          placeholder="Select Meta Category"
-          value={val}
-          onChange={(value) =>
-            handleChange(record.columnName, 'metaCategory', value)
-          }
-        >
-          {metaCategories.map((mc) => (
-            <Option key={mc} value={mc}>
-              {mc}
-            </Option>
-          ))}
-        </Select>
-      ),
-    },
-  ];
-
   return (
-    <div>
-      <Table
-        dataSource={dataSource}
-        columns={tableColumns}
-        pagination={false}
-        size="small"
-      />
-    </div>
+    <Table size="small">
+      <TableHead>
+        <TableRow>
+          <TableCell sx={{ fontWeight: 600 }}>Column</TableCell>
+          <TableCell sx={{ fontWeight: 600 }}>Info&nbsp;Category</TableCell>
+          <TableCell sx={{ fontWeight: 600 }}>Meta&nbsp;Category</TableCell>
+        </TableRow>
+      </TableHead>
+
+      <TableBody>
+        {columns.map((col) => {
+          const { infoCategory, metaCategory } = schemaMap[col] || {};
+          return (
+            <TableRow key={col}>
+              <TableCell>{col}</TableCell>
+
+              <TableCell>
+                <Select
+                  value={infoCategory}
+                  onChange={(e) =>
+                    handleChange(col, 'infoCategory', e.target.value)
+                  }
+                  displayEmpty
+                  size="small"
+                  sx={{ width: 180 }}
+                >
+                  <MenuItem value="" disabled>
+                    Select Info Category
+                  </MenuItem>
+                  {infoCategories.map((ic) => (
+                    <MenuItem key={ic} value={ic}>
+                      {ic}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </TableCell>
+
+              <TableCell>
+                <Select
+                  value={metaCategory}
+                  onChange={(e) =>
+                    handleChange(col, 'metaCategory', e.target.value)
+                  }
+                  displayEmpty
+                  size="small"
+                  sx={{ width: 180 }}
+                >
+                  {/* <MenuItem value="" disabled>
+                    Select Meta Category
+                  </MenuItem> */}
+                  {metaCategories.map((mc) => (
+                    <MenuItem key={mc} value={mc}>
+                      {mc}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </TableCell>
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 };
 
