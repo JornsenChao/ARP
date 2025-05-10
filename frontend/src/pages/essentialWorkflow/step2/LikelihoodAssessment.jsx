@@ -377,11 +377,13 @@ const LikelihoodAssessment = () => {
         <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
           <Box sx={{ mt: 1 }}>
             <Typography paragraph>
-              1) "Each hazard's frequency by year or decade" ...
+              1) Each hazard's frequency can be shown by year or decade. You can
+              also check the hazards you are most concerned about.
             </Typography>
             <Typography paragraph>
-              2) "How do these options work?" ... (Previously separate
-              explanation is merged here)
+              2) Then, you can set the likelihood (1~5) for each hazard. You can
+              either type it in manually or use the Auto-Fill button to get a
+              suggestion.
             </Typography>
             <Typography paragraph>
               If you typed "0" - automatically remove the value. Ranges 1..5 are
@@ -390,7 +392,7 @@ const LikelihoodAssessment = () => {
           </Box>
           <Box sx={{ my: 2, p: 2, border: '1px dashed #ccc' }}>
             <Typography variant="subtitle1" gutterBottom>
-              How do these options work?
+              How do these "auto-fill" options work?
             </Typography>
             <Typography variant="body2" paragraph>
               <strong>Model Approach</strong> – We offer two Bayesian methods:
@@ -442,102 +444,63 @@ const LikelihoodAssessment = () => {
         </Collapse>
       </Paper>
 
-      {/* 下面是 aggregator, autoFill, etc */}
-      <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={handleClearLikelihood}
-        >
-          Clear Current
-        </Button>
-
-        {/* modelApproach */}
-        <FormControl size="small">
-          <InputLabel>Model Approach</InputLabel>
-          <Select
-            label="Model Approach"
-            value={modelApproach}
-            onChange={(e) => setModelApproach(e.target.value)}
-            sx={{ width: 130 }}
-          >
-            <MenuItem value="quickGamma">QuickGamma</MenuItem>
-            <MenuItem value="metroGamma">MetroGamma</MenuItem>
-          </Select>
-        </FormControl>
-
-        {/* interpretation */}
-        <FormControl size="small">
-          <InputLabel>Interpretation</InputLabel>
-          <Select
-            label="Interpretation"
-            value={interpretation}
-            onChange={(e) => setInterpretation(e.target.value)}
-            sx={{ width: 130 }}
-          >
-            <MenuItem value="prob30">prob30 (1-5 rating)</MenuItem>
-            <MenuItem value="annual30">annual30 (float→1-5)</MenuItem>
-          </Select>
-        </FormControl>
-
-        <Button variant="contained" onClick={handleAutoFill}>
-          Auto-Fill
-        </Button>
-      </Box>
-
-      {/* Aggregator Switch */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 1, alignItems: 'center' }}>
-        <Typography>Aggregation:</Typography>
-        <RadioGroup
-          row
-          value={aggregator}
-          onChange={(e) => setAggregator(e.target.value)}
-        >
-          <FormControlLabel value="year" control={<Radio />} label="By Year" />
-          <FormControlLabel
-            value="decade"
-            control={<Radio />}
-            label="By Decade"
-          />
-        </RadioGroup>
-      </Box>
-
-      {/* Focus hazard checkboxes */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
-        <Typography>Focus Hazards:</Typography>
-        {selectedHazards.map((hz) => {
-          const checked = userFocusHazards.includes(hz);
-          return (
-            <FormControlLabel
-              key={hz}
-              control={
-                <Checkbox
-                  checked={checked}
-                  onChange={() => handleFocusHazardToggle(hz)}
-                />
-              }
-              label={hz}
-            />
-          );
-        })}
-        <Tooltip title="If no hazard is checked, chart includes all hazards.">
-          <Typography variant="body2" color="text.secondary">
-            (Leave blank to show all)
-          </Typography>
-        </Tooltip>
-      </Box>
-
       {/* Chart */}
       <Paper
-        sx={{ width: '100%', height: 400, p: 1, mb: 2 }}
+        sx={{ width: '100%', maxHeight: 600, height: 500, p: 1, mb: 2 }}
         variant="outlined"
       >
+        <Typography variant="h6">Hazard Frequency</Typography>
+        {/* Aggregator Switch */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 1, alignItems: 'center' }}>
+          <Typography>Aggregation:</Typography>
+          <RadioGroup
+            row
+            value={aggregator}
+            onChange={(e) => setAggregator(e.target.value)}
+          >
+            <FormControlLabel
+              value="year"
+              control={<Radio />}
+              label="By Year"
+            />
+            <FormControlLabel
+              value="decade"
+              control={<Radio />}
+              label="By Decade"
+            />
+          </RadioGroup>
+        </Box>
+
+        {/* Focus hazard checkboxes */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+          <Typography>Focus Hazards:</Typography>
+          {selectedHazards.map((hz) => {
+            const checked = userFocusHazards.includes(hz);
+            return (
+              <FormControlLabel
+                key={hz}
+                control={
+                  <Checkbox
+                    checked={checked}
+                    onChange={() => handleFocusHazardToggle(hz)}
+                  />
+                }
+                label={hz}
+              />
+            );
+          })}
+          <Tooltip title="If no hazard is checked, chart includes all hazards.">
+            <Typography variant="body2" color="text.secondary">
+              (Leave blank to show all)
+            </Typography>
+          </Tooltip>
+        </Box>
         {chartData.length === 0 ? (
           <Typography color="text.secondary" sx={{ mt: 2 }}>
             No records found for your selected hazards.
           </Typography>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="70%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
@@ -557,10 +520,56 @@ const LikelihoodAssessment = () => {
         )}
       </Paper>
 
-      <Paper sx={{ maxWidth: 500, p: 2 }} variant="outlined">
+      <Paper sx={{ p: 2, mb: 2 }} variant="outlined">
+        <Typography variant="h6">Assess Likelihood</Typography>
         <Typography variant="subtitle1" sx={{ mb: 1 }}>
-          Set Likelihood (1~5)
+          <ul>
+            <li> you can type manually</li>
+            <li> or use Auto-Fill</li>
+          </ul>
         </Typography>
+        {/* 下面是 aggregator, autoFill, etc */}
+        <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={handleClearLikelihood}
+          >
+            Clear Current
+          </Button>
+
+          {/* modelApproach */}
+          <FormControl size="small">
+            <InputLabel>Model Approach</InputLabel>
+            <Select
+              label="Model Approach"
+              value={modelApproach}
+              onChange={(e) => setModelApproach(e.target.value)}
+              sx={{ width: 130 }}
+            >
+              <MenuItem value="quickGamma">QuickGamma</MenuItem>
+              <MenuItem value="metroGamma">MetroGamma</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* interpretation */}
+          <FormControl size="small">
+            <InputLabel>Interpretation</InputLabel>
+            <Select
+              label="Interpretation"
+              value={interpretation}
+              onChange={(e) => setInterpretation(e.target.value)}
+              sx={{ width: 130 }}
+            >
+              <MenuItem value="prob30">prob30 (1-5 rating)</MenuItem>
+              <MenuItem value="annual30">annual30 (float→1-5)</MenuItem>
+            </Select>
+          </FormControl>
+
+          <Button variant="contained" onClick={handleAutoFill}>
+            Auto-Fill
+          </Button>
+        </Box>
         <Table size="small">
           <TableHead>
             <TableRow>

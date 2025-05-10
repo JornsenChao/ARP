@@ -19,7 +19,11 @@ import {
   List,
   ListItem,
   Checkbox,
+  Collapse,
+  Card,
+  CardContent,
 } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 
 // Recharts
@@ -139,7 +143,7 @@ function Step1IdentifyHazard() {
     setStartDate(workflowState.step1.startDate || '');
     setEndDate(workflowState.step1.endDate || '');
   }, [workflowState]);
-
+  const [guideExpanded, setGuideExpanded] = useState(true);
   // ======= 4) 修改地点 => 立刻清空 hazards / femaRecords / start/endDate =======
   function handleLocationChange(e) {
     const newLoc = e.target.value;
@@ -312,6 +316,10 @@ function Step1IdentifyHazard() {
     type,
     count,
   }));
+  const rowHeight = 35;
+  const dynamicHeight = chartData.length
+    ? Math.max(chartData.length * rowHeight, 300)
+    : 300;
   const finalRecords = useMemo(() => {
     // 若无已选 hazards，直接返回空数组
     if (selectedHazards.length === 0) {
@@ -329,8 +337,6 @@ function Step1IdentifyHazard() {
       <Typography variant="h5" gutterBottom>
         Step 1: Identify Hazard
       </Typography>
-
-      {/* 用Paper包裹大区块，结构更清晰 */}
       <Paper
         variant="outlined"
         sx={{
@@ -339,45 +345,176 @@ function Step1IdentifyHazard() {
           mb: 2,
         }}
       >
-        <Typography variant="subtitle1" sx={{ mb: 1 }}>
-          Select search mode & location
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}
+          onClick={() => setGuideExpanded(!guideExpanded)}
+        >
+          <Typography variant="h5">Guidance & Explanation</Typography>
+          {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+        </Box>
+        <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
+          <Box sx={{ mt: 1 }}>
+            <Typography paragraph>
+              1) You can search hazards by state or county/state. For example:
+              <ul>
+                <li>State: "WA"</li>
+                <li>County+State: "King, WA"</li>
+              </ul>
+            </Typography>
+            <Typography paragraph>
+              2) You can also filter by date range. The chart and records will
+              update accordingly.
+            </Typography>
+            <Typography paragraph>
+              3) After fetching FEMA data, you can select hazards from the chart
+              or the list below. The selected hazards will be highlighted in the
+              chart. Detailed records will be shown below the chart.
+            </Typography>
+          </Box>
+          <Box sx={{ my: 2, p: 2, border: '1px dashed #ccc' }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Where this data comes from? What does it mean?
+            </Typography>
+            <Typography variant="body2" paragraph>
+              <strong>Data source</strong> – FEMA (Federal Emergency Management
+              Agency) provides a list of disaster declarations:
+              <ul>
+                <li>
+                  <strong>Endpoint</strong>:
+                  https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries
+                </li>
+              </ul>
+            </Typography>
+
+            <Typography variant="body2">
+              <em>Only hazards listed in the FEMA data are shown here.</em>
+            </Typography>
+          </Box>
+        </Collapse>
+      </Paper>
+      {/* 用Paper包裹大区块，结构更清晰 */}
+      {/* =========== 新的 Paper: "Location & FEMA Data Lookup" =========== */}
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Search Hazard by Location
         </Typography>
 
-        <FormControl>
-          <RadioGroup
-            row
-            value={searchMode}
-            onChange={handleSearchModeChange}
-            sx={{ mb: 2 }}
+        {/* 两个模式 (STATE) + (COUNTY+STATE) 并列 */}
+        <Stack direction="row" spacing={3}>
+          {/* Card 1: State mode */}
+          <Card
+            variant="outlined"
+            sx={{
+              flex: 1,
+              borderColor: searchMode === 'state' ? 'primary.main' : '#ccc',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              // 点击卡片 => 切换模式, 并清空 locationInput
+              // 或者只设置 searchMode, 看你需求
+              setSearchMode('state');
+              // 这里若需要清空location,自己看需求
+              if (searchMode !== 'state') setLocationInput('');
+            }}
           >
-            <FormControlLabel
-              value="state"
-              control={<Radio />}
-              label='Search by State (e.g. "WA")'
-            />
-            <FormControlLabel
-              value="county"
-              control={<Radio />}
-              label='Search by County+State (e.g. "King, WA")'
-            />
-          </RadioGroup>
-        </FormControl>
+            <CardContent>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 'bold', mb: 1 }}
+                color={searchMode === 'state' ? 'primary' : 'text.secondary'}
+              >
+                Search by State Code
+              </Typography>
+              {/* 若非 state 模式，就禁用输入 */}
+              <TextField
+                label="State Code (e.g. WA)"
+                size="small"
+                disabled={searchMode !== 'state'}
+                value={searchMode === 'state' ? locationInput : ''}
+                onChange={(e) => setLocationInput(e.target.value)}
+                sx={{ mb: 1 }}
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                disabled={searchMode !== 'state' || !locationInput.trim()}
+                onClick={fetchFemaData}
+              >
+                Fetch FEMA Data
+              </Button>
+            </CardContent>
+          </Card>
 
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <TextField
-            label={
-              searchMode === 'state'
-                ? 'Enter state code (e.g. WA)'
-                : 'Enter County, State (e.g. King, WA)'
-            }
-            value={locationInput}
-            onChange={handleLocationChange}
-            size="small"
-            sx={{ width: 250 }}
-          />
-          <Button variant="contained" onClick={fetchFemaData}>
-            Fetch FEMA Data
-          </Button>
+          {/* Card 2: County+State mode */}
+          <Card
+            variant="outlined"
+            sx={{
+              flex: 1,
+              borderColor: searchMode === 'county' ? 'primary.main' : '#ccc',
+              cursor: 'pointer',
+            }}
+            onClick={() => {
+              setSearchMode('county');
+              if (searchMode !== 'county') setLocationInput('');
+            }}
+          >
+            <CardContent>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 'bold', mb: 1 }}
+                color={searchMode === 'county' ? 'primary' : 'text.secondary'}
+              >
+                Search by County, State
+              </Typography>
+              <TextField
+                label="County, State (e.g. King, WA)"
+                size="small"
+                disabled={searchMode !== 'county'}
+                value={searchMode === 'county' ? locationInput : ''}
+                onChange={(e) => setLocationInput(e.target.value)}
+                sx={{ mb: 1 }}
+                fullWidth
+              />
+              <Button
+                variant="contained"
+                disabled={searchMode !== 'county' || !locationInput.trim()}
+                onClick={fetchFemaData}
+              >
+                Fetch FEMA Data
+              </Button>
+            </CardContent>
+          </Card>
+          {/* Card 3: Date Filter */}
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                Time Range Filter
+              </Typography>
+              {/* Date Filter */}
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  size="small"
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  size="small"
+                  value={endDate}
+                  onChange={handleEndDateChange}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Stack>
+            </CardContent>
+          </Card>
         </Stack>
 
         {loading && (
@@ -390,35 +527,18 @@ function Step1IdentifyHazard() {
             Error: {error}
           </Typography>
         )}
-
-        {/* Date Filter */}
-        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-          <TextField
-            label="Start Date"
-            type="date"
-            size="small"
-            value={startDate}
-            onChange={handleStartDateChange}
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="End Date"
-            type="date"
-            size="small"
-            value={endDate}
-            onChange={handleEndDateChange}
-            InputLabelProps={{ shrink: true }}
-          />
-        </Stack>
+        {/* 在两个 Card 下方，再加一个 Card 用于“时间过滤” */}
+        <Box sx={{ mt: 3 }}></Box>
       </Paper>
 
       {/* 图表展示 */}
       {filteredRecords.length > 0 && (
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            IncidentType Frequency (Filtered by Date)
+          <Typography variant="h5" gutterBottom>
+            IncidentType Frequency
           </Typography>
-          <Box sx={{ height: 300 }}>
+
+          <Box sx={{ width: '100%', height: dynamicHeight, mt: 1 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={chartData}
@@ -444,14 +564,29 @@ function Step1IdentifyHazard() {
               </BarChart>
             </ResponsiveContainer>
           </Box>
+          {/* 选中的 hazards + clear 按钮 */}
+          <Box sx={{ mt: 1 }}>
+            <Typography>
+              Selected Hazards: {selectedHazards.join(', ')}
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={clearSelectedHazards}
+              size="small"
+              sx={{ mt: 1 }}
+            >
+              Clear Selected Hazards
+            </Button>
+          </Box>
         </Paper>
       )}
 
       {/* Disaster records list */}
       {selectedHazards.length > 0 && finalRecords.length > 0 && (
         <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>
-            Disaster Records (Filtered)
+          <Typography variant="h5" gutterBottom>
+            Disaster Records of Selected Hazards
           </Typography>
           <Box sx={{ maxHeight: 200, overflowY: 'auto', mt: 1 }}>
             <List>
@@ -484,22 +619,6 @@ function Step1IdentifyHazard() {
                 );
               })}
             </List>
-          </Box>
-
-          {/* 选中的 hazards + clear 按钮 */}
-          <Box sx={{ mt: 1 }}>
-            <Typography>
-              Selected Hazards: {selectedHazards.join(', ')}
-            </Typography>
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={clearSelectedHazards}
-              size="small"
-              sx={{ mt: 1 }}
-            >
-              Clear Selected Hazards
-            </Button>
           </Box>
         </Paper>
       )}

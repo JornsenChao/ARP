@@ -296,7 +296,7 @@ export function ImpactAssessment({ activeTabIndex }) {
           }}
           onClick={() => setGuideExpanded(!guideExpanded)}
         >
-          <Typography variant="h6">Guide</Typography>
+          <Typography variant="h6">Guidance & Explanation</Typography>
           {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
         </Box>
         <Collapse in={guideExpanded} timeout="auto" unmountOnExit>

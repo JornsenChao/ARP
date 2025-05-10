@@ -31,6 +31,15 @@ import {
   Collapse,
 } from '@mui/material';
 import { KeyboardArrowUp, KeyboardArrowDown } from '@mui/icons-material';
+import {
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
 
@@ -59,8 +68,58 @@ function PrioritizedRisk({ activeTabIndex }) {
       fetchAll();
     }
     // eslint-disable-next-line
-  }, [activeTabIndex, sortBy]);
+  }, [activeTabIndex]);
 
+  const [matrixData, setMatrixData] = useState([]);
+
+  useEffect(() => {
+    // 先把 riskResult 按 "impactRating::likelihoodRating" 分组
+    const groupMap = {};
+    riskResult.forEach((r) => {
+      const key = `${r.impactRating}::${r.likelihoodRating}`;
+      if (!groupMap[key]) {
+        groupMap[key] = [];
+      }
+      groupMap[key].push(r);
+    });
+
+    const transformed = [];
+    // 遍历每组
+    Object.values(groupMap).forEach((arr) => {
+      if (arr.length === 1) {
+        // 只有1个 => 不需要偏移
+        const r = arr[0];
+        transformed.push({
+          x: r.likelihoodRating,
+          y: r.impactRating,
+          actualX: r.likelihoodRating,
+          actualY: r.impactRating,
+          hazard: r.hazard,
+          systemName: r.systemName,
+          subSystemName: r.subSystemName,
+          riskScore: r.riskScore,
+        });
+      } else {
+        // 有重复 => 给每个点做一点随机抖动
+        arr.forEach((r) => {
+          const jitterX = (Math.random() - 0.5) * 0.15; // 抖动范围±0.2
+          const jitterY = (Math.random() - 0.5) * 0.3; // 可自行调整
+          transformed.push({
+            x: r.likelihoodRating + jitterX,
+            y: r.impactRating + jitterY,
+            actualX: r.likelihoodRating, // 用于tooltip显示真实值
+            actualY: r.impactRating,
+            hazard: r.hazard,
+            systemName: r.systemName,
+            subSystemName: r.subSystemName,
+            riskScore: r.riskScore,
+          });
+        });
+      }
+    });
+
+    setMatrixData(transformed);
+  }, [riskResult]);
   async function fetchAll() {
     setLoading(true);
     setError(null);
@@ -119,6 +178,22 @@ function PrioritizedRisk({ activeTabIndex }) {
     if (score <= 15) return '#fff9c4';
     if (score <= 20) return '#ffe082';
     return '#ffcdd2';
+  }
+  function RiskDot(props) {
+    const { cx, cy, payload } = props;
+    if (!cx || !cy) return null; // 防御
+    const color = getRiskColor(payload.riskScore);
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={3}
+        fill={color}
+        stroke="#333"
+        strokeWidth={0.5}
+        fillOpacity={1.0}
+      />
+    );
   }
 
   // 判断是否被选中
@@ -208,7 +283,7 @@ function PrioritizedRisk({ activeTabIndex }) {
           }}
           onClick={() => setExplanationExpanded(!explanationExpanded)}
         >
-          <Typography variant="h6">Explanation / Guidelines</Typography>
+          <Typography variant="h6">Guidance & Explanation</Typography>
           {explanationExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
         </Box>
         <Collapse in={explanationExpanded} timeout="auto" unmountOnExit>
@@ -225,6 +300,76 @@ function PrioritizedRisk({ activeTabIndex }) {
             </Typography>
           </Box>
         </Collapse>
+      </Paper>
+      {/* ========== 新增一段 Paper: Risk Matrix 可视化 ========== */}
+      <Paper variant="outlined" sx={{ p: 2, mt: 2 }}>
+        <Typography variant="h5" sx={{ mb: 1 }}>
+          Risk Matrix Visualization
+        </Typography>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          Scatter Plot: X = Likelihood, Y = Impact, Dot Color = RiskScore
+        </Typography>
+
+        <Box sx={{ width: '100%', height: 400 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ScatterChart>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis
+                type="number"
+                dataKey="x"
+                name="Likelihood"
+                domain={[0, 6]}
+                tickCount={7}
+              />
+              <YAxis
+                type="number"
+                dataKey="y"
+                name="Impact"
+                domain={[0, 6]}
+                tickCount={7}
+              />
+              <Tooltip
+                cursor={{ strokeDasharray: '3 3' }}
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const item = payload[0].payload;
+                    return (
+                      <Paper sx={{ p: 1 }}>
+                        <Typography variant="body2">
+                          <strong>Hazard:</strong> {item.hazard}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>System:</strong> {item.systemName}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>SubSystem:</strong> {item.subSystemName}
+                        </Typography>
+                        {/* 用 actualX/actualY 来显示真实 Likelihood/Impact */}
+                        <Typography variant="body2">
+                          <strong>Likelihood:</strong> {item.actualX}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Impact:</strong> {item.actualY}
+                        </Typography>
+                        <Typography variant="body2">
+                          <strong>Score:</strong> {item.riskScore}
+                        </Typography>
+                      </Paper>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              {/* 关键: 用 shape 自定义点, 根据 riskScore 显示不同颜色 */}
+              <Scatter
+                name="Risks"
+                data={matrixData}
+                shape={<RiskDot />}
+                // shape={(props) => <RiskDot {...props} />}  // 也可
+              />
+            </ScatterChart>
+          </ResponsiveContainer>
+        </Box>
       </Paper>
 
       {/* 优先级结果区域 */}
@@ -250,7 +395,7 @@ function PrioritizedRisk({ activeTabIndex }) {
             No data or all zeros. Please fill Impact &amp; Likelihood first.
           </Typography>
         ) : (
-          <TableContainer>
+          <Box sx={{ maxHeight: 600, overflowY: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
@@ -294,7 +439,7 @@ function PrioritizedRisk({ activeTabIndex }) {
                 })}
               </TableBody>
             </Table>
-          </TableContainer>
+          </Box>
         )}
       </Paper>
 
