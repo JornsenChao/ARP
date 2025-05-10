@@ -1,22 +1,28 @@
 // src/pages/essentialWorkflow/Step1IdentifyHazard.jsx
 import React, { useContext, useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Box,
-  Button,
   Typography,
   Toolbar,
   TextField,
-  List,
-  ListItem,
+  Button,
+  FormControl,
   RadioGroup,
   FormControlLabel,
   Radio,
-  FormLabel,
+  Paper,
+  Stack,
+  Divider,
+  Select,
+  MenuItem,
+  List,
+  ListItem,
+  Checkbox,
 } from '@mui/material';
-import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 
-// === Recharts 组件 ===
+// Recharts
 import {
   BarChart,
   Bar,
@@ -37,25 +43,55 @@ function CustomYAxisTick(props) {
   const hazardType = payload.value;
   const isSelected = selectedHazards.includes(hazardType);
 
-  const handleClick = () => {
+  // 点击文字也要切换
+  const handleTextClick = () => {
+    toggleHazard(hazardType);
+  };
+
+  // 勾选框onChange
+  const handleCheckboxChange = (e) => {
+    // 阻止事件冒泡，避免和点击 text 冲突
+    e.stopPropagation();
     toggleHazard(hazardType);
   };
 
   return (
-    <text
-      x={x}
-      y={y}
-      dy={4}
-      textAnchor="end"
-      fill={isSelected ? '#1976d2' : '#666'}
-      style={{
-        cursor: 'pointer',
-        fontWeight: isSelected ? 'bold' : 'normal',
-      }}
-      onClick={handleClick}
-    >
-      {hazardType}
-    </text>
+    <g transform={`translate(${x},${y})`} style={{ cursor: 'pointer' }}>
+      {/* 1) foreignObject宽度可以略大一些，以容纳checkbox + text */}
+      <foreignObject x={-140} y={-10} width={140} height={24}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+          }}
+          // 给div加点击事件 => 也能点击文字
+          onClick={handleTextClick}
+        >
+          {/* 2) Checkbox */}
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={handleCheckboxChange}
+            style={{
+              marginRight: 4,
+              cursor: 'pointer',
+              alignContent: 'center',
+            }}
+          />
+          {/* 3) Hazard文本 */}
+          <span
+            style={{
+              fontSize: '0.9rem',
+              fontWeight: isSelected ? 'bold' : 'normal',
+              color: isSelected ? '#1976d2' : '#666',
+            }}
+          >
+            {hazardType}
+          </span>
+        </div>
+      </foreignObject>
+    </g>
   );
 }
 
@@ -66,7 +102,12 @@ function Step1IdentifyHazard() {
 
   // 如果workflowState还没加载，就先“Loading”
   if (!workflowState) {
-    return <Box sx={{ mt: 8, p: 2 }}>Loading Step1...</Box>;
+    return (
+      <Box sx={{ mt: 8, p: 2 }}>
+        <Toolbar />
+        <Typography>Loading Step1...</Typography>
+      </Box>
+    );
   }
 
   // ======= 1) 从后端workflow里拿到 step1 数据  =======
@@ -271,165 +312,209 @@ function Step1IdentifyHazard() {
     type,
     count,
   }));
-
+  const finalRecords = useMemo(() => {
+    // 若无已选 hazards，直接返回空数组
+    if (selectedHazards.length === 0) {
+      return [];
+    }
+    // 否则仅保留 incidentType 属于 selectedHazards 的记录
+    return filteredRecords.filter((rec) =>
+      selectedHazards.includes(rec.incidentType)
+    );
+  }, [filteredRecords, selectedHazards]);
   return (
-    <Box sx={{ mt: 8, p: 2 }}>
+    <Box sx={{ mt: 8, px: 3, py: 2 }}>
       <Toolbar />
 
       <Typography variant="h5" gutterBottom>
         Step 1: Identify Hazard
       </Typography>
 
-      <Box sx={{ mb: 2 }}>
-        <FormLabel>Search Mode</FormLabel>
-        <RadioGroup row value={searchMode} onChange={handleSearchModeChange}>
-          <FormControlLabel
-            value="state"
-            control={<Radio />}
-            label='Search by State (e.g. "WA")'
-          />
-          <FormControlLabel
-            value="county"
-            control={<Radio />}
-            label='Search by County+State (e.g. "King, WA")'
-          />
-        </RadioGroup>
-      </Box>
-
-      <TextField
-        label={
-          searchMode === 'state'
-            ? 'Enter state code (e.g. WA)'
-            : 'Enter County, State (e.g. King, WA)'
-        }
-        value={locationInput}
-        onChange={handleLocationChange}
-        sx={{ mb: 1, mr: 1 }}
-      />
-      <Button variant="outlined" onClick={fetchFemaData}>
-        Fetch FEMA Hazards
-      </Button>
-
-      {loading && <Typography sx={{ mt: 2 }}>Loading...</Typography>}
-      {error && (
-        <Typography sx={{ mt: 2, color: 'red' }}>Error: {error}</Typography>
-      )}
-
-      <Box sx={{ mt: 2, mb: 2, display: 'flex', gap: 2 }}>
-        <TextField
-          label="Start Date"
-          type="date"
-          value={startDate}
-          onChange={handleStartDateChange}
-          InputLabelProps={{ shrink: true }}
-        />
-        <TextField
-          label="End Date"
-          type="date"
-          value={endDate}
-          onChange={handleEndDateChange}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Box>
-
-      {filteredRecords.length > 0 && (
-        <Box sx={{ height: 300, width: '100%', mb: 3 }}>
-          <Typography variant="h6">
-            IncidentType Frequency (Filtered by Date)
-          </Typography>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              layout="vertical"
-              margin={{ left: 80, right: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis
-                dataKey="type"
-                type="category"
-                width={120}
-                tick={(props) => (
-                  <CustomYAxisTick
-                    {...props}
-                    toggleHazard={toggleHazard}
-                    selectedHazards={selectedHazards}
-                  />
-                )}
-              />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Box>
-      )}
-
-      <Typography variant="h6">Fetched Disaster Records (Filtered)</Typography>
-      <List
+      {/* 用Paper包裹大区块，结构更清晰 */}
+      <Paper
+        variant="outlined"
         sx={{
-          maxHeight: 200,
-          overflowY: 'auto',
-          border: '1px solid #ccc',
-          mt: 1,
+          p: 2,
+          borderRadius: 2,
+          mb: 2,
         }}
       >
-        {filteredRecords.map((rec, idx) => {
-          const { incidentType, title, incidentBeginDate, incidentEndDate } =
-            rec;
-          const isSelected = selectedHazards.includes(incidentType);
-          return (
-            <ListItem
-              key={idx}
-              button
-              onClick={() => toggleHazard(incidentType)}
-              sx={{
-                backgroundColor: isSelected ? '#e0f7fa' : 'transparent',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-              }}
-            >
-              <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                {title}
-              </Typography>
-              <Typography variant="body2">
-                Type: {incidentType} {isSelected && '(selected)'}
-              </Typography>
-              <Typography variant="caption">
-                Begin:{' '}
-                {incidentBeginDate ? incidentBeginDate.slice(0, 10) : 'N/A'} |
-                End: {incidentEndDate ? incidentEndDate.slice(0, 10) : 'N/A'}
-              </Typography>
-            </ListItem>
-          );
-        })}
-      </List>
-
-      <Box sx={{ mt: 2 }}>
-        <Typography>
-          Selected Hazards: {selectedHazards.join(', ') || 'None'}
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>
+          Select search mode & location
         </Typography>
-      </Box>
 
-      <Box sx={{ mt: 1 }}>
-        <Button
-          variant="outlined"
-          color="error"
-          onClick={clearSelectedHazards}
-          disabled={selectedHazards.length === 0}
-        >
-          Clear Selected Hazards
-        </Button>
-      </Box>
+        <FormControl>
+          <RadioGroup
+            row
+            value={searchMode}
+            onChange={handleSearchModeChange}
+            sx={{ mb: 2 }}
+          >
+            <FormControlLabel
+              value="state"
+              control={<Radio />}
+              label='Search by State (e.g. "WA")'
+            />
+            <FormControlLabel
+              value="county"
+              control={<Radio />}
+              label='Search by County+State (e.g. "King, WA")'
+            />
+          </RadioGroup>
+        </FormControl>
 
-      {/* NextStep: 只有选了hazard才可前往 step2 */}
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <TextField
+            label={
+              searchMode === 'state'
+                ? 'Enter state code (e.g. WA)'
+                : 'Enter County, State (e.g. King, WA)'
+            }
+            value={locationInput}
+            onChange={handleLocationChange}
+            size="small"
+            sx={{ width: 250 }}
+          />
+          <Button variant="contained" onClick={fetchFemaData}>
+            Fetch FEMA Data
+          </Button>
+        </Stack>
+
+        {loading && (
+          <Typography sx={{ mt: 1 }} color="text.secondary">
+            Loading...
+          </Typography>
+        )}
+        {error && (
+          <Typography sx={{ mt: 1 }} color="error">
+            Error: {error}
+          </Typography>
+        )}
+
+        {/* Date Filter */}
+        <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+          <TextField
+            label="Start Date"
+            type="date"
+            size="small"
+            value={startDate}
+            onChange={handleStartDateChange}
+            InputLabelProps={{ shrink: true }}
+          />
+          <TextField
+            label="End Date"
+            type="date"
+            size="small"
+            value={endDate}
+            onChange={handleEndDateChange}
+            InputLabelProps={{ shrink: true }}
+          />
+        </Stack>
+      </Paper>
+
+      {/* 图表展示 */}
+      {filteredRecords.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>
+            IncidentType Frequency (Filtered by Date)
+          </Typography>
+          <Box sx={{ height: 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                layout="vertical"
+                margin={{ left: 80, right: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis
+                  dataKey="type"
+                  type="category"
+                  width={120}
+                  tick={(props) => (
+                    <CustomYAxisTick
+                      {...props}
+                      toggleHazard={toggleHazard}
+                      selectedHazards={selectedHazards}
+                    />
+                  )}
+                />
+                <Tooltip />
+                <Bar dataKey="count" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Disaster records list */}
+      {selectedHazards.length > 0 && finalRecords.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>
+            Disaster Records (Filtered)
+          </Typography>
+          <Box sx={{ maxHeight: 200, overflowY: 'auto', mt: 1 }}>
+            <List>
+              {finalRecords.map((rec, idx) => {
+                const {
+                  incidentType,
+                  title,
+                  incidentBeginDate,
+                  incidentEndDate,
+                } = rec;
+                // 这里不再需要 isSelected checks, 因为 finalRecords 已是已选 hazards
+                return (
+                  <ListItem
+                    key={idx}
+                    sx={{
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      py: 1.5,
+                    }}
+                  >
+                    <Typography sx={{ fontWeight: 'bold' }}>{title}</Typography>
+                    <Typography variant="body2">
+                      Type: {incidentType}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Begin: {incidentBeginDate?.slice(0, 10) || 'N/A'} | End:{' '}
+                      {incidentEndDate?.slice(0, 10) || 'N/A'}
+                    </Typography>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </Box>
+
+          {/* 选中的 hazards + clear 按钮 */}
+          <Box sx={{ mt: 1 }}>
+            <Typography>
+              Selected Hazards: {selectedHazards.join(', ')}
+            </Typography>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={clearSelectedHazards}
+              size="small"
+              sx={{ mt: 1 }}
+            >
+              Clear Selected Hazards
+            </Button>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Next Step */}
+      <Divider sx={{ my: 3 }} />
       <Box sx={{ mt: 2 }}>
         <Button
           variant="contained"
+          color="primary"
           disabled={selectedHazards.length === 0}
           component={Link}
           to="/workflow/step2"
         >
-          Next Step
+          Next Step (Step2)
         </Button>
       </Box>
     </Box>
