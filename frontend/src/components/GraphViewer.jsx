@@ -423,7 +423,15 @@ function GraphViewerReactForceGraph({ graphData }) {
   }, [graphData]);
 
   return (
-    <div style={{ width: '100%', height: '600px', border: '1px solid red' }}>
+    <div
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        border: '1px solid red',
+        overflow: 'hidden',
+      }}
+    >
       <ForceGraph3D
         ref={fgRef}
         graphData={{
@@ -434,6 +442,7 @@ function GraphViewerReactForceGraph({ graphData }) {
             rel: e.relation || '',
           })),
         }}
+        style={{ width: '100%', height: '100%' }}
         nodeThreeObject={nodeThreeObject}
         linkCurvature={0.3}
         linkCurveRotation={0}
@@ -546,7 +555,10 @@ function pickNodeColor(node) {
 /***************************************************
  * 7) Main exported GraphViewer
  ***************************************************/
-export default function GraphViewer({ graphData, library = 'd3Force' }) {
+export default function GraphViewer({
+  graphData,
+  library = 'ReactForceGraph3d',
+}) {
   switch (library) {
     case 'd3Force':
       return <GraphViewerD3Force graphData={graphData} />;

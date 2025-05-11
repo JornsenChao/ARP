@@ -1,5 +1,5 @@
 // frontend/src/pages/essentialWorkflow/Step3ParallelTasks.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   Box,
   Typography,
@@ -9,6 +9,13 @@ import {
   TextField,
   Button,
   Card,
+  Drawer,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
+  TableHead,
+  IconButton,
   Accordion,
   AccordionSummary,
   AccordionDetails,
@@ -182,6 +189,21 @@ const SYNONYM_MAP = {
     'large area',
   ],
 };
+// Helper to generate unique key for doc chunk
+function getDocKey(doc) {
+  // e.g. use fileName + page or rowIndex
+  const fn = doc.metadata?.fileName || 'unknownFile';
+  const rowIdx = doc.metadata?.rowIndex ?? '';
+  const page = doc.metadata?.page ?? '';
+  // plus any chunk or line info if needed
+  return `${fn}||${rowIdx}||${page}`;
+}
+
+// Check if doc is in current collection
+function isDocInCollection(doc, collection) {
+  const dk = getDocKey(doc);
+  return collection.some((c) => getDocKey(c) === dk);
+}
 
 function Step3ParallelTasks() {
   // ======== Tab state (A/B/C) ========
@@ -238,9 +260,10 @@ function Step3ParallelTasks() {
   // ============== other states ==============
   const [language, setLanguage] = useState('en');
   const [framework, setFramework] = useState('');
-  const [graphLibrary, setGraphLibrary] = useState('cytoscape');
+  const [graphLibrary, setGraphLibrary] = useState('ReactForceGraph3d');
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
 
   const toggle = () => setExpanded(!expanded);
   const textLenLimit = 1500;
@@ -309,6 +332,7 @@ function Step3ParallelTasks() {
         );
         const validRows = matched.filter(Boolean);
         setSelectedRiskRows(validRows);
+        setHasLoadedFromServer(true); // <-- 在成功读取后设置为true
       } catch (err) {
         console.error('Error init Step3:', err);
       } finally {
@@ -320,11 +344,16 @@ function Step3ParallelTasks() {
   // =========================
   // 1) 每当本地 step3 数据变化 => 自动保存到后端
   // =========================
-  const firstRenderRef = useRef(true);
+  // const firstRenderRef = useRef(true);
   useEffect(() => {
     // 避免初次加载时马上POST覆盖
-    if (firstRenderRef.current) {
-      firstRenderRef.current = false;
+    // if (firstRenderRef.current) {
+    //   firstRenderRef.current = false;
+    //   return;
+    // }
+    if (!hasLoadedFromServer) {
+      // 尚未完成初次加载 => 不要POST覆盖后端
+      console.log('Skip saving to backend: not loadedFromServer yet.');
       return;
     }
     saveStep3ToBackend();
@@ -339,6 +368,7 @@ function Step3ParallelTasks() {
     queryB,
     queryC,
     graphLibrary,
+    hasLoadedFromServer,
   ]);
   function getSynonymMatches(docContent) {
     const lower = (docContent || '').toLowerCase();
@@ -540,7 +570,7 @@ function Step3ParallelTasks() {
         newVal[summaryKey] = {
           ...prev[summaryKey],
           graph: graphData,
-          graphLibrary,
+          graphLibrary: 'ReactForceGraph3d',
         };
         return newVal;
       });
@@ -551,16 +581,16 @@ function Step3ParallelTasks() {
   }
 
   function handleAddToCollection(doc) {
-    setCollection((prev) => [
-      ...prev,
-      {
-        text: doc.pageContent.slice(0, textLenLimit),
-        metadata: doc.metadata,
-        addedAt: new Date().toLocaleTimeString(),
-      },
-    ]);
+    setCollection((prev) => {
+      // 如果已经在collection就不重复添加
+      if (prev.some((p) => getDocKey(p) === getDocKey(doc))) return prev;
+      return [...prev, doc];
+    });
   }
-
+  function handleRemoveFromCollection(doc) {
+    const docKey = getDocKey(doc);
+    setCollection((prev) => prev.filter((item) => getDocKey(item) !== docKey));
+  }
   async function handleSummarize(whichTab) {
     // 1) 先把 tabSummaryData 复制出来
     const newTabSummary = { ...tabSummaryData };
@@ -681,7 +711,7 @@ function Step3ParallelTasks() {
           <Button variant="outlined" onClick={() => handleBuildGraph(whichTab)}>
             Build Graph
           </Button>
-          <FormControl size="small">
+          {/* <FormControl size="small">
             <InputLabel>Language</InputLabel>
             <Select
               label="Language"
@@ -714,177 +744,327 @@ function Step3ParallelTasks() {
               sx={{ width: 150 }}
               onChange={(e) => setGraphLibrary(e.target.value)}
             >
-              <MenuItem value="cytoscape">Cytoscape</MenuItem>
-              <MenuItem value="d3Force">D3 Force</MenuItem>
               <MenuItem value="ReactForceGraph3d">3D ForceGraph</MenuItem>
+              <MenuItem value="d3Force">D3 Force</MenuItem>
+              <MenuItem value="cytoscape">Cytoscape</MenuItem>
             </Select>
-          </FormControl>
+          </FormControl> */}
         </Box>
         {/* === [New] 如果有摘要 */}
-        {(summaryData.isSummarizing ||
-          summaryData.fileSummaryMap?.length > 0 ||
-          summaryData.globalSummary) && (
-          <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
-            {summaryData.isSummarizing ? (
-              <CircularProgress size={24} />
-            ) : (
-              <>
-                {/* 全局摘要 */}
-                {summaryData.globalSummary && (
-                  <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                      Global Summary
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{ whiteSpace: 'pre-wrap', ml: 2 }}
-                    >
-                      {summaryData.globalSummary}
-                    </Typography>
+        <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" sx={{ mt: 2 }}>
+              Summary
+            </Typography>
+          </AccordionSummary>
+          {loading && (
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress />
+            </Box>
+          )}
+          <AccordionDetails>
+            {(summaryData.isSummarizing ||
+              summaryData.fileSummaryMap?.length > 0 ||
+              summaryData.globalSummary) && (
+              <Box sx={{ mt: 2, p: 2, border: '1px solid #ccc' }}>
+                {summaryData.isSummarizing ? (
+                  <CircularProgress size={24} />
+                ) : (
+                  <>
+                    {/* 全局摘要 */}
+                    {summaryData.globalSummary && (
+                      <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                          Global Summary
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ whiteSpace: 'pre-wrap', ml: 2 }}
+                        >
+                          {summaryData.globalSummary}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    <Divider sx={{ my: 2 }} />
+
+                    {summaryData.fileSummaryMap?.map((fileItem, idx) => (
+                      <Box key={idx} sx={{ mb: 3 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{ fontWeight: 'bold' }}
+                        >
+                          File: {fileItem.fileName}
+                        </Typography>
+
+                        {/* 文件级摘要 */}
+                        <Typography
+                          variant="body2"
+                          sx={{ whiteSpace: 'pre-wrap', ml: 2, mb: 1 }}
+                        >
+                          {fileItem.summaryStr}
+                        </Typography>
+
+                        {fileItem.summaryItems?.length > 0 && (
+                          <Box sx={{ ml: 3 }}>
+                            {fileItem.summaryItems.map((itm, i2) => (
+                              <Box key={i2} sx={{ mb: 1 }}>
+                                <div>
+                                  <strong>• {itm.content}</strong>
+                                </div>
+                                <div
+                                  style={{ fontSize: '0.85rem', color: '#555' }}
+                                >
+                                  Source: {itm.source.fileName},{' '}
+                                  {itm.source.pageOrLine}
+                                </div>
+                              </Box>
+                            ))}
+                          </Box>
+                        )}
+
+                        {/* 如果需要文件级source */}
+                        {fileItem.sources?.length > 0 && (
+                          <Box sx={{ mt: 1, ml: 3 }}>
+                            <Typography variant="subtitle2">
+                              File Sources:
+                            </Typography>
+                            {fileItem.sources.map((src, i3) => (
+                              <Typography
+                                key={i3}
+                                variant="body2"
+                                sx={{ fontSize: '0.85rem', color: '#555' }}
+                              >
+                                - {src.fileName}, {src.pageOrLine}
+                              </Typography>
+                            ))}
+                          </Box>
+                        )}
+                      </Box>
+                    ))}
+                  </>
+                )}
+              </Box>
+            )}
+          </AccordionDetails>
+        </Accordion>
+
+        {/* === [New] 显示 graph === */}
+        <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1">Graph Visualization</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            {summaryData.graph && (
+              <Box>
+                {/* <Typography>Graph Visualization:</Typography> */}
+                <Box sx={{ height: 600, border: '1px solid #ccc' }}>
+                  <GraphViewer
+                    library={graphLibrary}
+                    graphData={summaryData.graph}
+                  />
+                </Box>
+              </Box>
+            )}
+          </AccordionDetails>
+        </Accordion>
+
+        {/* === [New] 显示搜索结果 === */}
+        <Accordion defaultExpanded>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" sx={{ mt: 1 }}>
+              Search Results:
+            </Typography>
+            <br />
+          </AccordionSummary>
+          {loading && (
+            <Box sx={{ textAlign: 'center' }}>
+              <CircularProgress />
+            </Box>
+          )}
+          <AccordionDetails>
+            {docs.length === 0 && <Typography>No results yet.</Typography>}
+
+            {docs.map((doc, idx) => (
+              <Card key={idx} sx={{ mb: 1, p: 1 }}>
+                {/* ============== NEW: 显示 highlightLabels if any ============== */}
+                {doc.highlightLabels && doc.highlightLabels.length > 0 && (
+                  <Box sx={{ color: 'red', fontWeight: 'bold' }}>
+                    Matched synonyms: {doc.highlightLabels.join(', ')}
                   </Box>
                 )}
-
-                <Divider sx={{ my: 2 }} />
-
-                {summaryData.fileSummaryMap?.map((fileItem, idx) => (
-                  <Box key={idx} sx={{ mb: 3 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                      File: {fileItem.fileName}
-                    </Typography>
-
-                    {/* 文件级摘要 */}
+                {/* CSV/XLSX chunk? */}
+                {doc.metadata?.columnData ? (
+                  <Box>
+                    {doc.metadata.columnData.map((col, cidx) => {
+                      const htmlVal = linkify(col.cellValue || '');
+                      return (
+                        <Box key={cidx} sx={{ mb: 1 }}>
+                          <strong>
+                            {col.colName} | {col.infoCategory} |{' '}
+                            {col.metaCategory}
+                          </strong>
+                          <Box
+                            sx={{ ml: 2 }}
+                            dangerouslySetInnerHTML={{ __html: htmlVal }}
+                          />
+                        </Box>
+                      );
+                    })}
                     <Typography
-                      variant="body2"
-                      sx={{ whiteSpace: 'pre-wrap', ml: 2, mb: 1 }}
+                      variant="body4"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontStyle: 'italic',
+                      }}
                     >
-                      {fileItem.summaryStr}
+                      {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
                     </Typography>
-
-                    {fileItem.summaryItems?.length > 0 && (
-                      <Box sx={{ ml: 3 }}>
-                        {fileItem.summaryItems.map((itm, i2) => (
-                          <Box key={i2} sx={{ mb: 1 }}>
-                            <div>
-                              <strong>• {itm.content}</strong>
-                            </div>
-                            <div style={{ fontSize: '0.85rem', color: '#555' }}>
-                              Source: {itm.source.fileName},{' '}
-                              {itm.source.pageOrLine}
-                            </div>
-                          </Box>
-                        ))}
-                      </Box>
-                    )}
-
-                    {/* 如果需要文件级source */}
-                    {fileItem.sources?.length > 0 && (
-                      <Box sx={{ mt: 1, ml: 3 }}>
-                        <Typography variant="subtitle2">
-                          File Sources:
-                        </Typography>
-                        {fileItem.sources.map((src, i3) => (
-                          <Typography
-                            key={i3}
-                            variant="body2"
-                            sx={{ fontSize: '0.85rem', color: '#555' }}
-                          >
-                            - {src.fileName}, {src.pageOrLine}
-                          </Typography>
-                        ))}
-                      </Box>
-                    )}
                   </Box>
-                ))}
-              </>
-            )}
-          </Box>
-        )}
+                ) : (
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {expanded
+                      ? doc.pageContent
+                      : doc.pageContent.slice(0, textLenLimit) +
+                        (doc.pageContent.length > textLenLimit ? '…' : '')}
+                    {doc.pageContent.length > textLenLimit && (
+                      <Button size="small" onClick={toggle}>
+                        {expanded ? '收起' : '展开全文'}
+                      </Button>
+                    )}
+                    <br />
+                    <Typography
+                      variant="body4"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {`Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
+                    </Typography>
+                  </Typography>
+                )}
 
-        {summaryData.graph && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1">Graph Visualization:</Typography>
-            <Box sx={{ height: 400, border: '1px solid #ccc' }}>
-              <GraphViewer
-                library={graphLibrary}
-                graphData={summaryData.graph}
-              />
-            </Box>
-          </Box>
-        )}
-
-        <Typography variant="subtitle1" sx={{ mt: 2 }}>
-          Search Results:
-        </Typography>
-        {docs.length === 0 && <Typography>No results yet.</Typography>}
-
-        {docs.map((doc, idx) => (
-          <Card key={idx} sx={{ mb: 1, p: 1 }}>
-            {/* ============== NEW: 显示 highlightLabels if any ============== */}
-            {doc.highlightLabels && doc.highlightLabels.length > 0 && (
-              <Box sx={{ color: 'red', fontWeight: 'bold' }}>
-                Matched synonyms: {doc.highlightLabels.join(', ')}
-              </Box>
-            )}
-            {/* CSV/XLSX chunk? */}
-            {doc.metadata?.columnData ? (
-              <Box>
-                {doc.metadata.columnData.map((col, cidx) => {
-                  const htmlVal = linkify(col.cellValue || '');
-                  return (
-                    <Box key={cidx} sx={{ mb: 1 }}>
-                      <strong>
-                        {col.colName} | {col.infoCategory} | {col.metaCategory}
-                      </strong>
-                      <Box
-                        sx={{ ml: 2 }}
-                        dangerouslySetInnerHTML={{ __html: htmlVal }}
-                      />
-                    </Box>
-                  );
-                })}
-                <Typography
-                  variant="body4"
-                  sx={{
-                    fontWeight: 'bold',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
-                </Typography>
-              </Box>
-            ) : (
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {expanded
-                  ? doc.pageContent
-                  : doc.pageContent.slice(0, textLenLimit) +
-                    (doc.pageContent.length > textLenLimit ? '…' : '')}
-                {doc.pageContent.length > textLenLimit && (
-                  <Button size="small" onClick={toggle}>
-                    {expanded ? '收起' : '展开全文'}
+                {/* <Button variant="text" onClick={() => handleAddToCollection(doc)}>
+              + Add to Collection
+            </Button> */}
+                {isDocInCollection(doc, collection) ? (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={() => handleRemoveFromCollection(doc)}
+                  >
+                    Remove from Collection
+                  </Button>
+                ) : (
+                  <Button
+                    variant="contained"
+                    onClick={() => handleAddToCollection(doc)}
+                  >
+                    Add to Collection
                   </Button>
                 )}
-                <br />
-                <Typography
-                  variant="body4"
-                  sx={{
-                    fontWeight: 'bold',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  {`Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
-                </Typography>
-              </Typography>
-            )}
-
-            <Button variant="text" onClick={() => handleAddToCollection(doc)}>
-              + Add to Collection
-            </Button>
-          </Card>
-        ))}
+              </Card>
+            ))}
+          </AccordionDetails>
+        </Accordion>
       </Box>
     );
   }
+  // define or ensure we have a function to render doc chunk
+  function renderDocItem(doc, collection, handleAdd, handleRemove) {
+    // 1) 判断本 doc 是否已在collection
+    const inCollection = isDocInCollection(doc, collection); // 你已实现 isDocInCollection()
 
+    // 2) 生成 docKey 作为 Card key
+    const docKey = getDocKey(doc);
+
+    // 3) CSV/XLSX 模式 => doc.metadata?.columnData
+    const isCSV =
+      Array.isArray(doc.metadata?.columnData) &&
+      doc.metadata.columnData.length > 0;
+
+    // 4) 如果是 CSV chunk -> 按列渲染
+    if (isCSV) {
+      return (
+        <Card key={docKey} sx={{ mb: 1, p: 1 }}>
+          {/* 标题 */}
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            {doc.metadata?.fileName} (Row {doc.metadata?.rowIndex})
+          </Typography>
+          {/* 遍历 columnData */}
+          {doc.metadata.columnData.map((colObj, idx) => (
+            <div key={idx} style={{ marginBottom: 4 }}>
+              <strong>
+                {colObj.colName} | {colObj.infoCategory} | {colObj.metaCategory}
+              </strong>
+              <div style={{ marginLeft: 8 }}>{colObj.cellValue}</div>
+            </div>
+          ))}
+
+          {/* Add/Remove 按钮 */}
+          <Box mt={1}>
+            {inCollection ? (
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => handleRemove(doc)}
+              >
+                Remove
+              </Button>
+            ) : (
+              <Button variant="contained" onClick={() => handleAdd(doc)}>
+                Add
+              </Button>
+            )}
+          </Box>
+        </Card>
+      );
+    }
+
+    // 5) 否则 => PDF/TXT chunk
+    const fileName = doc.metadata?.fileName || 'UnknownFile';
+    const pageOrLine = doc.metadata?.page
+      ? `Page ${doc.metadata?.page}`
+      : doc.metadata?.rowIndex != null
+      ? `Row ${doc.metadata.rowIndex}`
+      : '';
+
+    // 安全获取 pageContent
+    const rawText = doc.pageContent || '';
+    // 只显示前 N 字符
+    const previewText =
+      rawText.length > 300 ? rawText.slice(0, 300) + '...' : rawText;
+
+    return (
+      <Card key={docKey} sx={{ mb: 1, p: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+          {fileName} {pageOrLine && ` - ${pageOrLine}`}
+        </Typography>
+        {/* 主体文本 */}
+        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>
+          {previewText}
+        </Typography>
+
+        {/* Add/Remove 按钮 */}
+        <Box mt={1}>
+          {inCollection ? (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => handleRemove(doc)}
+            >
+              Remove
+            </Button>
+          ) : (
+            <Button variant="contained" onClick={() => handleAdd(doc)}>
+              Add
+            </Button>
+          )}
+        </Box>
+      </Card>
+    );
+  }
   return (
     <Box sx={{ display: 'flex' }}>
       {/* 左侧 main content */}
@@ -895,7 +1075,7 @@ function Step3ParallelTasks() {
           height: '100vh',
           overflowY: 'auto',
           p: 2,
-          mt: 8,
+          mt: 2,
         }}
       >
         <Toolbar />
@@ -915,7 +1095,7 @@ function Step3ParallelTasks() {
       </Box>
 
       {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentCollection) */}
-      <Box
+      {/* <Box
         sx={{
           width: isPanelOpen ? 300 : 20, // 展开时宽度为300px，隐藏时宽度为40px
           display: 'flex',
@@ -926,111 +1106,186 @@ function Step3ParallelTasks() {
           transition: 'width 0.3s ease', // 添加动画效果
           position: 'relative', // 使按钮可以固定在面板边缘
         }}
+      > */}
+      {/* 切换按钮 */}
+      <Drawer
+        anchor="right"
+        open={isPanelOpen}
+        onClose={() => setIsPanelOpen(false)}
+        variant="temporary"
+        ModalProps={{
+          keepMounted: true, // Better performance on mobile
+        }}
+        PaperProps={{
+          sx: {
+            width: 650,
+            ml: 10, // 使drawer的左边界和drawer内容保持一定距离
+            // mt: 8,
+            padding: 2,
+          },
+        }}
       >
-        {/* 切换按钮 */}
+        {/* <Button
+            onClick={togglePanel}
+            sx={{
+              position: 'absolute',
+              top: 10,
+              left: isPanelOpen ? -20 : 0, // 根据面板状态调整按钮位置
+              minWidth: 'unset',
+              width: 20,
+              height: 40,
+              zIndex: 10,
+              borderRadius: '0 4px 4px 0',
+              backgroundColor: '#f0f0f0',
+              '&:hover': { backgroundColor: '#e0e0e0' },
+            }}
+          >
+            {isPanelOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          </Button> */}
+
+        {/* {isPanelOpen && (
+            <> */}
+        <Toolbar />
+        <Typography variant="h5" sx={{ mb: 2, mt: 2 }}>
+          Context Panel
+        </Typography>
+        {loading && (
+          <Box sx={{ textAlign: 'center' }}>
+            <CircularProgress />
+          </Box>
+        )}
+
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          {/* (1) Project Context */}
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Project Context</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <DependencySelector
+                value={dependencyData}
+                onChange={(data) => setDependencyData(data)}
+              />
+            </AccordionDetails>
+          </Accordion>
+
+          <Divider />
+
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Selected Risks (from Step2)</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {/* {selectedRiskRows.length === 0 ? (
+                <Typography>No risk selected or all are zero.</Typography>
+              ) : (
+                <List dense>
+                  {selectedRiskRows.map((r, idx) => (
+                    <ListItem key={idx}>
+                      <ListItemText
+                        primary={`${r.hazard} / ${r.systemName} / ${r.subSystemName}`}
+                        secondary={`Impact=${r.impactRating}, Likelihood=${r.likelihoodRating}, Score=${r.riskScore}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )} */}
+              {selectedRiskRows.length === 0 ? (
+                <Typography>No risk selected.</Typography>
+              ) : (
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Hazard</TableCell>
+                      <TableCell>System</TableCell>
+                      <TableCell>SubSystem</TableCell>
+                      <TableCell>Impact</TableCell>
+                      <TableCell>Likelihood</TableCell>
+                      <TableCell>RiskScore</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {selectedRiskRows.map((r, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell>{r.hazard}</TableCell>
+                        <TableCell>{r.systemName}</TableCell>
+                        <TableCell>{r.subSystemName}</TableCell>
+                        <TableCell>{r.impactRating}</TableCell>
+                        <TableCell>{r.likelihoodRating}</TableCell>
+                        <TableCell>{r.riskScore}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+              {/* 还可加个“Refresh”按钮：重新获取step2最新 */}
+              <Button
+                variant="outlined"
+                size="small"
+                sx={{ mt: 2 }}
+                onClick={fetchSelectedRisksAndBuildRows}
+              >
+                Refresh
+              </Button>
+            </AccordionDetails>
+          </Accordion>
+
+          <Divider />
+
+          <Accordion defaultExpanded>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography>Current Collection</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              {collection.length === 0 ? (
+                <Typography>No items yet.</Typography>
+              ) : (
+                collection.map((doc) =>
+                  renderDocItem(
+                    doc,
+                    collection,
+                    handleAddToCollection,
+                    handleRemoveFromCollection
+                  )
+                )
+                // <List dense>
+                //   {collection.map((item, idx) => (
+                //     <ListItem key={idx}>
+                //       <ListItemText
+                //         primary={item.text}
+                //         secondary={`Added at ${item.addedAt}`}
+                //       />
+                //     </ListItem>
+                //   ))}
+                // </List>
+              )}
+            </AccordionDetails>
+          </Accordion>
+        </Box>
+        {/* </> */}
+        {/* )} */}
+      </Drawer>
+      {!isPanelOpen && (
         <Button
-          onClick={togglePanel}
+          variant="contained"
+          onClick={() => setIsPanelOpen(true)}
           sx={{
-            position: 'absolute',
-            top: 10,
-            left: isPanelOpen ? -20 : 0, // 根据面板状态调整按钮位置
-            minWidth: 'unset',
-            width: 20,
-            height: 40,
-            zIndex: 10,
-            borderRadius: '0 4px 4px 0',
-            backgroundColor: '#f0f0f0',
-            '&:hover': { backgroundColor: '#e0e0e0' },
+            position: 'fixed',
+            top: '15%', // 垂直居中
+            right: 0, // 贴右边
+            transform: 'translateY(-50%)',
+            borderRadius: '6px 0 0 6px', // 圆角让左侧稍微圆
+            width: '70px', // 可根据需求微调
+            minWidth: 'auto', // 覆盖默认
+            padding: '8px 4px',
+            zIndex: 1300,
           }}
         >
-          {isPanelOpen ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+          Open Panel
         </Button>
-
-        {isPanelOpen && (
-          <>
-            <Toolbar />
-
-            {loading && (
-              <Box sx={{ textAlign: 'center', mt: 2 }}>
-                <CircularProgress />
-              </Box>
-            )}
-
-            <Box sx={{ flex: 1, overflowY: 'auto' }}>
-              {/* (1) Project Context */}
-              <Accordion defaultExpanded>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography>Project Context</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <DependencySelector
-                    value={dependencyData}
-                    onChange={(data) => setDependencyData(data)}
-                  />
-                </AccordionDetails>
-              </Accordion>
-
-              <Divider />
-
-              <Accordion defaultExpanded>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography>Selected Risks (from Step2)</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {selectedRiskRows.length === 0 ? (
-                    <Typography>No risk selected or all are zero.</Typography>
-                  ) : (
-                    <List dense>
-                      {selectedRiskRows.map((r, idx) => (
-                        <ListItem key={idx}>
-                          <ListItemText
-                            primary={`${r.hazard} / ${r.systemName} / ${r.subSystemName}`}
-                            secondary={`Impact=${r.impactRating}, Likelihood=${r.likelihoodRating}, Score=${r.riskScore}`}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                  {/* 还可加个“Refresh”按钮：重新获取step2最新 */}
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    sx={{ mt: 2 }}
-                    onClick={fetchSelectedRisksAndBuildRows}
-                  >
-                    Refresh
-                  </Button>
-                </AccordionDetails>
-              </Accordion>
-
-              <Divider />
-
-              <Accordion defaultExpanded>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Typography>Current Collection</Typography>
-                </AccordionSummary>
-                <AccordionDetails>
-                  {collection.length === 0 ? (
-                    <Typography>No items yet.</Typography>
-                  ) : (
-                    <List dense>
-                      {collection.map((item, idx) => (
-                        <ListItem key={idx}>
-                          <ListItemText
-                            primary={item.text}
-                            secondary={`Added at ${item.addedAt}`}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  )}
-                </AccordionDetails>
-              </Accordion>
-            </Box>
-          </>
-        )}
-      </Box>
+      )}
     </Box>
+    // </Box>
   );
 }
 

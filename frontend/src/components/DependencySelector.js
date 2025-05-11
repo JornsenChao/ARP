@@ -57,7 +57,9 @@ const convertOtherDataToOutput = (obj) =>
 // ---------- Reusable checkbox group (MUI) ----------
 const CheckGroup = ({ options, value, onChange }) => {
   const toggle = (v) => {
-    const next = value.includes(v) ? value.filter((x) => x !== v) : [...value, v];
+    const next = value.includes(v)
+      ? value.filter((x) => x !== v)
+      : [...value, v];
     onChange(next);
   };
   return (
@@ -82,11 +84,26 @@ const CheckGroup = ({ options, value, onChange }) => {
 
 const DependencySelector = ({ value, onChange }) => {
   // ---------- local state blocks ----------
-  const [climateRisksData, setClimateRisksData] = useState({ set: new Set(), type: 'dependency' });
-  const [regulationsData, setRegulationsData] = useState({ set: new Set(), type: 'dependency' });
-  const [projectTypesData, setProjectTypesData] = useState({ set: new Set(), type: 'dependency' });
-  const [environmentData, setEnvironmentData] = useState({ set: new Set(), type: 'dependency' });
-  const [scaleData, setScaleData] = useState({ set: new Set(), type: 'dependency' });
+  const [climateRisksData, setClimateRisksData] = useState({
+    set: new Set(),
+    type: 'dependency',
+  });
+  const [regulationsData, setRegulationsData] = useState({
+    set: new Set(),
+    type: 'dependency',
+  });
+  const [projectTypesData, setProjectTypesData] = useState({
+    set: new Set(),
+    type: 'dependency',
+  });
+  const [environmentData, setEnvironmentData] = useState({
+    set: new Set(),
+    type: 'dependency',
+  });
+  const [scaleData, setScaleData] = useState({
+    set: new Set(),
+    type: 'dependency',
+  });
   const [otherData, setOtherData] = useState({});
   const [additional, setAdditional] = useState('');
 
@@ -138,7 +155,9 @@ const DependencySelector = ({ value, onChange }) => {
 
     if (incoming.otherData) {
       const od = {};
-      Object.entries(incoming.otherData).forEach(([k, arr]) => (od[k] = new Set(arr)));
+      Object.entries(incoming.otherData).forEach(
+        ([k, arr]) => (od[k] = new Set(arr))
+      );
       setOtherData(od);
     } else setOtherData({});
 
@@ -173,7 +192,10 @@ const DependencySelector = ({ value, onChange }) => {
   ]);
 
   // ---------- small mutators ----------
-  const addValueToSet = (block, val) => ({ ...block, set: new Set(block.set).add(val) });
+  const addValueToSet = (block, val) => ({
+    ...block,
+    set: new Set(block.set).add(val),
+  });
   const removeValueFromSet = (block, val) => {
     const next = new Set(block.set);
     next.delete(val);
@@ -331,10 +353,10 @@ const DependencySelector = ({ value, onChange }) => {
           value={Array.from(climateRisksData.set)}
           onChange={(vals) => handleCheckboxChange('climateRisks', vals)}
         />
-        <TypeSelect
+        {/* <TypeSelect
           value={climateRisksData.type}
           onChange={(val) => handleTypeChange('climateRisks', val)}
-        />
+        /> */}
       </Stack>
       <Stack direction="row" spacing={1} mt={0.5}>
         <TextField
@@ -345,7 +367,9 @@ const DependencySelector = ({ value, onChange }) => {
           onChange={(e) =>
             setCustomInput((c) => ({ ...c, climateRisk: e.target.value }))
           }
-          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('climateRisk')}
+          onKeyDown={(e) =>
+            e.key === 'Enter' && handleAddBlockCustom('climateRisk')
+          }
         />
         <Button onClick={() => handleAddBlockCustom('climateRisk')}>Add</Button>
       </Stack>
@@ -361,10 +385,10 @@ const DependencySelector = ({ value, onChange }) => {
           value={Array.from(regulationsData.set)}
           onChange={(vals) => handleCheckboxChange('regulations', vals)}
         />
-        <TypeSelect
+        {/* <TypeSelect
           value={regulationsData.type}
           onChange={(val) => handleTypeChange('regulations', val)}
-        />
+        /> */}
       </Stack>
       <Stack direction="row" spacing={1} mt={0.5}>
         <TextField
@@ -375,7 +399,9 @@ const DependencySelector = ({ value, onChange }) => {
           onChange={(e) =>
             setCustomInput((c) => ({ ...c, regulation: e.target.value }))
           }
-          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('regulation')}
+          onKeyDown={(e) =>
+            e.key === 'Enter' && handleAddBlockCustom('regulation')
+          }
         />
         <Button onClick={() => handleAddBlockCustom('regulation')}>Add</Button>
       </Stack>
@@ -391,10 +417,10 @@ const DependencySelector = ({ value, onChange }) => {
           value={Array.from(projectTypesData.set)}
           onChange={(vals) => handleCheckboxChange('projectTypes', vals)}
         />
-        <TypeSelect
+        {/* <TypeSelect
           value={projectTypesData.type}
           onChange={(val) => handleTypeChange('projectTypes', val)}
-        />
+        /> */}
       </Stack>
       <Stack direction="row" spacing={1} mt={0.5}>
         <TextField
@@ -405,7 +431,9 @@ const DependencySelector = ({ value, onChange }) => {
           onChange={(e) =>
             setCustomInput((c) => ({ ...c, projectType: e.target.value }))
           }
-          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('projectType')}
+          onKeyDown={(e) =>
+            e.key === 'Enter' && handleAddBlockCustom('projectType')
+          }
         />
         <Button onClick={() => handleAddBlockCustom('projectType')}>Add</Button>
       </Stack>
@@ -421,10 +449,10 @@ const DependencySelector = ({ value, onChange }) => {
           value={Array.from(environmentData.set)}
           onChange={(vals) => handleCheckboxChange('environment', vals)}
         />
-        <TypeSelect
+        {/* <TypeSelect
           value={environmentData.type}
           onChange={(val) => handleTypeChange('environment', val)}
-        />
+        /> */}
       </Stack>
       <Stack direction="row" spacing={1} mt={0.5}>
         <TextField
@@ -435,7 +463,9 @@ const DependencySelector = ({ value, onChange }) => {
           onChange={(e) =>
             setCustomInput((c) => ({ ...c, environment: e.target.value }))
           }
-          onKeyDown={(e) => e.key === 'Enter' && handleAddBlockCustom('environment')}
+          onKeyDown={(e) =>
+            e.key === 'Enter' && handleAddBlockCustom('environment')
+          }
         />
         <Button onClick={() => handleAddBlockCustom('environment')}>Add</Button>
       </Stack>
@@ -451,10 +481,10 @@ const DependencySelector = ({ value, onChange }) => {
           value={Array.from(scaleData.set)}
           onChange={(vals) => handleCheckboxChange('scale', vals)}
         />
-        <TypeSelect
+        {/* <TypeSelect
           value={scaleData.type}
           onChange={(val) => handleTypeChange('scale', val)}
-        />
+        /> */}
       </Stack>
       <Stack direction="row" spacing={1} mt={0.5}>
         <TextField
@@ -527,7 +557,10 @@ const DependencySelector = ({ value, onChange }) => {
             <Box key={fn} mb={1}>
               <Stack direction="row" alignItems="center" spacing={0.5}>
                 <Typography variant="subtitle2">{fn}</Typography>
-                <IconButton size="small" onClick={() => removeOtherFieldName(fn)}>
+                <IconButton
+                  size="small"
+                  onClick={() => removeOtherFieldName(fn)}
+                >
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Stack>

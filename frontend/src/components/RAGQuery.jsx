@@ -42,7 +42,7 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
 
   // graph
   const [graphData, setGraphData] = useState(null);
-  const [selectedLibrary, setSelectedLibrary] = useState('cytoscape');
+  const [selectedLibrary, setSelectedLibrary] = useState('ReactForceGraph3d');
   const [selectedFramework, setSelectedFramework] = useState('');
 
   // prompt modal
@@ -50,10 +50,15 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
   const [promptModalContent, setPromptModalContent] = useState('');
 
   // snackbar (replaces antd message)
-  const [snack, setSnack] = useState({ open: false, text: '', severity: 'info' });
+  const [snack, setSnack] = useState({
+    open: false,
+    text: '',
+    severity: 'info',
+  });
   const openSnack = (text, severity = 'info') =>
     setSnack({ open: true, text, severity });
-  const closeSnack = () => setSnack({ open: false, text: '', severity: 'info' });
+  const closeSnack = () =>
+    setSnack({ open: false, text: '', severity: 'info' });
 
   // ---------- handlers ----------
   const handleQueryNormal = async () => {
@@ -110,7 +115,8 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
   };
 
   const handleViewInGraph = async () => {
-    if (!docs || docs.length === 0) return openSnack('No docs to visualize', 'warning');
+    if (!docs || docs.length === 0)
+      return openSnack('No docs to visualize', 'warning');
 
     try {
       const res = await axios.post(`${DOMAIN}/proRAG/buildGraph`, {
@@ -177,7 +183,11 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
         <LoadingBtn loading={loadingNormal} onClick={handleQueryNormal}>
           RAG Query
         </LoadingBtn>
-        <LoadingBtn loading={loadingCoT} onClick={handleQueryCoT} color="secondary">
+        <LoadingBtn
+          loading={loadingCoT}
+          onClick={handleQueryCoT}
+          color="secondary"
+        >
           RAG Query + CoT
         </LoadingBtn>
       </Stack>
@@ -186,7 +196,9 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
       {answerNormal && (
         <Box mt={3}>
           <Typography variant="h6">Normal RAG Answer</Typography>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{answerNormal}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {answerNormal}
+          </ReactMarkdown>
           <Button sx={{ mt: 1 }} onClick={() => showPromptModal('normal')}>
             Show Final Prompt
           </Button>
@@ -205,7 +217,9 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
 
       {/* graph builder */}
       <Divider sx={{ my: 3 }} />
-      <Typography variant="h6">Build &amp; View Graph from retrieved docs</Typography>
+      <Typography variant="h6">
+        Build &amp; View Graph from retrieved docs
+      </Typography>
       <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
         <Select
           size="small"
@@ -246,7 +260,9 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
       >
         <DialogTitle>Final Prompt</DialogTitle>
         <DialogContent dividers>
-          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{promptModalContent}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', margin: 0 }}>
+            {promptModalContent}
+          </pre>
         </DialogContent>
       </Dialog>
 
@@ -257,7 +273,11 @@ const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
         onClose={closeSnack}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity={snack.severity} onClose={closeSnack} sx={{ width: '100%' }}>
+        <Alert
+          severity={snack.severity}
+          onClose={closeSnack}
+          sx={{ width: '100%' }}
+        >
           {snack.text}
         </Alert>
       </Snackbar>
