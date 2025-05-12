@@ -21,7 +21,7 @@ import RefWorkflowTaskPage from './pages/refWorkflow/RefWorkflowTaskPage';
 import EssentialWorkflowHome from './pages/essentialWorkflow/EssentialWorkflowHome';
 import Step1IdentifyHazard from './pages/essentialWorkflow/Step1IdentifyHazard';
 import Step2AssessRisk from './pages/essentialWorkflow/step2/Step2AssessRisk';
-import Step3ParallelTasks from './pages/essentialWorkflow/Step3ParallelTasks';
+import Step3ParallelTasks from './pages/essentialWorkflow/step3/Step3ParallelTasks';
 import Step4Summary from './pages/essentialWorkflow/Step4Summary';
 import FileManagement from './pages/FileManagement';
 
