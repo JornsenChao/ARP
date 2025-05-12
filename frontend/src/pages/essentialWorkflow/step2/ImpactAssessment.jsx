@@ -296,31 +296,28 @@ export function ImpactAssessment({ activeTabIndex }) {
           }}
           onClick={() => setGuideExpanded(!guideExpanded)}
         >
-          <Typography variant="h6">Guidance & Explanation</Typography>
+          <Typography variant="h6">About this step</Typography>
           {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
         </Box>
         <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
           <Box sx={{ mt: 1 }}>
             <Typography paragraph>
-              This step is built based on City of Vancouver's
-              {'Resilient Building Planning Worksheet'} <br />
+              This step is built based on City of Vancouver's{' '}
+              <strong>{'Resilient Building Planning Worksheet'}</strong>.<br />
             </Typography>
             <Typography paragraph>
               In this step, you will: <br />
               1) choose systems to be evaluated → <br />
-              2) evaluate impact on subsystem from 1~5 <br />" For each impact
-              within each Impact Category, assign a consequence rating of 1 to 5
-              based on the suggested scale below. <br />
-              Consider both the immediate and long-term impacts of each hazard
-              on each impact category. <br />
-              Some hazards may cause acute or sudden impacts (""shocks""), while
-              others can contribute to chronic impacts (""stressors""). "
-              <br />
-              1- Very low <br />
-              2- Low <br />
-              3- Moderate <br />
-              4- High <br />
-              5- Very High <br />
+              2) evaluate impact on subsystem from 1~5, with 1 being the lowest,
+              and 5 being the highest <br />
+              <ul>
+                <li>
+                  {' '}
+                  Some hazards may cause acute or sudden impacts (""shocks""),
+                  while others can contribute to chronic impacts
+                  (""stressors""). "
+                </li>
+              </ul>
             </Typography>
             <Typography paragraph>
               If you'd like to clear all data, you can click the "Clear Current

@@ -371,7 +371,7 @@ const LikelihoodAssessment = () => {
           }}
           onClick={() => setGuideExpanded(!guideExpanded)}
         >
-          <Typography variant="h6">Guidance & Explanation</Typography>
+          <Typography variant="h6">About this step</Typography>
           {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
         </Box>
         <Collapse in={guideExpanded} timeout="auto" unmountOnExit>

@@ -25,7 +25,10 @@ import {
   Alert,
   CircularProgress,
   Divider,
+  Toolbar,
+  Collapse,
 } from '@mui/material';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloseIcon from '@mui/icons-material/Close';
 import ColumnMapper from '../components/ColumnMapper';
@@ -45,7 +48,7 @@ function FileManagement() {
   /* ---------------- state ---------------- */
   const [fileList, setFileList] = useState([]);
   const [loading, setLoading] = useState(false);
-
+  const [guideExpanded, setGuideExpanded] = useState(false);
   /** Upload dialog */
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [uploadTags, setUploadTags] = useState([]);
@@ -71,7 +74,11 @@ function FileManagement() {
   const [isChatLoading, setIsChatLoading] = useState(false);
 
   /** Snackbar */
-  const [snack, setSnack] = useState({ open: false, text: '', severity: 'info' });
+  const [snack, setSnack] = useState({
+    open: false,
+    text: '',
+    severity: 'info',
+  });
   const openSnack = (text, severity = 'info') =>
     setSnack({ open: true, text, severity });
   const closeSnack = () => setSnack({ ...snack, open: false });
@@ -241,10 +248,80 @@ function FileManagement() {
 
   /* ---------------- UI ---------------- */
   return (
-    <Box>
-      <Typography variant="h5" gutterBottom>
-        File Management with Chat
+    <Box
+      sx={{
+        flex: 1,
+        borderRight: '1px solid #ccc',
+        height: '100vh',
+        overflowY: 'auto',
+        p: 2,
+        mt: 2,
+      }}
+    >
+      <Toolbar />
+      <Typography variant="h4" gutterBottom>
+        File Management
       </Typography>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}
+          onClick={() => setGuideExpanded(!guideExpanded)}
+        >
+          <Typography variant="h5">Guidance & Explanation</Typography>
+          {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+        </Box>
+
+        <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
+          <Box sx={{ mt: 1 }}>
+            <Typography paragraph>
+              In <strong>File Management</strong>, you can upload new files,
+              assign their document type (<em>Case Study</em>, <em>Strategy</em>
+              , or
+              <em>Other Resource</em>), and build a searchable vector store for
+              use in subsequent steps.
+            </Typography>
+
+            <Typography paragraph>
+              <strong>Basic steps:</strong>
+              <ol>
+                <li>
+                  Click <em>Upload New File</em> and select either PDF/TXT or
+                  spreadsheet format (CSV/XLSX).
+                </li>
+                <li>
+                  Choose <em>docType</em> (<strong>caseStudy</strong>,
+                  <strong>strategy</strong>, or <strong>otherResource</strong>),
+                  depending on your intended usage.
+                </li>
+                <li>
+                  For spreadsheet files, next use <em>Map &amp; Build</em> to
+                  assign a semantic meaning to each column (e.g.,{' '}
+                  <em>infoCategory</em> and
+                  <em>metaCategory</em>). This ensures data is unified across
+                  multiple sources when you search later.
+                </li>
+                <li>
+                  After mapping columns, click <em>Save &amp; Build</em> to
+                  finalize the store. For PDFs or TXT, you can directly click{' '}
+                  <em>BuildStore</em>.
+                </li>
+              </ol>
+            </Typography>
+
+            <Typography paragraph>
+              Remember that{' '}
+              <strong>research quality depends on data quality</strong>.
+              Providing well-structured files and clear semantic column mappings
+              helps ensure consistent and accurate results when analyzing or
+              cross-referencing multiple documents.
+            </Typography>
+          </Box>
+        </Collapse>
+      </Paper>
 
       {/* top actions */}
       <Stack direction="row" spacing={1} mb={2}>
@@ -273,19 +350,17 @@ function FileManagement() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                {
-                  [
-                    'File Name',
-                    'Tags',
-                    'docType',
-                    'FileType',
-                    'StoreBuilt',
-                    'Created At',
-                    'Actions',
-                  ].map((h) => (
-                    <TableCell key={h}>{h}</TableCell>
-                  ))
-                }
+                {[
+                  'File Name',
+                  'Tags',
+                  'docType',
+                  'FileType',
+                  'StoreBuilt',
+                  'Created At',
+                  'Actions',
+                ].map((h) => (
+                  <TableCell key={h}>{h}</TableCell>
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -337,7 +412,7 @@ function FileManagement() {
                               }
                             }}
                           >
-                            BuildStore
+                            Build Store
                           </Button>
                         )}
 
@@ -542,7 +617,11 @@ function FileManagement() {
         onClose={closeSnack}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity={snack.severity} onClose={closeSnack} sx={{ width: '100%' }}>
+        <Alert
+          severity={snack.severity}
+          onClose={closeSnack}
+          sx={{ width: '100%' }}
+        >
           {snack.text}
         </Alert>
       </Snackbar>

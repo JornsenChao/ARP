@@ -25,7 +25,7 @@ import {
 } from '@mui/material';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
-
+import StepProgressBar from './StepProgressBar';
 // Recharts
 import {
   BarChart,
@@ -331,10 +331,19 @@ function Step1IdentifyHazard() {
     );
   }, [filteredRecords, selectedHazards]);
   return (
-    <Box sx={{ mt: 8, px: 3, py: 2 }}>
+    <Box
+      sx={{
+        flex: 1,
+        borderRight: '1px solid #ccc',
+        height: '100vh',
+        overflowY: 'auto',
+        p: 2,
+        mt: 2,
+      }}
+    >
       <Toolbar />
-
-      <Typography variant="h5" gutterBottom>
+      <StepProgressBar />
+      <Typography variant="h4" gutterBottom>
         Step 1: Identify Hazard
       </Typography>
       <Paper
@@ -353,45 +362,56 @@ function Step1IdentifyHazard() {
           }}
           onClick={() => setGuideExpanded(!guideExpanded)}
         >
-          <Typography variant="h5">Guidance & Explanation</Typography>
+          <Typography variant="h6">Guidance & Explanation</Typography>
           {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
         </Box>
         <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
           <Box sx={{ mt: 1 }}>
             <Typography paragraph>
-              1) You can search hazards by state or county/state. For example:
+              1) You can search hazards by <strong>State</strong> or{' '}
+              <strong>County+State</strong>. Examples:
               <ul>
-                <li>State: "WA"</li>
-                <li>County+State: "King, WA"</li>
+                <li>State Code: "WA"</li>
+                <li>County &amp; State: "King, WA"</li>
               </ul>
+              This helps us retrieve relevant FEMA data for that region.
             </Typography>
+
             <Typography paragraph>
-              2) You can also filter by date range. The chart and records will
-              update accordingly.
+              2) You can optionally apply a <strong>date range filter</strong>{' '}
+              to narrow down the displayed historical records. Once data is
+              fetched, a bar chart will illustrate frequency of incident types
+              by year.
             </Typography>
+
             <Typography paragraph>
-              3) After fetching FEMA data, you can select hazards from the chart
-              or the list below. The selected hazards will be highlighted in the
-              chart. Detailed records will be shown below the chart.
+              3) After reviewing the chart,{' '}
+              <strong>select at least one hazard</strong> to continue. The
+              chosen hazards will appear below, and you can see more details
+              from the FEMA records.
             </Typography>
           </Box>
+
           <Box sx={{ my: 2, p: 2, border: '1px dashed #ccc' }}>
             <Typography variant="subtitle1" gutterBottom>
-              Where this data comes from? What does it mean?
+              Where does this data come from?
             </Typography>
             <Typography variant="body2" paragraph>
-              <strong>Data source</strong> – FEMA (Federal Emergency Management
-              Agency) provides a list of disaster declarations:
+              <strong>Data Source</strong> – This page calls FEMA&apos;s
+              official
+              <em>Disaster Declarations Summaries</em> API:
               <ul>
                 <li>
                   <strong>Endpoint</strong>:
                   https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries
                 </li>
               </ul>
+              We only visualize hazards that FEMA has catalogued in that
+              dataset.
             </Typography>
-
             <Typography variant="body2">
-              <em>Only hazards listed in the FEMA data are shown here.</em>
+              <em>Note:</em> If your region has limited or no FEMA records, the
+              chart and table may display fewer results.
             </Typography>
           </Box>
         </Collapse>

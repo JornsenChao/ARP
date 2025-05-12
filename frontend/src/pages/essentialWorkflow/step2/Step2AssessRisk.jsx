@@ -1,11 +1,20 @@
 // src/pages/essentialWorkflow/Step2AssessRisk.jsx
 
 import React, { useContext, useState, useEffect, useMemo } from 'react';
-import { Box, Typography, Toolbar, Tabs, Tab, Button } from '@mui/material';
+import {
+  Box,
+  Typography,
+  Toolbar,
+  Tabs,
+  Tab,
+  Button,
+  Paper,
+  Collapse,
+} from '@mui/material';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
-
+import StepProgressBar from '../StepProgressBar';
 import ImpactAssessment from './ImpactAssessment';
 import LikelihoodAssessment from './LikelihoodAssessment';
 import PrioritizedRisk from './PrioritizedRisk';
@@ -17,7 +26,7 @@ import PrioritizedRisk from './PrioritizedRisk';
 function Step2AssessRisk() {
   const { workflowState } = useContext(EssentialWorkflowContext);
   const [currentTab, setCurrentTab] = useState(0);
-
+  const [guideExpanded, setGuideExpanded] = useState(false);
   const handleTabChange = (e, val) => {
     setCurrentTab(val);
   };
@@ -29,16 +38,74 @@ function Step2AssessRisk() {
     }
   };
   if (!workflowState) {
-    return <Box sx={{ mt: 8, p: 2 }}>Loading Step 2...</Box>;
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          borderRight: '1px solid #ccc',
+          height: '100vh',
+          overflowY: 'auto',
+          p: 2,
+          mt: 2,
+        }}
+      >
+        Loading Step 2...
+      </Box>
+    );
   }
 
   return (
-    <Box sx={{ mt: 8, p: 2 }}>
+    <Box
+      sx={{
+        flex: 1,
+        borderRight: '1px solid #ccc',
+        height: '100vh',
+        overflowY: 'auto',
+        p: 2,
+        mt: 2,
+      }}
+    >
       <Toolbar />
-      <Typography variant="h5" gutterBottom>
+      <StepProgressBar />
+      <Typography variant="h4" gutterBottom>
         Step 2: Assess Risk
       </Typography>
-
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}
+          onClick={() => setGuideExpanded(!guideExpanded)}
+        >
+          <Typography variant="h6">Guidance & Explanation</Typography>
+          {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+        </Box>
+        <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
+          <Box sx={{ mt: 1 }}>
+            <Typography paragraph>
+              <strong>Step2: Risk Assessment</strong> helps you quantify the
+              hazards chosen in Step1. This process is split into:
+              <ol>
+                <li>
+                  <em>Impact</em>: Rate each system&apos;s vulnerability on a
+                  scale of 1 (very low) to 5 (very high).
+                </li>
+                <li>
+                  <em>Likelihood</em>: Estimate how probable each hazard is,
+                  again scored 1–5 or via a Bayesian approach.
+                </li>
+                <li>
+                  <em>Prioritized Risk</em>: Combine Impact &amp; Likelihood to
+                  get a risk score. Then select the highest concerns for the
+                  next step.
+                </li>
+              </ol>
+            </Typography>
+          </Box>
+        </Collapse>
+      </Paper>
       <Tabs value={currentTab} onChange={handleTabChange} sx={{ mb: 2 }}>
         <Tab label="1) Impact Assessment" />
         <Tab label="2) Likelihood" />

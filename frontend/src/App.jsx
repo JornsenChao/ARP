@@ -41,9 +41,9 @@ function App() {
           <NavBar />
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/precedents" element={<Precedents />} />
-            <Route path="/notes" element={<NotesOverview />} />
+            {/* <Route path="/resources" element={<Resources />} /> */}
+            {/* <Route path="/precedents" element={<Precedents />} /> */}
+            {/* <Route path="/notes" element={<NotesOverview />} /> */}
 
             {/* Reference Workflow routes */}
             <Route path="/ref-workflow" element={<RefWorkflowHome />} />

@@ -283,20 +283,30 @@ function PrioritizedRisk({ activeTabIndex }) {
           }}
           onClick={() => setExplanationExpanded(!explanationExpanded)}
         >
-          <Typography variant="h6">Guidance & Explanation</Typography>
+          <Typography variant="h6">About this step</Typography>
           {explanationExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
         </Box>
         <Collapse in={explanationExpanded} timeout="auto" unmountOnExit>
           <Box sx={{ mt: 1 }}>
             <Typography paragraph>
-              If any sub-step is empty, or result is all zeros ... Only the
-              non-zero risk rows are shown. If you typed 0 in previous steps,
-              those get cleared.
+              <strong>Likelihood x Impact = Risk Score</strong>
             </Typography>
             <Typography paragraph>
-              Please confirm your risk prioritization, then select the rows you
-              want to highlight as final priority. Only after selecting at least
-              one will the Next Step be enabled.
+              <ul>
+                <li>
+                  Combine Impact &amp; Likelihood to get a risk score. Then
+                  select the highest concerns for the next step.
+                </li>
+                <li>
+                  Please confirm your risk prioritization, then select the rows
+                  you want to highlight as final priority. Only after selecting
+                  at least one will the Next Step be enabled.
+                </li>
+                <li>
+                  Only the non-zero risk rows are shown. If you typed 0 in
+                  previous steps, those get cleared.
+                </li>
+              </ul>
             </Typography>
           </Box>
         </Collapse>

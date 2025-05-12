@@ -23,10 +23,14 @@ import {
   CircularProgress,
   Select,
   MenuItem,
+  Collapse,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
+import debounce from 'lodash.debounce';
 
+import StepProgressBar from './StepProgressBar'; // <--- 1) 引入进度条组件
 import html2pdf from 'html2pdf.js';
 import html2canvas from 'html2canvas';
 import { Document, Packer, Paragraph, TextRun, Media } from 'docx';
@@ -145,57 +149,70 @@ export default function Step4Summary() {
   const [docFlags, setDocFlags] = useState({});
   // docExpands => docKey => bool( expanded or not )
   const [docExpands, setDocExpands] = useState({});
-
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+  const [guideExpanded, setGuideExpanded] = useState(true);
   const exportRef = useRef(null);
   // ====== load workflow ======
   useEffect(() => {
     if (!workflowState) return;
-    const s4 = workflowState.step4 || {};
-    const sd = s4.summaryData || {};
+    if (workflowState.step4 && workflowState.step4.summaryData) {
+      const s4 = workflowState.step4 || {};
+      const sd = s4.summaryData || {};
 
-    setOverallConclusion(sd.overallConclusion || '');
-    setHazardReasons(sd.hazardReasons || {});
-    setCollectionSummary(sd.collectionSummary || '');
-    setBottomReflections(sd.bottomReflections || '');
-    setDocFlags(sd.docFlags || {});
+      setOverallConclusion(sd.overallConclusion || '');
+      setHazardReasons(sd.hazardReasons || {});
+      setCollectionSummary(sd.collectionSummary || '');
+      setBottomReflections(sd.bottomReflections || '');
+      setDocFlags(sd.docFlags || {});
 
-    // step3
-    const step3 = workflowState.step3 || {};
-    setContextObj(step3.context || {});
+      // step3
+      const step3 = workflowState.step3 || {};
+      setContextObj(step3.context || {});
 
-    // step1
-    const s1 = workflowState.step1 || {};
-    const hzs = s1.hazards || [];
-    setHazards(hzs);
-    setFemaRecords(s1.femaRecords || []);
-    setLocationText(s1.location || '');
-    setMultiHazardData(buildMultiHazardYearData(hzs, s1.femaRecords || []));
+      // step1
+      const s1 = workflowState.step1 || {};
+      const hzs = s1.hazards || [];
+      setHazards(hzs);
+      setFemaRecords(s1.femaRecords || []);
+      setLocationText(s1.location || '');
+      setMultiHazardData(buildMultiHazardYearData(hzs, s1.femaRecords || []));
 
-    // step2
-    const s2 = workflowState.step2 || {};
-    setRiskResult(s2.riskResult || []);
-    setSelectedRisks(s2.selectedRisks || []);
-    setLikelihoodData(s2.likelihoodData || []);
+      // step2
+      const s2 = workflowState.step2 || {};
+      setRiskResult(s2.riskResult || []);
+      setSelectedRisks(s2.selectedRisks || []);
+      setLikelihoodData(s2.likelihoodData || []);
 
-    // step3 => splitted
-    const coll = step3.collection || [];
-    const arrC = [];
-    const arrS = [];
-    const arrO = [];
-    coll.forEach((doc) => {
-      const dt = doc.metadata?.docType;
-      if (dt === 'caseStudy') arrC.push(doc);
-      else if (dt === 'strategy') arrS.push(doc);
-      else arrO.push(doc);
-    });
-    setDocsCase(arrC);
-    setDocsStrat(arrS);
-    setDocsOther(arrO);
+      // step3 => splitted
+      const coll = step3.collection || [];
+      const arrC = [];
+      const arrS = [];
+      const arrO = [];
+      coll.forEach((doc) => {
+        const dt = doc.metadata?.docType;
+        if (dt === 'caseStudy') arrC.push(doc);
+        else if (dt === 'strategy') arrS.push(doc);
+        else arrO.push(doc);
+      });
+      setDocsCase(arrC);
+      setDocsStrat(arrS);
+      setDocsOther(arrO);
+    }
+    // 标记加载完成
+    setHasLoadedFromServer(true);
+    // firstRenderRef 在这个初次useEffect结束后，默认下一次render再改
+    // 这样可以避免进入下个 useEffect 就立即发请求
+    // 也可以把 firstRenderRef.current = false 放在setTimeout里
+    // 视情况决定
+    setTimeout(() => {
+      firstRenderRef.current = false;
+    }, 0);
   }, [workflowState]);
 
   // ====== auto save ======
   const firstRenderRef = useRef(true);
   useEffect(() => {
+    if (!hasLoadedFromServer) return;
     if (!workflowState) return;
     if (firstRenderRef.current) {
       firstRenderRef.current = false;
@@ -212,8 +229,11 @@ export default function Step4Summary() {
     docExpands,
     sortBy,
     showSelectedOnly,
+    hasLoadedFromServer,
   ]);
-
+  const debouncedHandleReasonChange = debounce((hz, val) => {
+    setHazardReasons((prev) => ({ ...prev, [hz]: val }));
+  }, 500); // delay 500ms before updating state
   function saveStep4ToBackend() {
     const newWF = { ...workflowState };
     if (!newWF.step4) newWF.step4 = {};
@@ -577,7 +597,16 @@ export default function Step4Summary() {
   // if not loaded
   if (!workflowState) {
     return (
-      <Box sx={{ mt: 8, p: 2 }}>
+      <Box
+        sx={{
+          flex: 1,
+          borderRight: '1px solid #ccc',
+          height: '100vh',
+          overflowY: 'auto',
+          p: 2,
+          mt: 2,
+        }}
+      >
         <Toolbar />
         <Typography>Loading Step4...</Typography>
       </Box>
@@ -586,15 +615,51 @@ export default function Step4Summary() {
 
   // main render
   return (
-    <Box sx={{ mt: 8, p: 2 }}>
+    <Box
+      sx={{
+        flex: 1,
+        borderRight: '1px solid #ccc',
+        height: '100vh',
+        overflowY: 'auto',
+        p: 2,
+        mt: 2,
+      }}
+    >
       <Toolbar />
+      <StepProgressBar />
       <Typography variant="h4" gutterBottom>
-        Final Research Report
+        Step 4: Final Research Report
       </Typography>
+      <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+          }}
+          onClick={() => setGuideExpanded(!guideExpanded)}
+        >
+          <Typography variant="h6">Guidance & Explanation</Typography>
+          {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+        </Box>
+
+        <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
+          <Box sx={{ mt: 1 }}>
+            <Typography paragraph>
+              This is where you review everything from previous steps, compile
+              your selected resources, hazard reasons, risk matrix, and finalize
+              your overall conclusion. You can also generate a PDF or Word doc
+              as your final deliverable.
+            </Typography>
+          </Box>
+        </Collapse>
+      </Paper>
       <div ref={exportRef}>
         {/* Overall Conclusion */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Overall Conclusion</Typography>
+          <Typography variant="h6">
+            <em>Overall Conclusion</em>{' '}
+          </Typography>
           <TextField
             multiline
             rows={5}
@@ -607,7 +672,9 @@ export default function Step4Summary() {
 
         {/* Project Context */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Project Context</Typography>
+          <Typography variant="h6">
+            <em>Project Context</em>
+          </Typography>
           {Object.keys(contextObj).length === 0 ? (
             <Typography sx={{ color: 'text.secondary' }}>
               (No context data)
@@ -626,7 +693,9 @@ export default function Step4Summary() {
 
         {/* Hazards & Frequency */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Hazards & Yearly Frequency</Typography>
+          <Typography variant="h6">
+            <em>Hazards & Frequency</em>
+          </Typography>
           <Typography>
             Location: <strong>{locationText}</strong>
           </Typography>
@@ -674,7 +743,9 @@ export default function Step4Summary() {
                   fullWidth
                   placeholder="Reason for this rating..."
                   value={hazardReasons[hz] || ''}
-                  onChange={(e) => handleReasonChange(hz, e.target.value)}
+                  onChange={(e) =>
+                    debouncedHandleReasonChange(hz, e.target.value)
+                  }
                 />
               </Paper>
             );
@@ -683,7 +754,9 @@ export default function Step4Summary() {
 
         {/* Risk Matrix */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Risk Matrix</Typography>
+          <Typography variant="h6">
+            <em>Risk Matrix</em>
+          </Typography>
           <Box
             sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, mb: 2 }}
           >
@@ -764,7 +837,9 @@ export default function Step4Summary() {
 
         {/* Resources & Summaries */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Resources & Summaries</Typography>
+          <Typography variant="h6">
+            <em>Resources & Summaries</em>
+          </Typography>
           <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
             <Button
               variant="outlined"
@@ -836,7 +911,9 @@ export default function Step4Summary() {
 
         {/* final thoughts */}
         <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="h6">Final Thoughts</Typography>
+          <Typography variant="h6">
+            <em>Final Thoughts</em>
+          </Typography>
           <TextField
             multiline
             rows={2}

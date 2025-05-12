@@ -26,15 +26,15 @@ const NavBar = () => {
           <Button color="inherit" component={Link} to="/workflow">
             Essential Workflow
           </Button>
-          <Button color="inherit" component={Link} to="/resources">
+          {/* <Button color="inherit" component={Link} to="/resources">
             Resources
-          </Button>
-          <Button color="inherit" component={Link} to="/precedents">
+          </Button> */}
+          {/* <Button color="inherit" component={Link} to="/precedents">
             Precedents
-          </Button>
-          <Button color="inherit" component={Link} to="/notes">
+          </Button> */}
+          {/* <Button color="inherit" component={Link} to="/notes">
             Notes
-          </Button>
+          </Button> */}
           {/* New: File Management & Step3 RAG */}
           <Button color="inherit" component={Link} to="/files">
             File Management

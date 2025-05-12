@@ -1,5 +1,6 @@
 // frontend/src/pages/essentialWorkflow/Step3ParallelTasks.jsx
 import React, { useState, useEffect, useRef, useContext } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -9,6 +10,7 @@ import {
   TextField,
   Button,
   Card,
+  Paper,
   Drawer,
   Table,
   TableBody,
@@ -28,14 +30,17 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  Collapse,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 
 import { linkify } from '../../utils/linkify';
 import DOMPurify from 'dompurify';
 import DependencySelector from '../../components/DependencySelector';
+import StepProgressBar from './StepProgressBar';
 import GraphViewer from '../../components/GraphViewer';
 import axios from 'axios';
 
@@ -209,6 +214,7 @@ function Step3ParallelTasks() {
   // ======== Tab state (A/B/C) ========
   const [currentTab, setCurrentTab] = useState(0);
   const [isPanelOpen, setIsPanelOpen] = useState(true); // 控制面板显示/隐藏
+  const [guideExpanded, setGuideExpanded] = useState(true);
 
   // ============== Step3 local states ==============
   // 1) context -> dependencyData
@@ -753,9 +759,7 @@ function Step3ParallelTasks() {
         {/* === [New] 如果有摘要 */}
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ mt: 2 }}>
-              Summary
-            </Typography>
+            <Typography variant="subtitle1">Summary</Typography>
           </AccordionSummary>
           {loading && (
             <Box sx={{ textAlign: 'center' }}>
@@ -872,9 +876,7 @@ function Step3ParallelTasks() {
         {/* === [New] 显示搜索结果 === */}
         <Accordion defaultExpanded>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography variant="subtitle1" sx={{ mt: 1 }}>
-              Search Results:
-            </Typography>
+            <Typography variant="subtitle1">Search Results:</Typography>
             <br />
           </AccordionSummary>
           {loading && (
@@ -1079,10 +1081,77 @@ function Step3ParallelTasks() {
         }}
       >
         <Toolbar />
-        <Typography variant="h5" gutterBottom>
+        <StepProgressBar />
+        <Typography variant="h4" gutterBottom>
           Step 3: Navigate Resource
         </Typography>
+        <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, mb: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+            }}
+            onClick={() => setGuideExpanded(!guideExpanded)}
+          >
+            <Typography variant="h6">Guidance & Explanation</Typography>
+            {guideExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </Box>
 
+          <Collapse in={guideExpanded} timeout="auto" unmountOnExit>
+            <Box sx={{ mt: 1 }}>
+              <Typography paragraph>
+                In <strong>Step3</strong>, you can search for 3 types of
+                content:
+              </Typography>
+              <ul>
+                <li>
+                  <strong>Case Studies</strong> – Find relevant examples for
+                  your hazards.
+                </li>
+                <li>
+                  <strong>Strategies</strong> – Search design or policy
+                  solutions addressing your prioritized risks.
+                </li>
+                <li>
+                  <strong>Other Resources</strong> – Funding, guidelines, maps,
+                  or additional references.
+                </li>
+              </ul>
+              <Typography paragraph>
+                Each tab can be used in any order, and you can mark tasks
+                “Complete” once you’ve found what you need. Don’t worry—you can
+                always revisit.
+              </Typography>
+            </Box>
+            <Box sx={{ my: 2, p: 2, border: '1px dashed #ccc' }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Curious about where the data comes from?
+              </Typography>
+              <Typography variant="body2">
+                <ul>
+                  <li>
+                    Our system uses local data and LLM-based RAG approach to
+                    provide relevant documents, to reduce typical LLM
+                    hallucination.{' '}
+                  </li>
+                  <li>
+                    Curious about where the data comes from? In the demo
+                    version, we use FEMA and NOAA data. But us can use your own
+                    data in teh future as well.
+                  </li>
+                  <li>
+                    The quality of the results depends on the data you provide.{' '}
+                  </li>
+                  <li>
+                    Please contact us or your organization's resilience champion
+                    for more details about sharing data.{' '}
+                  </li>
+                </ul>
+              </Typography>
+            </Box>
+          </Collapse>
+        </Paper>
         <Tabs value={currentTab} onChange={handleChangeTab} sx={{ mb: 2 }}>
           <Tab label="Task A: Case Study" />
           <Tab label="Task B: Strategy" />
@@ -1092,6 +1161,18 @@ function Step3ParallelTasks() {
         {currentTab === 0 && renderTabContent('A', queryA, setQueryA, docsA)}
         {currentTab === 1 && renderTabContent('B', queryB, setQueryB, docsB)}
         {currentTab === 2 && renderTabContent('C', queryC, setQueryC, docsC)}
+        {/* Next Step */}
+        <Divider sx={{ my: 3 }} />
+        <Box sx={{ mt: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            component={Link}
+            to="/workflow/step4"
+          >
+            Next Step (Step4)
+          </Button>
+        </Box>
       </Box>
 
       {/* 右侧: 用三折叠面板 (ProjectContext, SelectedRisks, CurrentCollection) */}
@@ -1271,7 +1352,7 @@ function Step3ParallelTasks() {
           onClick={() => setIsPanelOpen(true)}
           sx={{
             position: 'fixed',
-            top: '15%', // 垂直居中
+            top: '20%', // 垂直居中
             right: 0, // 贴右边
             transform: 'translateY(-50%)',
             borderRadius: '6px 0 0 6px', // 圆角让左侧稍微圆
