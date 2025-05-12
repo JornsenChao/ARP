@@ -26,3 +26,6 @@ fileRoutes.post('/:fileKey/buildStore', fileController.buildStore);
 
 // GET /files/loadDemo
 fileRoutes.get('/loadDemo', fileController.loadDemo);
+
+// GET /files/loadAllDemos
+fileRoutes.get('/loadAllDemos', fileController.loadAllDemos);

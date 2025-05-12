@@ -15,17 +15,29 @@ import {
 
 const DOMAIN = 'http://localhost:8000';
 
-const FileSelector = ({ fileList = [], fetchFileList, activeFile, setActiveFile }) => {
+const FileSelector = ({
+  fileList = [],
+  fetchFileList,
+  activeFile,
+  setActiveFile,
+}) => {
   const [demoName, setDemoName] = useState('');
-  const [snack, setSnack] = useState({ open: false, text: '', severity: 'success' });
+  const [snack, setSnack] = useState({
+    open: false,
+    text: '',
+    severity: 'success',
+  });
   const openSnack = (text, severity = 'success') =>
     setSnack({ open: true, text, severity });
-  const closeSnack = () => setSnack({ open: false, text: '', severity: 'success' });
+  const closeSnack = () =>
+    setSnack({ open: false, text: '', severity: 'success' });
 
   const loadDemo = async () => {
     if (!demoName.trim()) return;
     try {
-      const res = await axios.get(`${DOMAIN}/useDemo?fileKey=${demoName.trim()}`);
+      const res = await axios.get(
+        `${DOMAIN}/useDemo?fileKey=${demoName.trim()}`
+      );
       if (res.status === 200) {
         openSnack(`Demo "${demoName}" loaded!`);
         fetchFileList();
@@ -81,7 +93,11 @@ const FileSelector = ({ fileList = [], fetchFileList, activeFile, setActiveFile 
         onClose={closeSnack}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity={snack.severity} onClose={closeSnack} sx={{ width: '100%' }}>
+        <Alert
+          severity={snack.severity}
+          onClose={closeSnack}
+          sx={{ width: '100%' }}
+        >
           {snack.text}
         </Alert>
       </Snackbar>

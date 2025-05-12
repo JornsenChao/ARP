@@ -256,6 +256,89 @@ export const fileService = {
     };
   },
 
+  async loadAllDemos() {
+    try {
+      const demoDir = path.join(__dirname, '../demo_docs');
+      // 1) 找到 demo_config.json
+      const configPath = path.join(demoDir, 'demo_config.json');
+      if (!fs.existsSync(configPath)) {
+        throw new Error(`demo_config.json not found in ${demoDir}`);
+      }
+      const rawConfig = fs.readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(rawConfig);
+
+      // config.files 是一个数组：[{ fileName, docType, columnSchema?... }, ...]
+      if (!Array.isArray(config.files)) {
+        throw new Error('demo_config.json must have "files" array');
+      }
+
+      const loaded = [];
+      for (const item of config.files) {
+        const { fileName, docType, columnSchema } = item;
+        if (!fileName) {
+          console.warn('Skipping item with no fileName');
+          continue;
+        }
+        // 2) 在 demo_docs 找 fileName
+        const srcPath = path.join(demoDir, fileName);
+        if (!fs.existsSync(srcPath)) {
+          console.warn(`File ${fileName} not found in demo_docs`);
+          continue;
+        }
+        // 3) copy to uploads
+        const ext = path.extname(fileName).toLowerCase();
+        const newFileKey = Date.now().toString() + '_' + fileName;
+        const destPath = path.join(uploadsDir, newFileKey);
+        fs.copyFileSync(srcPath, destPath);
+
+        const nowISO = new Date().toISOString();
+        // 4) registry
+        fileRegistry[newFileKey] = {
+          fileName,
+          tags: ['demo'],
+          docType: docType || 'otherResource',
+          fileType: ext,
+          localPath: destPath,
+          storeBuilt: false,
+          columnSchema: columnSchema || null,
+          createdAt: nowISO,
+          lastBuildAt: null,
+          mapAndBuildMethod: null,
+          memoryStore: null,
+        };
+
+        // 5) 如果是 csv/xlsx 并有 columnSchema => 直接 buildStore
+        // 否则若pdf/txt => 也buildStore
+        let buildMsg = null;
+        if (['.csv', '.xlsx', '.xls', '.pdf', '.txt'].includes(ext)) {
+          // 调用 buildStore
+          // 这里可复用 your buildStore logic
+          // 先set columnSchema
+          if (['.csv', '.xlsx', '.xls'].includes(ext) && columnSchema) {
+            // ok do map
+            fileRegistry[newFileKey].columnSchema = columnSchema;
+          }
+          // await build
+          const result = await this.buildStore(newFileKey);
+          buildMsg = `Store built (docType=${docType || 'otherResource'})`;
+        } else {
+          buildMsg = `Skip build for ext=${ext}`;
+        }
+
+        loaded.push({
+          fileKey: newFileKey,
+          message: `Loaded & built store for ${fileName}`,
+          buildMsg,
+        });
+      }
+
+      return loaded;
+    } catch (err) {
+      console.error('loadAllDemos error:', err);
+      throw err;
+    }
+  },
+
   // ========== 提供存取 memoryStore 的函数 ========== //
   getMemoryStore(fileKey) {
     const rec = fileRegistry[fileKey];

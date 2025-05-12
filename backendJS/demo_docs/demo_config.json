@@ -1,0 +1,130 @@
+{
+  "files": [
+    {
+      "fileName": "All Options Embed.csv",
+      "docType": "strategy",
+      "columnSchema": [
+        {
+          "columnName": "Option",
+          "infoCategory": "project",
+          "metaCategory": "input condition"
+        },
+        {
+          "columnName": "Hazards",
+          "infoCategory": "disaster",
+          "metaCategory": "input condition"
+        },
+        {
+          "columnName": "Assets",
+          "infoCategory": "buildingStrategy",
+          "metaCategory": "design driver factor"
+        },
+        {
+          "columnName": "Action Type",
+          "infoCategory": "disaster",
+          "metaCategory": "input condition"
+        },
+        {
+          "columnName": "Sub-Action Type",
+          "infoCategory": "buildingStrategy",
+          "metaCategory": "design driver factor"
+        },
+        {
+          "columnName": "Source Plan",
+          "infoCategory": "disaster",
+          "metaCategory": "input condition"
+        },
+        {
+          "columnName": "URL",
+          "infoCategory": "buildingStrategy",
+          "metaCategory": "design driver factor"
+        },
+        {
+          "columnName": "Toolkit Case Study",
+          "infoCategory": "buildingStrategy",
+          "metaCategory": "design driver factor"
+        }
+      ]
+    },
+    {
+      "fileName": "CR4HC_1_All_Multiple Hazards.pdf",
+      "docType": "strategy"
+    },
+    {
+      "fileName": "Building Code Funding Opportunities.pdf",
+      "docType": "strategy"
+    },
+    {
+      "fileName": "publications.csv",
+      "docType": "otherResource",
+      "columnSchema": [
+        {
+          "columnName": "name",
+          "infoCategory": "structureSystem",
+          "metaCategory": "input condition"
+        },
+        {
+          "columnName": "field_media_description",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "field_media_file",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "nothing",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "Keywords",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "Audience",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "Document Type",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        }
+      ]
+    },
+    {
+      "fileName": "fema-case-studies.csv",
+      "docType": "strategy",
+      "columnSchema": [
+        {
+          "columnName": "Link to Content",
+          "infoCategory": "structureSystem",
+          "metaCategory": "input condition"
+        },
+        {
+          "columnName": "title",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "body",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "Related Locations",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        },
+        {
+          "columnName": "Incident Type",
+          "infoCategory": "other",
+          "metaCategory": "auxiliary reference"
+        }
+      ]
+    }
+  ]
+}

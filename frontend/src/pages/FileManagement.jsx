@@ -211,7 +211,21 @@ function FileManagement() {
       openSnack('Load demo failed', 'error');
     }
   };
-
+  async function loadAllDemos() {
+    try {
+      const res = await axios.get(`${DOMAIN}/files/loadAllDemos`);
+      if (res.status === 200) {
+        openSnack('Loaded all demo files successfully!', 'success');
+        // 这里 res.data 是 loaded: [ {fileKey, message, buildMsg}, ... ]
+        console.log('loadAllDemos response:', res.data);
+        // 你可以发起 fetchFileList() 更新前端表格
+        await fetchFiles();
+      }
+    } catch (err) {
+      console.error('LoadAllDemos error:', err);
+      openSnack('LoadAllDemos error: ' + err.message, 'error');
+    }
+  }
   /* ---------------- chat memory ---------------- */
   useEffect(() => {
     if (!activeChatFile) {
@@ -329,15 +343,18 @@ function FileManagement() {
           Upload New File
         </Button>
         <Divider orientation="vertical" flexItem />
-        <Typography variant="body2" sx={{ mt: 0.75 }}>
+        {/* <Typography variant="body2" sx={{ mt: 0.75 }}>
           Load Demo:
-        </Typography>
-        <Button size="small" onClick={() => loadDemo('demo.pdf')}>
+        </Typography> */}
+        <Button variant="contained" onClick={loadAllDemos}>
+          Load All Demo Files
+        </Button>
+        {/* <Button size="small" onClick={() => loadDemo('demo.pdf')}>
           Demo PDF
         </Button>
         <Button size="small" onClick={() => loadDemo('demo.csv')}>
           Demo CSV
-        </Button>
+        </Button> */}
       </Stack>
 
       {/* file table */}

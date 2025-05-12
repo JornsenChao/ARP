@@ -137,4 +137,15 @@ export const fileController = {
       res.status(500).send(err.message);
     }
   },
+
+  // GET /files/loadAllDemos
+  async loadAllDemos(req, res) {
+    try {
+      const result = await fileService.loadAllDemos(); // 我们待会在 fileService.js 写
+      res.json(result); // 返回加载详情
+    } catch (err) {
+      console.error(err);
+      res.status(500).send(err.message);
+    }
+  },
 };
