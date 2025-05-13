@@ -42,6 +42,8 @@ if (process.env.FRONTEND_URL) {
 
 // 你有多个预览域名时，可在这里再 push 其它地址
 whitelist.push('https://arp-two.vercel.app');
+whitelist.push('https://arp-jornsenchaos-projects.vercel.app');
+whitelist.push('arp-git-main-jornsenchaos-projects.vercel.app');
 
 const corsOptions = {
   origin(origin, callback) {
