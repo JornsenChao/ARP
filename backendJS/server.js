@@ -29,7 +29,32 @@ app.get('/', (req, res) => {
 });
 
 // 允许跨域请求
-app.use(cors({ origin: 'http://localhost:3000' }));
+// app.use(cors({ origin: 'http://localhost:3000' }));
+const whitelist = [];
+
+// a) 本地开发：默认 http://localhost:3000
+whitelist.push('http://localhost:3000');
+
+// b) 线上前端域名：从环境变量读取
+if (process.env.FRONTEND_URL) {
+  whitelist.push(process.env.FRONTEND_URL);
+}
+
+// 你有多个预览域名时，可在这里再 push 其它地址
+// whitelist.push('https://branch-preview.vercel.app');
+
+const corsOptions = {
+  origin(origin, callback) {
+    // Postman / curl 等非浏览器请求 origin = undefined → 放行
+    if (!origin || whitelist.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS blocked for origin ${origin}`));
+  },
+  credentials: true, // 如果之后用到 cookie / JWT，可保留
+};
+
+app.use(cors(corsOptions));
 app.use(express.json()); // 解析 application/json 请求体
 
 // ============= 挂载 Reference Workflow 相关路由 =============

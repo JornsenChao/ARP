@@ -1,6 +1,6 @@
 // backendJS/controllers/multiRAGController.js
 
-import { multiRAGService } from '../services/multiRagService.js';
+import { multiRAGService } from '../services/multiRAGService.js';
 import { fileService } from '../services/fileService.js';
 import { graphService } from '../services/graphService.js';
 
