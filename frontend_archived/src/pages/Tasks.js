@@ -8,12 +8,13 @@ import {
   ListItemText,
   Paper,
 } from '@mui/material';
+import { API_BASE as DOMAIN } from '../apiBase';
 
 const Tasks = () => {
   const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
-    fetch('http://localhost:8000/tasks')
+    fetch(`${DOMAIN}/tasks`)
       .then((response) => response.json())
       .then((data) => setTasks(data))
       .catch((error) => console.error('Error fetching tasks:', error));

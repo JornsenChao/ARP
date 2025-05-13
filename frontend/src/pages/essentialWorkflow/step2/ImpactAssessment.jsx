@@ -33,6 +33,7 @@ import {
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
 import { Link } from 'react-router-dom';
+import { API_BASE as DOMAIN } from '../../../utils/apiBase';
 
 /**
  * ImpactAssessment:
@@ -73,9 +74,7 @@ export function ImpactAssessment({ activeTabIndex }) {
   async function fetchImpactCategories() {
     setLoadingCats(true);
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/impact-categories'
-      );
+      const res = await fetch(`${DOMAIN}/workflow/step2/impact-categories`);
       const data = await res.json();
       if (Array.isArray(data.impactCategories)) {
         setImpactCategories(data.impactCategories);
@@ -92,7 +91,7 @@ export function ImpactAssessment({ activeTabIndex }) {
 
   async function buildLocalRatingsFromServer() {
     try {
-      const resp = await fetch('http://localhost:8000/workflow');
+      const resp = await fetch(`${DOMAIN}/workflow`);
       const fullState = await resp.json();
       const arr = fullState?.step2?.impactData || [];
       const newMap = {};
@@ -131,7 +130,7 @@ export function ImpactAssessment({ activeTabIndex }) {
     );
     if (!yes) return;
     try {
-      await fetch('http://localhost:8000/workflow/step2/clear-impact', {
+      await fetch(`${DOMAIN}/workflow/step2/clear-impact`, {
         method: 'POST',
       });
       setImpactRatings({});
@@ -185,7 +184,7 @@ export function ImpactAssessment({ activeTabIndex }) {
 
     // rating可能是数值1..5 或者 0
     try {
-      await fetch('http://localhost:8000/workflow/step2/impact', {
+      await fetch(`${DOMAIN}/workflow/step2/impact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,14 +221,11 @@ export function ImpactAssessment({ activeTabIndex }) {
   async function handleAddSystem() {
     if (!newSystemName.trim()) return;
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/add-system',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ systemName: newSystemName }),
-        }
-      );
+      const res = await fetch(`${DOMAIN}/workflow/step2/add-system`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ systemName: newSystemName }),
+      });
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add system error');
@@ -247,17 +243,14 @@ export function ImpactAssessment({ activeTabIndex }) {
   async function handleAddSubSystem() {
     if (!selectedSystemForSub || !newSubSystemName.trim()) return;
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/add-subsystem',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemName: selectedSystemForSub,
-            subSystemName: newSubSystemName,
-          }),
-        }
-      );
+      const res = await fetch(`${DOMAIN}/workflow/step2/add-subsystem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemName: selectedSystemForSub,
+          subSystemName: newSubSystemName,
+        }),
+      });
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add subsystem error');

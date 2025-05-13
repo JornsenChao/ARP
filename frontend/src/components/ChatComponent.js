@@ -15,7 +15,7 @@ import SpeechRecognition, {
 } from 'react-speech-recognition';
 import Speech from 'speak-tts';
 
-const DOMAIN = 'http://localhost:8000';
+import { API_BASE as DOMAIN } from '../utils/apiBase';
 
 // 注意，这里不再固定 sessionId，而是从 props 里接收
 // 以便在父组件中针对每个 fileKey 动态生成 sessionId
@@ -82,9 +82,9 @@ const ChatComponent = (props) => {
     // 2) 请求后端 QuickTalk Q&A
     try {
       const res = await axios.get(`${DOMAIN}/conversation/quicktalk`, {
-        params: { 
-          question, 
-          fileKey: activeFile, 
+        params: {
+          question,
+          fileKey: activeFile,
           sessionId, // 同样带上
         },
       });
@@ -179,7 +179,7 @@ const ChatComponent = (props) => {
             startIcon={<Mic />}
             onClick={toggleRecording}
           >
-          {isRecording ? 'Recording...' : 'Rec'}
+            {isRecording ? 'Recording...' : 'Rec'}
           </Button>
         )}
       </Stack>

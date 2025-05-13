@@ -15,7 +15,7 @@ import SpeechRecognition, {
 } from 'react-speech-recognition';
 import Speech from 'speak-tts';
 
-const DOMAIN = 'http://localhost:8000';
+import { API_BASE as DOMAIN } from '../utils/apiBase';
 
 const ChatComponent = ({ handleResp, isLoading, setIsLoading, activeFile }) => {
   const [searchValue, setSearchValue] = useState('');

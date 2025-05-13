@@ -42,6 +42,7 @@ import {
 } from 'recharts';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
+import { API_BASE as DOMAIN } from '../../../utils/apiBase';
 
 function PrioritizedRisk({ activeTabIndex }) {
   const { workflowState, setWorkflowState } = useContext(
@@ -125,7 +126,7 @@ function PrioritizedRisk({ activeTabIndex }) {
     setError(null);
     try {
       // 1) 获取 workflow => 拿到impact / likelihood
-      const wfRes = await fetch('http://localhost:8000/workflow');
+      const wfRes = await fetch(`${DOMAIN}/workflow`);
       if (!wfRes.ok) throw new Error('Error fetching workflow state');
       const wfData = await wfRes.json();
 
@@ -135,7 +136,7 @@ function PrioritizedRisk({ activeTabIndex }) {
       setLikelihoodCount(likelihoodArr.length);
 
       // 2) 获取 risk
-      let url = 'http://localhost:8000/workflow/step2/risk';
+      let url = `${DOMAIN}/workflow/step2/risk`;
       if (sortBy) {
         url += `?sortBy=${sortBy}`;
       }
@@ -159,7 +160,7 @@ function PrioritizedRisk({ activeTabIndex }) {
 
   async function markComplete() {
     try {
-      await fetch('http://localhost:8000/workflow/step2/complete', {
+      await fetch(`${DOMAIN}/workflow/step2/complete`, {
         method: 'POST',
       });
       setWorkflowState((prev) => {
@@ -209,7 +210,7 @@ function PrioritizedRisk({ activeTabIndex }) {
   async function handleSelectChange(row, checked) {
     try {
       // 调用后端
-      await fetch('http://localhost:8000/workflow/step2/select-risk', {
+      await fetch(`${DOMAIN}/workflow/step2/select-risk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

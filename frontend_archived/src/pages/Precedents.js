@@ -10,13 +10,14 @@ import {
   ListItem,
   ListItemText,
 } from '@mui/material';
+import { API_BASE as DOMAIN } from '../apiBase';
 
 const Precedents = () => {
   const [precedents, setPrecedents] = useState([]);
   const [query, setQuery] = useState('');
 
   const fetchPrecedents = (searchQuery = '') => {
-    fetch('http://localhost:8000/precedents')
+    fetch(`${DOMAIN}/precedents`)
       .then((response) => response.json())
       .then((data) => setPrecedents(data))
       .catch((error) => console.error('Error fetching precedents:', error));

@@ -9,13 +9,14 @@ import {
   Button,
   Paper,
 } from '@mui/material';
+import { API_BASE as DOMAIN } from '../apiBase';
 
 const NotesOverview = () => {
   const [notes, setNotes] = useState([]);
 
   const fetchNotes = async () => {
     try {
-      const res = await fetch('http://localhost:8000/notes');
+      const res = await fetch(`${DOMAIN}/notes`);
       const data = await res.json();
       setNotes(data);
     } catch (err) {
@@ -29,7 +30,7 @@ const NotesOverview = () => {
 
   const handleDelete = async (noteId) => {
     try {
-      await fetch(`http://localhost:8000/notes/${noteId}`, {
+      await fetch(`${DOMAIN}/notes/${noteId}`, {
         method: 'DELETE',
       });
       // 删除成功后重新获取

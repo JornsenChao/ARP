@@ -10,13 +10,14 @@ import {
   ListItem,
   ListItemText,
 } from '@mui/material';
+import { API_BASE as DOMAIN } from '../apiBase';
 
 const Resources = () => {
   const [resources, setResources] = useState([]);
   const [query, setQuery] = useState('');
 
   const fetchResources = (searchQuery = '') => {
-    fetch('http://localhost:8000/resources')
+    fetch(`${DOMAIN}/resources`)
       .then((response) => response.json())
       .then((data) => setResources(data))
       .catch((error) => console.error('Error fetching resources:', error));

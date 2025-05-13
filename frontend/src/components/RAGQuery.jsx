@@ -21,7 +21,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import GraphViewer from './GraphViewer';
 
-const DOMAIN = 'http://localhost:8000';
+import { API_BASE as DOMAIN } from '../utils/apiBase';
 
 const RAGQuery = ({ fileKey, dependencyData, customFields = [] }) => {
   // query + language

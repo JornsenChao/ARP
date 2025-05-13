@@ -44,7 +44,7 @@ import StepProgressBar from '../StepProgressBar';
 import GraphViewer from '../../../components/GraphViewer';
 import axios from 'axios';
 
-const DOMAIN = 'http://localhost:8000';
+import { API_BASE as DOMAIN } from '../../../utils/apiBase';
 // Helper to generate unique key for doc chunk
 export function getDocKey(doc) {
   // e.g. use fileName + page or rowIndex

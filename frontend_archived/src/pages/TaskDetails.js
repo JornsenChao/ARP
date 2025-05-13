@@ -2,13 +2,14 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Box, Typography, Button, Paper } from '@mui/material';
+import { API_BASE as DOMAIN } from '../apiBase';
 
 const TaskDetails = () => {
   const { taskId } = useParams();
   const [task, setTask] = useState(null);
 
   useEffect(() => {
-    fetch(`http://localhost:8000/tasks/${taskId}`)
+    fetch(`${DOMAIN}/tasks/${taskId}`)
       .then((response) => response.json())
       .then((data) => setTask(data))
       .catch((error) => console.error('Error fetching task details:', error));

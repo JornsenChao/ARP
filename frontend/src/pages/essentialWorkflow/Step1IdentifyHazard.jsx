@@ -36,6 +36,7 @@ import {
   CartesianGrid,
   ResponsiveContainer,
 } from 'recharts';
+import { API_BASE as DOMAIN } from '../../utils/apiBase';
 
 /**
  * CustomYAxisTick:
@@ -231,7 +232,7 @@ function Step1IdentifyHazard() {
     setAllRecords([]);
 
     try {
-      const url = `http://localhost:8000/workflow/hazards?mode=${searchMode}&location=${encodeURIComponent(
+      const url = `${DOMAIN}/workflow/hazards?mode=${searchMode}&location=${encodeURIComponent(
         locationInput
       )}`;
       const res = await fetch(url);

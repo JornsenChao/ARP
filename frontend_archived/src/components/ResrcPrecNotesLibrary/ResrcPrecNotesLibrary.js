@@ -18,6 +18,7 @@ import {
   Stack,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { API_BASE as DOMAIN } from '../../utils/apiBase';
 
 function ResrcPrecNotesLibrary({
   isOpen,
@@ -59,9 +60,7 @@ function ResrcPrecNotesLibrary({
   // -----------------------
   const fetchResources = async () => {
     try {
-      let url = `http://localhost:8000/resources?query=${encodeURIComponent(
-        query
-      )}`;
+      let url = `${DOMAIN}/resources?query=${encodeURIComponent(query)}`;
       // 如果要加 hazardFilter: url += `&hazard=${hazardFilter}`
       const response = await fetch(url);
       const data = await response.json();
@@ -73,9 +72,7 @@ function ResrcPrecNotesLibrary({
 
   const fetchPrecedents = async () => {
     try {
-      let url = `http://localhost:8000/precedents?query=${encodeURIComponent(
-        query
-      )}`;
+      let url = `${DOMAIN}/precedents?query=${encodeURIComponent(query)}`;
       const response = await fetch(url);
       const data = await response.json();
       setPrecedents(data);
@@ -86,7 +83,7 @@ function ResrcPrecNotesLibrary({
 
   const fetchNotes = async () => {
     try {
-      let url = 'http://localhost:8000/notes';
+      let url = `${DOMAIN}/notes`;
       const params = [];
       if (currentStepId) params.push(`stepId=${currentStepId}`);
       if (currentTaskId) params.push(`taskId=${currentTaskId}`);
@@ -105,7 +102,7 @@ function ResrcPrecNotesLibrary({
   const handleCreateNote = async () => {
     if (!noteContent.trim()) return;
     try {
-      const response = await fetch('http://localhost:8000/notes', {
+      const response = await fetch(`${DOMAIN}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

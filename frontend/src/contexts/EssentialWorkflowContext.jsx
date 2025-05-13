@@ -1,5 +1,6 @@
 // src/contexts/EssentialWorkflowContext.jsx
 import React, { createContext, useState, useEffect } from 'react';
+import { API_BASE as DOMAIN } from '../utils/apiBase';
 
 // 单一workflow的上下文
 export const EssentialWorkflowContext = createContext(null);
@@ -10,7 +11,7 @@ export function EssentialWorkflowProvider({ children }) {
   // 拉取后端已有状态
   useEffect(() => {
     async function fetchState() {
-      const res = await fetch(`http://localhost:8000/workflow`);
+      const res = await fetch(`${DOMAIN}/workflow`);
       const data = await res.json();
       setWorkflowState(data);
     }
@@ -19,7 +20,7 @@ export function EssentialWorkflowProvider({ children }) {
 
   // 提交到后端
   async function saveToBackend(newState) {
-    const res = await fetch(`http://localhost:8000/workflow`, {
+    const res = await fetch(`${DOMAIN}/workflow`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newState),

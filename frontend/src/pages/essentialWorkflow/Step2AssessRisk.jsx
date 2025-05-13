@@ -32,6 +32,7 @@ import {
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
+import { API_BASE as DOMAIN } from '../../utils/apiBase';
 
 // Recharts
 import {
@@ -131,9 +132,7 @@ function ImpactAssessment({ activeTabIndex }) {
   async function fetchImpactCategories() {
     setLoadingCats(true);
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/impact-categories'
-      );
+      const res = await fetch(`${DOMAIN}/workflow/step2/impact-categories`);
       const data = await res.json();
       if (Array.isArray(data.impactCategories)) {
         setImpactCategories(data.impactCategories);
@@ -150,7 +149,7 @@ function ImpactAssessment({ activeTabIndex }) {
 
   async function buildLocalRatingsFromServer() {
     try {
-      const resp = await fetch('http://localhost:8000/workflow');
+      const resp = await fetch(`${DOMAIN}/workflow`);
       const fullState = await resp.json();
       const arr = fullState?.step2?.impactData || [];
       const newMap = {};
@@ -189,7 +188,7 @@ function ImpactAssessment({ activeTabIndex }) {
     );
     if (!yes) return;
     try {
-      await fetch('http://localhost:8000/workflow/step2/clear-impact', {
+      await fetch(`${DOMAIN}/workflow/step2/clear-impact`, {
         method: 'POST',
       });
       setImpactRatings({});
@@ -212,7 +211,7 @@ function ImpactAssessment({ activeTabIndex }) {
     const rating = impactRatings[key];
     if (!rating) return;
     try {
-      await fetch('http://localhost:8000/workflow/step2/impact', {
+      await fetch(`${DOMAIN}/workflow/step2/impact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -248,14 +247,11 @@ function ImpactAssessment({ activeTabIndex }) {
   async function handleAddSystem() {
     if (!newSystemName.trim()) return;
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/add-system',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ systemName: newSystemName }),
-        }
-      );
+      const res = await fetch(`${DOMAIN}/workflow/step2/add-system`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ systemName: newSystemName }),
+      });
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add system error');
@@ -273,17 +269,14 @@ function ImpactAssessment({ activeTabIndex }) {
   async function handleAddSubSystem() {
     if (!selectedSystemForSub || !newSubSystemName.trim()) return;
     try {
-      const res = await fetch(
-        'http://localhost:8000/workflow/step2/add-subsystem',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemName: selectedSystemForSub,
-            subSystemName: newSubSystemName,
-          }),
-        }
-      );
+      const res = await fetch('${DOMAIN}/workflow/step2/add-subsystem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemName: selectedSystemForSub,
+          subSystemName: newSubSystemName,
+        }),
+      });
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add subsystem error');
@@ -543,7 +536,7 @@ const LikelihoodAssessment = () => {
   // 拉取后端 step2.likelihoodData => 存到 local state
   const buildLocalLikelihoodFromServer = async () => {
     try {
-      const res = await fetch('http://localhost:8000/workflow');
+      const res = await fetch(`${DOMAIN}/workflow`);
       if (!res.ok) throw new Error('Failed to fetch workflow');
       const fullState = await res.json();
       const arr = fullState?.step2?.likelihoodData || [];
@@ -561,7 +554,7 @@ const LikelihoodAssessment = () => {
     const yes = window.confirm('Clear all Likelihood Assessment data?');
     if (!yes) return;
     try {
-      await fetch('http://localhost:8000/workflow/step2/clear-likelihood', {
+      await fetch(`${DOMAIN}/workflow/step2/clear-likelihood`, {
         method: 'POST',
       });
       setLikelihoodMap({});
@@ -581,7 +574,7 @@ const LikelihoodAssessment = () => {
   async function handleLikelihoodBlur(hazard) {
     const rating = likelihoodMap[hazard] || 1;
     try {
-      await fetch('http://localhost:8000/workflow/step2/likelihood', {
+      await fetch(`${DOMAIN}/workflow/step2/likelihood`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -598,7 +591,7 @@ const LikelihoodAssessment = () => {
   async function handleAutoFill() {
     try {
       // 调用后端 model-likelihood
-      const url = `http://localhost:8000/workflow/step2/model-likelihood?modelApproach=${modelApproach}&interpretation=${interpretation}`;
+      const url = `${DOMAIN}/workflow/step2/model-likelihood?modelApproach=${modelApproach}&interpretation=${interpretation}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to get model-likelihood');
       const data = await res.json();
@@ -617,17 +610,14 @@ const LikelihoodAssessment = () => {
           rating = r;
         }
         // POST /workflow/step2/likelihood
-        const resp = await fetch(
-          'http://localhost:8000/workflow/step2/likelihood',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              hazard: item.hazard,
-              likelihoodRating: rating,
-            }),
-          }
-        );
+        const resp = await fetch(`${DOMAIN}/workflow/step2/likelihood`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hazard: item.hazard,
+            likelihoodRating: rating,
+          }),
+        });
         if (!resp.ok)
           console.warn('Failed to post hazard', item.hazard, rating);
       }
@@ -644,7 +634,7 @@ const LikelihoodAssessment = () => {
   // 重新获取workflow => 更新likelihoodMap
   async function refreshWorkflow() {
     try {
-      const stRes = await fetch('http://localhost:8000/workflow');
+      const stRes = await fetch(`${DOMAIN}/workflow`);
       const wf = await stRes.json();
       // 更新全局
       setWorkflowState(wf);
@@ -1049,7 +1039,7 @@ function PrioritizedRisk({ activeTabIndex }) {
     setError(null);
     try {
       // 1) 获取 workflow => 拿到impact / likelihood
-      const wfRes = await fetch('http://localhost:8000/workflow');
+      const wfRes = await fetch(`${DOMAIN}/workflow`);
       if (!wfRes.ok) throw new Error('Error fetching workflow state');
       const wfData = await wfRes.json();
 
@@ -1059,7 +1049,7 @@ function PrioritizedRisk({ activeTabIndex }) {
       setLikelihoodCount(likelihoodArr.length);
 
       // 2) 获取 risk
-      let url = 'http://localhost:8000/workflow/step2/risk';
+      let url = `${DOMAIN}/workflow/step2/risk`;
       if (sortBy) {
         url += `?sortBy=${sortBy}`;
       }
@@ -1083,7 +1073,7 @@ function PrioritizedRisk({ activeTabIndex }) {
 
   async function markComplete() {
     try {
-      await fetch('http://localhost:8000/workflow/step2/complete', {
+      await fetch(`${DOMAIN}/workflow/step2/complete`, {
         method: 'POST',
       });
       setWorkflowState((prev) => {
@@ -1117,7 +1107,7 @@ function PrioritizedRisk({ activeTabIndex }) {
   async function handleSelectChange(row, checked) {
     try {
       // 调用后端
-      await fetch('http://localhost:8000/workflow/step2/select-risk', {
+      await fetch(`${DOMAIN}/workflow/step2/select-risk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -35,7 +35,7 @@ import ColumnMapper from '../components/ColumnMapper';
 import RenderQA from '../components/RenderQA';
 import ChatComponent from '../components/ChatComponent';
 
-const DOMAIN = 'http://localhost:8000';
+import { API_BASE as DOMAIN } from '../utils/apiBase';
 const LOCALSTORAGE_PREFIX = 'fileChat_conversation_';
 
 const DOC_TYPE_OPTIONS = [
