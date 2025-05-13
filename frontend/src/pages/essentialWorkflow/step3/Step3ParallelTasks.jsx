@@ -59,7 +59,7 @@ function Step3ParallelTasks() {
   const [currentTab, setCurrentTab] = useState(0);
   const [isPanelOpen, setIsPanelOpen] = useState(true); // 控制面板显示/隐藏
   const [guideExpanded, setGuideExpanded] = useState(true);
-
+  const [expandedSet, setExpandedSet] = useState({});
   // ============== Step3 local states ==============
   // 1) context -> dependencyData
   const [dependencyData, setDependencyData] = useState({});
@@ -741,70 +741,106 @@ function Step3ParallelTasks() {
           <AccordionDetails>
             {docs.length === 0 && <Typography>No results yet.</Typography>}
 
-            {docs.map((doc, idx) => (
-              <Card key={idx} sx={{ mb: 1, p: 1 }}>
-                {/* CSV/XLSX chunk? */}
-                {doc.metadata?.columnData ? (
-                  <Box>
-                    {doc.metadata.columnData.map((col, cidx) => {
-                      const htmlVal = linkify(col.cellValue || '');
-                      return (
-                        <Box key={cidx} sx={{ mb: 1 }}>
-                          <strong>
-                            {col.colName} | {col.infoCategory} |{' '}
-                            {col.metaCategory}
-                          </strong>
-                          <Box
-                            sx={{ ml: 2 }}
-                            dangerouslySetInnerHTML={{ __html: htmlVal }}
-                          />
+            {docs.map((doc, idx) => {
+              // 是否展开
+              const isExpanded = expandedSet[idx] === true;
+
+              // toggle函数
+              const toggleExpand = () => {
+                setExpandedSet((prev) => ({
+                  ...prev,
+                  [idx]: !prev[idx],
+                }));
+              };
+
+              return (
+                <Card key={idx} sx={{ mb: 1, p: 1 }}>
+                  {/* ---------- 1) LLM Summary bullet point (始终可见) ---------- */}
+                  {doc.chunkSummary && (
+                    <Box sx={{ color: 'blue', mb: 1 }}>
+                      {/* {doc.chunkSummary} */}
+                      {doc.chunkSummary
+                        .split('- ')
+                        .filter((point) => point.trim())
+                        .map((point, i2) => (
+                          <Typography
+                            key={i2}
+                            variant="subtitle2"
+                            sx={{ mb: 0.5 }}
+                          >
+                            • {point.trim()}
+                          </Typography>
+                        ))}
+                    </Box>
+                  )}
+
+                  {/* -- 2) “展开/收起 chunk原文” 的按钮 -- */}
+                  <Button size="small" onClick={toggleExpand} sx={{ mb: 1 }}>
+                    {isExpanded ? 'Hide Raw Text' : 'Show Raw Text'}
+                  </Button>
+
+                  {/* ---------- 3) chunk 原文内容 (可折叠) ---------- */}
+                  {isExpanded && (
+                    <Box sx={{ mb: 2 }}>
+                      {/* CSV/XLSX chunk? */}
+                      {doc.metadata?.columnData ? (
+                        <Box>
+                          {doc.metadata.columnData.map((col, cidx) => {
+                            const htmlVal = linkify(col.cellValue || '');
+                            return (
+                              <Box key={cidx} sx={{ mb: 1 }}>
+                                <strong>
+                                  {col.colName} | {col.infoCategory} |{' '}
+                                  {col.metaCategory}
+                                </strong>
+                                <Box
+                                  sx={{ ml: 2 }}
+                                  dangerouslySetInnerHTML={{ __html: htmlVal }}
+                                />
+                              </Box>
+                            );
+                          })}
+                          <Typography
+                            variant="body4"
+                            sx={{
+                              fontWeight: 'bold',
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
+                          </Typography>
                         </Box>
-                      );
-                    })}
-                    <Typography
-                      variant="body4"
-                      sx={{
-                        fontWeight: 'bold',
-                        fontStyle: 'italic',
-                      }}
-                    >
-                      {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                    {expanded
-                      ? doc.pageContent
-                      : doc.pageContent.slice(0, textLenLimit) +
-                        (doc.pageContent.length > textLenLimit ? '…' : '')}
-                    {doc.pageContent.length > textLenLimit && (
-                      <Button size="small" onClick={toggle}>
-                        {expanded ? '收起' : '展开全文'}
-                      </Button>
-                    )}
-                    <br />
-                    <Typography
-                      variant="body4"
-                      sx={{
-                        fontWeight: 'bold',
-                        fontStyle: 'italic',
-                      }}
-                    >
-                      {`Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
-                    </Typography>
-                  </Typography>
-                )}
-                <DocSearchResults
-                  docs={[doc]}
-                  collection={collection}
-                  onAddToCollection={handleAddToCollection}
-                  onRemoveFromCollection={handleRemoveFromCollection}
-                />
-                {/* <Button variant="text" onClick={() => handleAddToCollection(doc)}>
-              + Add to Collection
-            </Button> */}
-              </Card>
-            ))}
+                      ) : (
+                        /* PDF/TXT chunk => 长文本 + expand logic */
+                        <Box sx={{ whiteSpace: 'pre-wrap' }}>
+                          {/* 这里你之前的 textLenLimit/expanded 逻辑
+                      可以直接全部显示, 或保留你想要的截断 */}
+                          {doc.pageContent}
+                          <br />
+                          <Typography
+                            variant="body4"
+                            sx={{
+                              fontWeight: 'bold',
+                              fontStyle: 'italic',
+                            }}
+                          >
+                            {`Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+
+                  {/* ---------- 4) DocSearchResults 不变 (在卡片底部) ---------- */}
+                  <DocSearchResults
+                    docs={[doc]}
+                    collection={collection}
+                    onAddToCollection={handleAddToCollection}
+                    onRemoveFromCollection={handleRemoveFromCollection}
+                  />
+                </Card>
+              );
+            })}
           </AccordionDetails>
         </Accordion>
       </Box>

@@ -30,7 +30,6 @@ export const multiRAGService = {
       customFields
     );
 
-    // 合并多个 store 的检索结果
     let allDocs = [];
     for (const st of stores) {
       const docs = await st.similaritySearch(combinedQuery, topK);
@@ -72,10 +71,15 @@ ${userQuery}
       { prompt: PromptTemplate.fromTemplate(template) }
     );
     const response = await chain.call({ query: combinedQuery });
+    for (const doc of allDocs) {
+      // 给 doc.pageContent 做 1~2 句话的 LLM 总结
+      const summary = await this.chunkSummarize(doc.pageContent);
+      doc.chunkSummary = summary; // attach
+    }
     return {
       answer: response.text,
       usedPrompt: template,
-      docs: allDocs,
+      docs: allDocs, // 现在每个 doc 多了 doc.chunkSummary
     };
   },
 
@@ -218,6 +222,30 @@ ${userQuery}
       };
     }
   },
+  async chunkSummarize(pageContent) {
+    // 使用 ChatPromptTemplate 创建正确的消息格式
+    const prompt = ChatPromptTemplate.fromPromptMessages([
+      SystemMessagePromptTemplate.fromTemplate(
+        'You are a helpful assistant that summarizes text concisely.'
+      ),
+      HumanMessagePromptTemplate.fromTemplate(
+        'Please summarize the following text in 2-3 sentences (short bullet form):\n\n{text}'
+      ),
+    ]);
+
+    const model = new ChatOpenAI({
+      modelName: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
+      openAIApiKey: process.env.OPENAI_API_KEY,
+      temperature: 0.7,
+    });
+
+    const chain = new LLMChain({ llm: model, prompt });
+    const response = await chain.call({ text: pageContent });
+    const shortSummary = response?.text?.trim() || '';
+
+    return shortSummary;
+  },
+
   /**
    * 带 CoT 的多文件 RAG
    */
