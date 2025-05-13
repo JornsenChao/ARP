@@ -9,6 +9,7 @@ import { RefWorkflowProvider } from './contexts/RefWorkflowContext';
 
 import NavBar from './components/layout/NavBar';
 import Home from './pages/Home';
+import AboutPage from './pages/AboutPage';
 import Resources from './pages/Resources';
 import Precedents from './pages/Precedents';
 import NotesOverview from './pages/NotesOverview';
@@ -41,6 +42,7 @@ function App() {
           <NavBar />
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/about" element={<AboutPage />} />
             {/* <Route path="/resources" element={<Resources />} /> */}
             {/* <Route path="/precedents" element={<Precedents />} /> */}
             {/* <Route path="/notes" element={<NotesOverview />} /> */}
