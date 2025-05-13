@@ -773,7 +773,28 @@ function Step3ParallelTasks() {
                         ))}
                     </Box>
                   )}
-
+                  {doc.metadata?.columnData ? (
+                    <Typography
+                      variant="body4"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
+                    </Typography>
+                  ) : (
+                    <Typography
+                      variant="body4"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      {`Somewhere in Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
+                    </Typography>
+                  )}
+                  <br />
                   {/* -- 2) “展开/收起 chunk原文” 的按钮 -- */}
                   <Button size="small" onClick={toggleExpand} sx={{ mb: 1 }}>
                     {isExpanded ? 'Hide Raw Text' : 'Show Raw Text'}
@@ -800,15 +821,6 @@ function Step3ParallelTasks() {
                               </Box>
                             );
                           })}
-                          <Typography
-                            variant="body4"
-                            sx={{
-                              fontWeight: 'bold',
-                              fontStyle: 'italic',
-                            }}
-                          >
-                            {`Row ${doc.metadata.rowIndex} at ${doc.metadata.fileName}`}
-                          </Typography>
                         </Box>
                       ) : (
                         /* PDF/TXT chunk => 长文本 + expand logic */
@@ -817,15 +829,6 @@ function Step3ParallelTasks() {
                       可以直接全部显示, 或保留你想要的截断 */}
                           {doc.pageContent}
                           <br />
-                          <Typography
-                            variant="body4"
-                            sx={{
-                              fontWeight: 'bold',
-                              fontStyle: 'italic',
-                            }}
-                          >
-                            {`Page ${doc.metadata.page} at ${doc.metadata.fileName}`}
-                          </Typography>
                         </Box>
                       )}
                     </Box>
@@ -845,59 +848,20 @@ function Step3ParallelTasks() {
         </Accordion>
       </Box>
     );
-  }
-  // define or ensure we have a function to render doc chunk
+  } // define or ensure we have a function to render doc chunk
   function renderDocItem(doc, collection, handleAdd, handleRemove) {
     // 1) 判断本 doc 是否已在collection
-    const inCollection = isDocInCollection(doc, collection); // 你已实现 isDocInCollection()
+    const inCollection = isDocInCollection(doc, collection);
 
     // 2) 生成 docKey 作为 Card key
     const docKey = getDocKey(doc);
 
-    // 3) CSV/XLSX 模式 => doc.metadata?.columnData
+    // 3) CSV/XLSX 模式
     const isCSV =
       Array.isArray(doc.metadata?.columnData) &&
       doc.metadata.columnData.length > 0;
 
-    // 4) 如果是 CSV chunk -> 按列渲染
-    if (isCSV) {
-      return (
-        <Card key={docKey} sx={{ mb: 1, p: 1 }}>
-          {/* 标题 */}
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            {doc.metadata?.fileName} (Row {doc.metadata?.rowIndex})
-          </Typography>
-          {/* 遍历 columnData */}
-          {doc.metadata.columnData.map((colObj, idx) => (
-            <div key={idx} style={{ marginBottom: 4 }}>
-              <strong>
-                {colObj.colName} | {colObj.infoCategory} | {colObj.metaCategory}
-              </strong>
-              <div style={{ marginLeft: 8 }}>{colObj.cellValue}</div>
-            </div>
-          ))}
-
-          {/* Add/Remove 按钮 */}
-          <Box mt={1}>
-            {inCollection ? (
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => handleRemove(doc)}
-              >
-                Remove
-              </Button>
-            ) : (
-              <Button variant="contained" onClick={() => handleAdd(doc)}>
-                Add
-              </Button>
-            )}
-          </Box>
-        </Card>
-      );
-    }
-
-    // 5) 否则 => PDF/TXT chunk
+    // 4) 基本信息
     const fileName = doc.metadata?.fileName || 'UnknownFile';
     const pageOrLine = doc.metadata?.page
       ? `Page ${doc.metadata?.page}`
@@ -905,35 +869,172 @@ function Step3ParallelTasks() {
       ? `Row ${doc.metadata.rowIndex}`
       : '';
 
-    // 安全获取 pageContent
-    const rawText = doc.pageContent || '';
-    // 只显示前 N 字符
-    const previewText =
-      rawText.length > 300 ? rawText.slice(0, 300) + '...' : rawText;
+    // 5) 获取内容文本
+    let fullText = '';
+    if (doc.pageContent) fullText = doc.pageContent;
+    else if (doc.text) fullText = doc.text;
+
+    // 6) 展开/折叠状态
+    const isExpanded = expandedSet[docKey] === true;
+
+    const toggleExpand = () => {
+      setExpandedSet((prev) => ({
+        ...prev,
+        [docKey]: !prev[docKey],
+      }));
+    };
 
     return (
-      <Card key={docKey} sx={{ mb: 1, p: 1 }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-          {fileName} {pageOrLine && ` - ${pageOrLine}`}
-        </Typography>
-        {/* 主体文本 */}
-        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mt: 0.5 }}>
-          {previewText}
-        </Typography>
+      <Card key={docKey} sx={{ mb: 2, p: 1 }}>
+        {/* 标题栏(点击可展开/折叠) */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1,
+            cursor: 'pointer',
+          }}
+          onClick={toggleExpand}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            {fileName} {pageOrLine && ` - ${pageOrLine}`}
+          </Typography>
+          <IconButton size="small">
+            {isExpanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </IconButton>
+        </Box>
 
-        {/* Add/Remove 按钮 */}
-        <Box mt={1}>
+        {/* 始终显示的关键信息 */}
+        {/* chunk摘要 */}
+        {doc.chunkSummary && (
+          <Box sx={{ color: 'blue', mb: 1 }}>
+            {doc.chunkSummary
+              .split('- ')
+              .filter((point) => point.trim())
+              .map((point, idx) => (
+                <Typography key={idx} variant="subtitle2" sx={{ mb: 0.5 }}>
+                  • {point.trim()}
+                </Typography>
+              ))}
+          </Box>
+        )}
+
+        {/* 匹配上下文 */}
+        {doc.highlightLabels && doc.highlightLabels.length > 0 && (
+          <Box sx={{ mt: 1, border: '1px solid #ccc', p: 1, mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              <strong>Matched&nbsp;Context:&nbsp;</strong>
+              {doc.highlightLabels.map((lbl, i) => {
+                const isEm = doc.emphasizedLabels?.some(
+                  (em) => em.toLowerCase() === lbl.toLowerCase()
+                );
+                return (
+                  <span
+                    key={lbl}
+                    style={{
+                      color: isEm ? 'red' : 'inherit',
+                      fontWeight: isEm ? 600 : 400,
+                    }}
+                  >
+                    {lbl}
+                    {i < doc.highlightLabels.length - 1 && ', '}
+                  </span>
+                );
+              })}
+            </Typography>
+          </Box>
+        )}
+        {/* 认证匹配 */}
+        {doc.certMatches && doc.certMatches.length > 0 && (
+          <Box sx={{ mt: 1, border: '1px solid #ccc', p: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Possible Certification / Best Practices:
+            </Typography>
+            {doc.certMatches.map((cm, i) => (
+              <Box key={i} sx={{ ml: 2, mb: 1 }}>
+                {cm.recommendations.map((rec, j) => (
+                  <Box key={j} sx={{ mt: 0.5 }}>
+                    <Typography variant="subtitle2">{rec.title}</Typography>
+                    <Typography variant="body2">{rec.description}</Typography>
+                    {rec.sources && rec.sources.length > 0 && (
+                      <ul>
+                        {rec.sources.map((s, idx) => (
+                          <li key={idx}>
+                            {s.url ? (
+                              <a
+                                href={s.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {s.label || s.url}
+                              </a>
+                            ) : (
+                              <span>{s.label}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {/* 可折叠内容 */}
+        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+          {/* 文档内容 */}
+          {isCSV ? (
+            // CSV chunk
+            <Box sx={{ mt: 1 }}>
+              {doc.metadata.columnData.map((col, cidx) => (
+                <Box key={cidx} sx={{ mb: 1 }}>
+                  <strong>
+                    {col.colName} | {col.infoCategory} | {col.metaCategory}
+                  </strong>
+                  <Box
+                    sx={{ ml: 2 }}
+                    dangerouslySetInnerHTML={{ __html: col.cellValue }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          ) : (
+            // PDF或其他文本块
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {fullText}
+              </Typography>
+            </Box>
+          )}
+        </Collapse>
+
+        {/* Add/Remove按钮 */}
+        <Box sx={{ mt: 1 }}>
           {inCollection ? (
             <Button
               variant="outlined"
               color="error"
-              onClick={() => handleRemove(doc)}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleRemove(doc);
+              }}
+              size="small"
             >
-              Remove
+              Remove from Collection
             </Button>
           ) : (
-            <Button variant="contained" onClick={() => handleAdd(doc)}>
-              Add
+            <Button
+              variant="contained"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAdd(doc);
+              }}
+              size="small"
+            >
+              Add to Collection
             </Button>
           )}
         </Box>

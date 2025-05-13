@@ -24,6 +24,7 @@ import {
   Select,
   MenuItem,
   Collapse,
+  IconButton,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
@@ -487,6 +488,7 @@ export default function Step4Summary() {
     const dk = getDocKey(doc);
     const expanded = isDocExpanded(doc);
     const highlightLabels = doc.highlightLabels || [];
+    const certMatches = doc.certMatches || [];
 
     // CSV chunk?
     const isCSV = !!doc.metadata?.columnData;
@@ -497,75 +499,144 @@ export default function Step4Summary() {
     else if (doc.text) fullText = doc.text;
     else fullText = '';
 
-    const shortText = fullText.slice(0, 400);
-    const needsExpand = fullText.length > 400;
+    // 源文件信息
+    const sourceInfo = `${doc.metadata?.fileName}${
+      doc.metadata?.page
+        ? ` - Page ${doc.metadata?.page}`
+        : doc.metadata?.rowIndex != null
+        ? ` - Row ${doc.metadata.rowIndex}`
+        : ''
+    }`;
 
     return (
       <Paper sx={{ mb: 1, p: 1 }} key={dk}>
-        {/* highlight */}
-        {highlightLabels.length > 0 && (
-          <Box sx={{ color: 'red', fontWeight: 'bold' }}>
-            Matched synonyms: {highlightLabels.join(', ')}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            mb: 1,
+            cursor: 'pointer',
+          }}
+          onClick={() => toggleDocExpand(doc)}
+        >
+          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+            {sourceInfo}
+          </Typography>
+          <IconButton size="small">
+            {expanded ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+          </IconButton>
+        </Box>
+
+        {/* 始终显示的关键信息 */}
+        {/* chunk摘要 */}
+        {doc.chunkSummary && (
+          <Box sx={{ color: 'blue', mb: 1 }}>
+            {doc.chunkSummary
+              .split('- ')
+              .filter((point) => point.trim())
+              .map((point, idx) => (
+                <Typography key={idx} variant="subtitle2" sx={{ mb: 0.5 }}>
+                  • {point.trim()}
+                </Typography>
+              ))}
           </Box>
         )}
 
-        {isCSV ? (
-          // CSV chunk => show columnData + rowIndex
-          <Box>
-            {(doc.metadata.columnData || []).map((col, cidx) => {
-              return (
-                <Box key={cidx} sx={{ mb: 1 }}>
-                  <strong>
-                    {col.colName} | {col.infoCategory} | {col.metaCategory}
-                  </strong>
-                  <Box
-                    sx={{ ml: 2 }}
-                    dangerouslySetInnerHTML={{ __html: col.cellValue }}
-                  />
-                </Box>
-              );
-            })}
-            <Typography
-              variant="body2"
-              sx={{ fontStyle: 'italic', fontWeight: 'bold' }}
-            >
-              Row {doc.metadata?.rowIndex} at {doc.metadata?.fileName}
+        {/* 匹配的上下文 */}
+        {highlightLabels.length > 0 && (
+          <Box sx={{ mt: 1, border: '1px solid #ccc', p: 1, mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              <strong>Matched&nbsp;Context:&nbsp;</strong>
+              {highlightLabels.map((lbl, i) => {
+                const isEm = doc.emphasizedLabels?.some(
+                  (em) => em.toLowerCase() === lbl.toLowerCase()
+                );
+                return (
+                  <span
+                    key={lbl}
+                    style={{
+                      color: isEm ? 'red' : 'inherit',
+                      fontWeight: isEm ? 600 : 400,
+                    }}
+                  >
+                    {lbl}
+                    {i < highlightLabels.length - 1 && ', '}
+                  </span>
+                );
+              })}
             </Typography>
           </Box>
-        ) : (
-          // PDF or other text chunk
-          <Box>
-            {fullText ? (
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {expanded ? fullText : shortText + (needsExpand ? '…' : '')}
-              </Typography>
-            ) : (
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                (No text found)
-              </Typography>
-            )}
-            {needsExpand && (
-              <Button
-                size="small"
-                sx={{ textTransform: 'none' }}
-                onClick={() => toggleDocExpand(doc)}
-              >
-                {expanded ? '收起' : '展开全文'}
-              </Button>
-            )}
-            {/* page info if any */}
-            {doc.metadata?.page && (
-              <Typography
-                variant="body2"
-                sx={{ fontStyle: 'italic', fontWeight: 'bold', mt: 1 }}
-              >
-                Page {doc.metadata.page} at {doc.metadata.fileName}
-              </Typography>
-            )}
+        )}
+        {/* 认证匹配 */}
+        {certMatches.length > 0 && (
+          <Box sx={{ mt: 1, border: '1px solid #ccc', p: 1 }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Possible Certification / Best Practices:
+            </Typography>
+            {certMatches.map((cm, i) => (
+              <Box key={i} sx={{ ml: 2, mb: 1 }}>
+                {cm.recommendations.map((rec, j) => (
+                  <Box key={j} sx={{ mt: 0.5 }}>
+                    <Typography variant="subtitle2">{rec.title}</Typography>
+                    <Typography variant="body2">{rec.description}</Typography>
+                    {rec.sources && rec.sources.length > 0 && (
+                      <ul>
+                        {rec.sources.map((s, idx) => (
+                          <li key={idx}>
+                            {s.url ? (
+                              <a
+                                href={s.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {s.label || s.url}
+                              </a>
+                            ) : (
+                              <span>{s.label}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            ))}
           </Box>
         )}
 
-        {/* summarySel & addToReport */}
+        {/* 可折叠内容 */}
+        <Collapse in={expanded} timeout="auto" unmountOnExit>
+          {/* 文档内容 */}
+          {isCSV ? (
+            // CSV chunk
+            <Box sx={{ mt: 1 }}>
+              {(doc.metadata.columnData || []).map((col, cidx) => {
+                return (
+                  <Box key={cidx} sx={{ mb: 1 }}>
+                    <strong>
+                      {col.colName} | {col.infoCategory} | {col.metaCategory}
+                    </strong>
+                    <Box
+                      sx={{ ml: 2 }}
+                      dangerouslySetInnerHTML={{ __html: col.cellValue }}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+          ) : (
+            // PDF或其他文本块
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {fullText}
+              </Typography>
+            </Box>
+          )}
+        </Collapse>
+
+        {/* 复选框 */}
         <Box sx={{ ml: 2, mt: 1 }}>
           <FormControlLabel
             control={
