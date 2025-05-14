@@ -9,7 +9,7 @@ const sessionStores = {};
 export const conversationService = {
   /**
    * 把一段对话(文本)嵌入并存储到对应 sessionId 的向量库中
-   * @param {string} sessionId - 可以是“userId”或者“前端生成的会话ID”
+   * @param {string} sessionId - 可以是“前端生成的会话ID”
    * @param {string} role - "user" | "assistant" 等
    * @param {string} text - 对话内容
    */

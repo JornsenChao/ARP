@@ -44,7 +44,7 @@ import {
 import { KeyboardArrowUp, KeyboardArrowDown } from '@mui/icons-material';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
 import { API_BASE as DOMAIN } from '../../../utils/apiBase';
-import { getUserId } from '../../../utils/userId';
+import { getSessionId } from '../../../utils/sessionId';
 
 const LikelihoodAssessment = () => {
   const { workflowState, setWorkflowState } = useContext(
@@ -77,8 +77,8 @@ const LikelihoodAssessment = () => {
 
   async function buildLocalLikelihoodFromServer() {
     try {
-      const userId = getUserId();
-      const res = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
+      const sessionId = getSessionId();
+      const res = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`);
       if (!res.ok) throw new Error('Failed to fetch workflow');
       const fullState = await res.json();
       const arr = fullState?.step2?.likelihoodData || [];
@@ -96,9 +96,9 @@ const LikelihoodAssessment = () => {
     const yes = window.confirm('Clear all Likelihood Assessment data?');
     if (!yes) return;
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       await fetch(
-        `${DOMAIN}/workflow/step2/clear-likelihood?sessionId=${userId}`,
+        `${DOMAIN}/workflow/step2/clear-likelihood?sessionId=${sessionId}`,
         {
           method: 'POST',
         }
@@ -130,15 +130,18 @@ const LikelihoodAssessment = () => {
     if (rating === '') return;
 
     try {
-      const userId = getUserId();
-      await fetch(`${DOMAIN}/workflow/step2/likelihood?sessionId=${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hazard,
-          likelihoodRating: rating,
-        }),
-      });
+      const sessionId = getSessionId();
+      await fetch(
+        `${DOMAIN}/workflow/step2/likelihood?sessionId=${sessionId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hazard,
+            likelihoodRating: rating,
+          }),
+        }
+      );
     } catch (err) {
       console.error('Error saving likelihood:', err);
     }
@@ -148,8 +151,8 @@ const LikelihoodAssessment = () => {
   async function handleAutoFill() {
     try {
       // 调用后端 model-likelihood
-      const userId = getUserId();
-      const url = `${DOMAIN}/workflow/step2/model-likelihood?modelApproach=${modelApproach}&interpretation=${interpretation}&sessionId=${userId}`;
+      const sessionId = getSessionId();
+      const url = `${DOMAIN}/workflow/step2/model-likelihood?modelApproach=${modelApproach}&interpretation=${interpretation}&sessionId=${sessionId}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to get model-likelihood');
       const data = await res.json();
@@ -168,7 +171,7 @@ const LikelihoodAssessment = () => {
         }
         // POST /workflow/step2/likelihood
         const resp = await fetch(
-          `${DOMAIN}/workflow/step2/likelihood?sessionId=${userId}`,
+          `${DOMAIN}/workflow/step2/likelihood?sessionId=${sessionId}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -195,8 +198,8 @@ const LikelihoodAssessment = () => {
   // 重新获取workflow => 更新likelihoodMap
   async function refreshWorkflow() {
     try {
-      const userId = getUserId();
-      const stRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
+      const sessionId = getSessionId();
+      const stRes = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`);
       const wf = await stRes.json();
       // 更新全局
       setWorkflowState(wf);

@@ -16,10 +16,9 @@ import SpeechRecognition, {
 import Speech from 'speak-tts';
 
 import { API_BASE as DOMAIN } from '../utils/apiBase';
-
-// 注意，这里不再固定 sessionId，而是从 props 里接收
-// 以便在父组件中针对每个 fileKey 动态生成 sessionId
-// const SESSION_ID = 'quicktalk-session';
+import { getSessionId } from '../utils/sessionId';
+// docId 用于区分不同文档的对话
+// 由父组件针对每个文件动态生成
 
 const ChatComponent = (props) => {
   const {
@@ -27,7 +26,7 @@ const ChatComponent = (props) => {
     isLoading,
     setIsLoading,
     activeFile,
-    sessionId, // 新增: 父组件传进来
+    docId, // 文档级别的会话ID
   } = props;
 
   const [searchValue, setSearchValue] = useState('');
@@ -70,33 +69,39 @@ const ChatComponent = (props) => {
 
     // 1) 把用户问题保存到对话Memory
     try {
-      await axios.post(`${DOMAIN}/conversation/memory`, {
-        sessionId, // 新增: 父组件传的 sessionId
+      const sessionId = getSessionId();
+      await axios.post(`${DOMAIN}/conversation/memory?sessionId=${sessionId}`, {
+        docId,
         role: 'user',
         text: question,
       });
     } catch (err) {
       console.error('Failed to save user question:', err);
-    }
-
-    // 2) 请求后端 QuickTalk Q&A
+    } // 2) 请求后端 QuickTalk Q&A
     try {
-      const res = await axios.get(`${DOMAIN}/conversation/quicktalk`, {
-        params: {
-          question,
-          fileKey: activeFile,
-          sessionId, // 同样带上
-        },
-      });
+      const sessionId = getSessionId();
+      const res = await axios.get(
+        `${DOMAIN}/conversation/quicktalk?sessionId=${sessionId}`,
+        {
+          params: {
+            question,
+            fileKey: activeFile,
+            docId,
+          },
+        }
+      );
       // 3) 把回答也保存到Memory
       const answerText =
         typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
       try {
-        await axios.post(`${DOMAIN}/conversation/memory`, {
-          sessionId,
-          role: 'assistant',
-          text: answerText,
-        });
+        await axios.post(
+          `${DOMAIN}/conversation/memory?sessionId=${sessionId}`,
+          {
+            docId,
+            role: 'assistant',
+            text: answerText,
+          }
+        );
       } catch (err) {
         console.error('Failed to save AI answer:', err);
       }
@@ -110,7 +115,19 @@ const ChatComponent = (props) => {
       }
     } catch (err) {
       console.error(err);
-      handleResp(question, { error: err.message });
+      // Improve error handling with specific messages
+      if (
+        err.response?.status === 404 &&
+        err.response?.data?.error?.includes('not found or not built')
+      ) {
+        handleResp(
+          question,
+          "Sorry, this file hasn't been processed yet. Please wait a moment and try again."
+        );
+        openSnack('File is still being processed. Please wait a moment.');
+      } else {
+        handleResp(question, `Error: ${err.message}`);
+      }
     } finally {
       setIsLoading(false);
     }

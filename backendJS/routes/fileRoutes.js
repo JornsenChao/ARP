@@ -16,8 +16,8 @@ function requireSessionId(req, res, next) {
 }
 
 /**
- * A) GET /files/list?userId=xxx
- *    - 先 requireUserId
+ * A) GET /files/list?sessionId=xxx
+ *    - 先 requireSessionId
  *    - 再 fileController.listFiles
  */
 fileRoutes.get('/list', requireSessionId, fileController.listFiles);

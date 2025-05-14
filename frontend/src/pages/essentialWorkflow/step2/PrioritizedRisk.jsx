@@ -43,7 +43,7 @@ import {
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
 import { API_BASE as DOMAIN } from '../../../utils/apiBase';
-import { getUserId } from '../../../utils/userId'; // <-- 新增
+import { getSessionId } from '../../../utils/sessionId';
 
 function PrioritizedRisk({ activeTabIndex }) {
   const { workflowState, setWorkflowState } = useContext(
@@ -127,8 +127,8 @@ function PrioritizedRisk({ activeTabIndex }) {
     setError(null);
     try {
       // 1) 获取 workflow => 拿到impact / likelihood
-      const userId = getUserId();
-      const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
+      const sessionId = getSessionId();
+      const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`);
       if (!wfRes.ok) throw new Error('Error fetching workflow state');
       const wfData = await wfRes.json();
 
@@ -138,7 +138,7 @@ function PrioritizedRisk({ activeTabIndex }) {
       setLikelihoodCount(likelihoodArr.length);
 
       // 2) 获取 risk
-      let url = `${DOMAIN}/workflow/step2/risk?sessionId=${userId}`;
+      let url = `${DOMAIN}/workflow/step2/risk?sessionId=${sessionId}`;
       if (sortBy) {
         url += `?sortBy=${sortBy}`;
       }
@@ -162,8 +162,8 @@ function PrioritizedRisk({ activeTabIndex }) {
 
   async function markComplete() {
     try {
-      const userId = getUserId();
-      await fetch(`${DOMAIN}/workflow/step2/complete?sessionId=${userId}`, {
+      const sessionId = getSessionId();
+      await fetch(`${DOMAIN}/workflow/step2/complete?sessionId=${sessionId}`, {
         method: 'POST',
       });
       setWorkflowState((prev) => {
@@ -213,17 +213,20 @@ function PrioritizedRisk({ activeTabIndex }) {
   async function handleSelectChange(row, checked) {
     try {
       // 调用后端
-      const userId = getUserId();
-      await fetch(`${DOMAIN}/workflow/step2/select-risk?sessionId=${userId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hazard: row.hazard,
-          systemName: row.systemName,
-          subSystemName: row.subSystemName,
-          selected: checked,
-        }),
-      });
+      const sessionId = getSessionId();
+      await fetch(
+        `${DOMAIN}/workflow/step2/select-risk?sessionId=${sessionId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hazard: row.hazard,
+            systemName: row.systemName,
+            subSystemName: row.subSystemName,
+            selected: checked,
+          }),
+        }
+      );
       // 更新本地
       if (checked) {
         setSelectedRisks((prev) => [...prev, row]);

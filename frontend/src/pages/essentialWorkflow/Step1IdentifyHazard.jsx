@@ -37,7 +37,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { API_BASE as DOMAIN } from '../../utils/apiBase';
-import { getUserId } from '../../utils/userId';
+import { getSessionId } from '../../utils/sessionId';
 /**
  * CustomYAxisTick:
  *   - 点击图表左侧hazard名即可选中/取消 hazard
@@ -232,10 +232,10 @@ function Step1IdentifyHazard() {
     setAllRecords([]);
 
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       const url = `${DOMAIN}/workflow/hazards?mode=${searchMode}&location=${encodeURIComponent(
         locationInput
-      )}&sessionId=${userId}`;
+      )}&sessionId=${sessionId}`;
       const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`Server responded with status ${res.status}`);

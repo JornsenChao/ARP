@@ -8,7 +8,7 @@ import { embeddingsService } from './embeddingsService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// “总” Registry: { userId -> { fileKey -> fileObj } }
+// “总” Registry: { sessionId -> { fileKey -> fileObj } }
 const userFileRegistry = {};
 // 全局保存在内存
 // const fileRegistry = {};
@@ -371,7 +371,7 @@ export const fileService = {
 
   /**
    * getStoresByKeys(sessionId, fileKeys)
-   *   - 如果 fileKeys 为空 => 返回 userId 下 所有 storeBuilt 的 store
+   *   - 如果 fileKeys 为空 => 返回 sessionId 下 所有 storeBuilt 的 store
    *   - 否则仅返回用户选定的keys
    */
   getStoresByKeys(sessionId, fileKeys) {

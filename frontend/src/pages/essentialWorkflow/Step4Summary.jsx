@@ -38,7 +38,7 @@ import { Document, Packer, Paragraph, TextRun, Media } from 'docx';
 
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 import { API_BASE as DOMAIN } from '../../utils/apiBase';
-import { getUserId } from '../../utils/userId';
+import { getSessionId } from '../../utils/sessionId';
 
 import {
   BarChart,
@@ -371,7 +371,7 @@ export default function Step4Summary() {
   // Summarize
   async function handleSummarize() {
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       setSummarizing(true);
       // only summarySelected
       const step3 = workflowState.step3 || {};
@@ -412,7 +412,7 @@ export default function Step4Summary() {
         return;
       }
       const resp = await fetch(
-        `${DOMAIN}/multiRAG/summarize?sessionId=${userId}`,
+        `${DOMAIN}/multiRAG/summarize?sessionId=${sessionId}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

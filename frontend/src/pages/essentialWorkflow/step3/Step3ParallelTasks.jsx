@@ -51,7 +51,7 @@ import GraphViewer from '../../../components/GraphViewer';
 import axios from 'axios';
 
 import { API_BASE as DOMAIN } from '../../../utils/apiBase';
-import { getUserId } from '../../../utils/userId';
+import { getSessionId } from '../../../utils/sessionId';
 
 // 示例同义词映射
 
@@ -126,8 +126,8 @@ function Step3ParallelTasks() {
     (async () => {
       try {
         setLoading(true);
-        const userId = getUserId(); 
-        const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
+        const sessionId = getSessionId();
+        const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`);
         if (!wfRes.ok) {
           throw new Error('Failed to fetch workflow');
         }
@@ -226,8 +226,8 @@ function Step3ParallelTasks() {
   async function saveStep3ToBackend() {
     try {
       // 1) 先获取原workflow
-      const userId = getUserId(); 
-      const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
+      const sessionId = getSessionId();
+      const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`);
       if (!wfRes.ok) return console.error('Failed GET /workflow');
       const oldWf = await wfRes.json();
 
@@ -278,7 +278,7 @@ function Step3ParallelTasks() {
       newWf.step3.taskC.query = queryC;
 
       // 3) POST 回后端
-      const postRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`, {
+      const postRes = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newWf),
@@ -297,9 +297,9 @@ function Step3ParallelTasks() {
 
   async function fetchSelectedRisksAndBuildRows() {
     try {
-      const userId = getUserId(); 
+      const sessionId = getSessionId();
       setLoading(true);
-      const wfRes = await fetch(`${DOMAIN}/workflow/?sessionId=${userId}`);
+      const wfRes = await fetch(`${DOMAIN}/workflow/?sessionId=${sessionId}`);
       const wfData = await wfRes.json();
 
       const riskRes = wfData.step2?.riskResult || [];
@@ -347,16 +347,17 @@ function Step3ParallelTasks() {
         alert('Please type a query');
         setLoading(false);
         return;
-      }
-
-      // ------------- B. 后端检索 -------------
-      const { data: allFiles = [] } = await axios.get(`${DOMAIN}/files/list`);
+      } // ------------- B. 后端检索 -------------
+      const sessionId = getSessionId();
+      const { data: allFiles = [] } = await axios.get(
+        `${DOMAIN}/files/list?sessionId=${sessionId}`
+      );
       const fileKeys = allFiles
         .filter((f) => f.docType === targetDocType && f.storeBuilt)
         .map((f) => f.fileKey);
 
       const { data: ragRes = {} } = await axios.post(
-        `${DOMAIN}/multiRAG/query`,
+        `${DOMAIN}/multiRAG/query?sessionId=${sessionId}`,
         {
           fileKeys,
           dependencyData,
@@ -423,10 +424,14 @@ function Step3ParallelTasks() {
         alert('No docs found, search first');
         return;
       }
-      const resp = await axios.post(`${DOMAIN}/multiRAG/buildGraph`, {
-        docs,
-        frameworkName: framework,
-      });
+      const sessionId = getSessionId();
+      const resp = await axios.post(
+        `${DOMAIN}/multiRAG/buildGraph?sessionId=${sessionId}`,
+        {
+          docs,
+          frameworkName: framework,
+        }
+      );
       const { graphData } = resp.data;
 
       setTabSummaryData((prev) => {
@@ -485,10 +490,14 @@ function Step3ParallelTasks() {
       }
 
       // 调用后端的 multiRAG/summarize 接口
-      const resp = await axios.post(`${DOMAIN}/multiRAG/summarize`, {
-        docs,
-        language,
-      });
+      const sessionId = getSessionId();
+      const resp = await axios.post(
+        `${DOMAIN}/multiRAG/summarize?sessionId=${sessionId}`,
+        {
+          docs,
+          language,
+        }
+      );
       const data = resp.data;
       console.log('[handleSummarize] summarize response:', data);
 

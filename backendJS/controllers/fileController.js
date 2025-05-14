@@ -62,7 +62,7 @@ export const fileController = {
     },
   ],
 
-  // PATCH /files/:fileKey?userId=xxx
+  // PATCH /files/:fileKey?sessionId=xxx
   async updateFile(req, res) {
     try {
       const { sessionId } = req.query;
@@ -86,7 +86,7 @@ export const fileController = {
     }
   },
 
-  // DELETE /files/:fileKey?userId=xxx
+  // DELETE /files/:fileKey?sessionId=xxx
   async deleteFile(req, res) {
     try {
       const { sessionId } = req.query;
@@ -102,7 +102,7 @@ export const fileController = {
     }
   },
 
-  // POST /files/:fileKey/mapColumns?userId=xxx
+  // POST /files/:fileKey/mapColumns?sessionId=xxx
   async mapColumns(req, res) {
     try {
       const { sessionId } = req.query;
@@ -119,7 +119,7 @@ export const fileController = {
     }
   },
 
-  // GET /files/:fileKey/columns?userId=xxx
+  // GET /files/:fileKey/columns?sessionId=xxx
   async getColumns(req, res) {
     try {
       const { sessionId } = req.query;
@@ -135,7 +135,7 @@ export const fileController = {
     }
   },
 
-  // POST /files/:fileKey/buildStore?userId=xxx
+  // POST /files/:fileKey/buildStore?sessionId=xxx
   async buildStore(req, res) {
     try {
       const { sessionId } = req.query;
@@ -151,7 +151,7 @@ export const fileController = {
     }
   },
 
-  // GET /files/loadDemo?demoName=xxx&userId=xxx
+  // GET /files/loadDemo?demoName=xxx&sessionId=xxx
   async loadDemo(req, res) {
     try {
       const { sessionId, demoName } = req.query;
@@ -172,7 +172,7 @@ export const fileController = {
     }
   },
 
-  // GET /files/loadAllDemos?userId=xxx
+  // GET /files/loadAllDemos?sessionId=xxx
   async loadAllDemos(req, res) {
     try {
       const { sessionId } = req.query;

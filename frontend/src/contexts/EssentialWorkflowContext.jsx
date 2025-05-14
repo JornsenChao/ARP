@@ -1,7 +1,7 @@
 // src/contexts/EssentialWorkflowContext.jsx
 import React, { createContext, useState, useEffect } from 'react';
 import { API_BASE as DOMAIN } from '../utils/apiBase';
-import { getUserId } from '../utils/userId'; // <-- 新增
+import { getSessionId } from '../utils/sessionId'; // <-- 新增
 
 // 单一workflow的上下文
 export const EssentialWorkflowContext = createContext(null);
@@ -12,8 +12,8 @@ export function EssentialWorkflowProvider({ children }) {
   // 拉取后端已有状态
   useEffect(() => {
     async function fetchState() {
-      const userId = getUserId(); // <-- 新增
-      const res = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
+      const sessionId = getSessionId();
+      const res = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`);
       const data = await res.json();
       setWorkflowState(data);
     }
@@ -22,8 +22,8 @@ export function EssentialWorkflowProvider({ children }) {
 
   // 提交到后端
   async function saveToBackend(newState) {
-    const userId = getUserId(); // <-- 新增
-    const res = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`, {
+    const sessionId = getSessionId();
+    const res = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newState),

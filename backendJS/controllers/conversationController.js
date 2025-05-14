@@ -5,11 +5,11 @@ export const conversationController = {
   // POST /conversation/memory
   async saveMessage(req, res) {
     try {
-      const { sessionId, role, text } = req.body;
-      if (!sessionId || !text) {
-        return res.status(400).json({ error: 'Missing sessionId or text' });
+      const { docId, role, text } = req.body;
+      if (!docId || !text) {
+        return res.status(400).json({ error: 'Missing docId or text' });
       }
-      await conversationService.saveMessage(sessionId, role, text);
+      await conversationService.saveMessage(docId, role, text);
       res.json({ success: true });
     } catch (err) {
       console.error(err);
@@ -17,15 +17,15 @@ export const conversationController = {
     }
   },
 
-  // GET /conversation/memory?sessionId=xxx&query=xxx
+  // GET /conversation/memory?sessionId=xxx&query=xxx&docId=xxx
   async retrieveMessages(req, res) {
     try {
-      const { sessionId, query, topK } = req.query;
-      if (!sessionId || !query) {
-        return res.status(400).json({ error: 'Missing sessionId or query' });
+      const { docId, query, topK } = req.query;
+      if (!docId || !query) {
+        return res.status(400).json({ error: 'Missing docId or query' });
       }
       const docs = await conversationService.retrieveMessages(
-        sessionId,
+        docId,
         query,
         Number(topK) || 40
       );

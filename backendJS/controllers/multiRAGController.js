@@ -6,7 +6,7 @@ import { graphService } from '../services/graphService.js';
 
 export const multiRAGController = {
   // POST /multiRAG/query
-  async multyRAGQuery(req, res) {
+  async multiRAGQuery(req, res) {
     try {
       const {
         fileKeys = [],
@@ -17,11 +17,16 @@ export const multiRAGController = {
         docType, // <--- NEW
       } = req.body;
 
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing sessionId parameter' });
+      }
+
       // 1) 如果有 docType，则只允许检索 docType==xx 的文件
       let targetFileKeys = [];
       if (docType) {
         // listAllFiles => filter by docType => storeBuilt => get their fileKeys
-        const allFiles = fileService.listAllFiles();
+        const allFiles = fileService.listAllFiles(sessionId);
         const matched = allFiles.filter(
           (f) => f.docType === docType && f.storeBuilt === true
         );
@@ -50,7 +55,7 @@ export const multiRAGController = {
         } else {
           // 如果啥都没传 => 也可表示 "全库"
           const allBuilt = fileService
-            .listAllFiles()
+            .listAllFiles(sessionId)
             .filter((f) => f.storeBuilt === true)
             .map((f) => f.fileKey);
           targetFileKeys = allBuilt;
@@ -58,7 +63,7 @@ export const multiRAGController = {
       }
 
       // 2) 从 fileService 获取 memoryStores
-      const stores = fileService.getStoresByKeys(targetFileKeys);
+      const stores = fileService.getStoresByKeys(sessionId, targetFileKeys);
       if (stores.length === 0) {
         return res.json({
           docs: [],
@@ -83,7 +88,7 @@ export const multiRAGController = {
   },
 
   // POST /multiRAG/queryCoT
-  async multyRAGQueryCoT(req, res) {
+  async multiRAGQueryCoT(req, res) {
     try {
       const {
         fileKeys = [],
@@ -92,9 +97,13 @@ export const multiRAGController = {
         language,
         customFields,
       } = req.body;
-      // 这里如果也需要 docType 强制限制，可以重复上面相同逻辑
-      // for brevity, omitted
-      const stores = fileService.getStoresByKeys(fileKeys);
+
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing sessionId parameter' });
+      }
+
+      const stores = fileService.getStoresByKeys(sessionId, fileKeys);
       const result = await multiRAGService.multiRAGQueryCoT(
         stores,
         dependencyData,
@@ -124,9 +133,13 @@ export const multiRAGController = {
     }
   },
 
-  async multyRAGSummarize(req, res) {
+  async multiRAGSummarize(req, res) {
     try {
       const { docs = [], language = 'en' } = req.body;
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing sessionId parameter' });
+      }
 
       // 调用 service
       const summaryResult = await multiRAGService.multiRAGSummarize(
@@ -137,7 +150,7 @@ export const multiRAGController = {
       // 返回
       return res.json(summaryResult);
     } catch (err) {
-      console.error('Error in multyRAGSummarize:', err);
+      console.error('Error in multiRAGSummarize:', err);
       res.status(500).send(err.message);
     }
   },

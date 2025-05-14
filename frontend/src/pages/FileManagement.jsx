@@ -34,9 +34,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import ColumnMapper from '../components/ColumnMapper';
 import RenderQA from '../components/RenderQA';
 import ChatComponent from '../components/ChatComponent';
-import { getUserId } from '../utils/userId';
+import { getSessionId } from '../utils/sessionId';
 import { API_BASE as DOMAIN } from '../utils/apiBase';
-const LOCALSTORAGE_PREFIX = 'fileChat_conversation_';
+const LOCALSTORAGE_PREFIX = 'doc_conversation_';
 
 const DOC_TYPE_OPTIONS = [
   { label: 'Case Study', value: 'caseStudy' },
@@ -91,8 +91,10 @@ function FileManagement() {
   const fetchFiles = async () => {
     setLoading(true);
     try {
-      const userId = getUserId();
-      const res = await axios.get(`${DOMAIN}/files/list?sessionId=${userId}`);
+      const sessionId = getSessionId();
+      const res = await axios.get(
+        `${DOMAIN}/files/list?sessionId=${sessionId}`
+      );
       setFileList(res.data);
     } catch (err) {
       console.error(err);
@@ -105,7 +107,7 @@ function FileManagement() {
   /* ---------------- upload ---------------- */
   const handleUploadFile = async (file) => {
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       const formData = new FormData();
       uploadTags.forEach((tag) => formData.append('tags', tag));
       // 这里我们也传 docType
@@ -113,7 +115,7 @@ function FileManagement() {
       formData.append('file', file);
 
       const res = await axios.post(
-        `${DOMAIN}/files/upload?sessionId=${userId}`,
+        `${DOMAIN}/files/upload?sessionId=${sessionId}`,
         formData,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -134,9 +136,9 @@ function FileManagement() {
     if (!window.confirm(`Are you sure to delete file: ${record.fileName}?`))
       return;
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       await axios.delete(
-        `${DOMAIN}/files/${record.fileKey}?sessionId=${userId}`
+        `${DOMAIN}/files/${record.fileKey}?sessionId=${sessionId}`
       );
       openSnack('File deleted', 'success');
       fetchFiles();
@@ -158,9 +160,9 @@ function FileManagement() {
 
   const handleEditOk = async () => {
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       await axios.patch(
-        `${DOMAIN}/files/${editRecord.fileKey}?sessionId=${userId}`,
+        `${DOMAIN}/files/${editRecord.fileKey}?sessionId=${sessionId}`,
         {
           newName: editName,
           tags: editTags,
@@ -180,9 +182,9 @@ function FileManagement() {
   const openMapModal = async (record) => {
     setMapRecord(record);
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       const res = await axios.get(
-        `${DOMAIN}/files/${record.fileKey}/columns?sessionId=${userId}`
+        `${DOMAIN}/files/${record.fileKey}/columns?sessionId=${sessionId}`
       );
       setAvailableCols(res.data || []);
     } catch (err) {
@@ -197,16 +199,16 @@ function FileManagement() {
   const handleMapOk = async () => {
     if (!mapRecord) return;
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       await axios.post(
-        `${DOMAIN}/files/${mapRecord.fileKey}/mapColumns?sessionId=${userId}`,
+        `${DOMAIN}/files/${mapRecord.fileKey}/mapColumns?sessionId=${sessionId}`,
         {
           columnSchema,
         }
       );
       openSnack('Column map saved', 'success');
       await axios.post(
-        `${DOMAIN}/files/${mapRecord.fileKey}/buildStore?sessionId=${userId}`
+        `${DOMAIN}/files/${mapRecord.fileKey}/buildStore?sessionId=${sessionId}`
       );
       openSnack('Vector store built', 'success');
       setMapModalVisible(false);
@@ -220,9 +222,9 @@ function FileManagement() {
   /* ---------------- load demo ---------------- */
   const loadDemo = async (demoName) => {
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       const res = await axios.get(
-        `${DOMAIN}/files/loadDemo?sessionId=${userId}`,
+        `${DOMAIN}/files/loadDemo?sessionId=${sessionId}`,
         {
           params: { demoName },
         }
@@ -239,9 +241,9 @@ function FileManagement() {
   };
   async function loadAllDemos() {
     try {
-      const userId = getUserId();
+      const sessionId = getSessionId();
       const res = await axios.get(
-        `${DOMAIN}/files/loadAllDemos?sessionId=${userId}`
+        `${DOMAIN}/files/loadAllDemos?sessionId=${sessionId}`
       );
       if (res.status === 200) {
         openSnack('Loaded all demo files successfully!', 'success');
@@ -447,9 +449,9 @@ function FileManagement() {
                             size="small"
                             onClick={async () => {
                               try {
-                                const userId = getUserId();
+                                const sessionId = getSessionId();
                                 await axios.post(
-                                  `${DOMAIN}/files/${row.fileKey}/buildStore?sessionId=${userId}`
+                                  `${DOMAIN}/files/${row.fileKey}/buildStore?sessionId=${sessionId}`
                                 );
                                 openSnack('Store built', 'success');
                                 fetchFiles();
@@ -635,7 +637,6 @@ function FileManagement() {
               <CloseIcon />
             </IconButton>
           </Stack>
-
           <Box
             sx={{
               maxHeight: 300,
@@ -645,14 +646,13 @@ function FileManagement() {
             }}
           >
             <RenderQA conversation={conversation} isLoading={isChatLoading} />
-          </Box>
-
+          </Box>{' '}
           <ChatComponent
             handleResp={handleResp}
             isLoading={isChatLoading}
             setIsLoading={setIsChatLoading}
             activeFile={activeChatFile}
-            sessionId={`fileChat-${activeChatFile}`}
+            docId={`doc-${activeChatFile}`}
           />
         </Card>
       )}
