@@ -8,16 +8,27 @@ import { embeddingsService } from './embeddingsService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// “总” Registry: { userId -> { fileKey -> fileObj } }
+const userFileRegistry = {};
 // 全局保存在内存
-const fileRegistry = {};
+// const fileRegistry = {};
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// helper: 获取(或创建) user 的 fileRegistry
+function getOrCreateUserRegistry(sessionId) {
+  if (!userFileRegistry[sessionId]) {
+    userFileRegistry[sessionId] = {};
+  }
+  return userFileRegistry[sessionId];
+}
+
 export const fileService = {
-  listAllFiles() {
-    return Object.keys(fileRegistry).map((fileKey) => {
+  listAllFiles(sessionId) {
+    const reg = getOrCreateUserRegistry(sessionId);
+    return Object.keys(reg).map((fileKey) => {
       const {
         fileName,
         tags,
@@ -29,7 +40,7 @@ export const fileService = {
         mapAndBuildMethod,
         memoryStore,
         docType, // 新增: caseStudy, strategy, otherResource
-      } = fileRegistry[fileKey];
+      } = reg[fileKey];
       return {
         fileKey,
         fileName,
@@ -49,24 +60,22 @@ export const fileService = {
    * handleUploadFile
    *  - 增加 docType
    */
-  handleUploadFile(file, tagsRaw, docType) {
-    // 1) 检查是否已有同名文件
-    const existing = Object.values(fileRegistry).find(
+  // === 2) handleUploadFile(sessionId, file, tags, docType)
+  handleUploadFile(sessionId, file, tagsRaw, docType) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    // 1) 检查是否已有同名
+    const existing = Object.values(registry).find(
       (rec) => rec.fileName === file.originalname
     );
     if (existing) {
-      // 直接抛出错误，或自定义Error类型
-      throw new Error(
-        `File name "${file.originalname}" already exists. 
-       Please delete it first or rename the new file.`
-      );
+      throw new Error(`File name "${file.originalname}" already exists.`);
     }
     const tags = Array.isArray(tagsRaw) ? tagsRaw : [tagsRaw].filter(Boolean);
     const fileKey = Date.now().toString() + '_' + file.originalname;
     const ext = path.extname(file.originalname).toLowerCase();
     const nowISO = new Date().toISOString();
 
-    fileRegistry[fileKey] = {
+    registry[fileKey] = {
       fileName: file.originalname,
       tags,
       docType: docType || 'otherResource', // 缺省为otherResource
@@ -90,8 +99,9 @@ export const fileService = {
    * updateFileInfo
    *  - 可更新 newName, tags, docType
    */
-  updateFileInfo(fileKey, newName, newTags, newDocType) {
-    const rec = fileRegistry[fileKey];
+  updateFileInfo(sessionId, fileKey, newName, newTags, newDocType) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    const rec = registry[fileKey];
     if (!rec) return null;
     if (newName) {
       rec.fileName = newName;
@@ -105,13 +115,14 @@ export const fileService = {
     return rec;
   },
 
-  deleteFile(fileKey) {
-    const rec = fileRegistry[fileKey];
+  deleteFile(sessionId, fileKey) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    const rec = registry[fileKey];
     if (!rec) throw new Error('File not found');
     if (fs.existsSync(rec.localPath)) {
       fs.unlinkSync(rec.localPath);
     }
-    delete fileRegistry[fileKey];
+    delete registry[fileKey];
   },
 
   /**
@@ -121,8 +132,9 @@ export const fileService = {
    *     ...
    *   ]
    */
-  mapColumns(fileKey, columnSchema) {
-    const rec = fileRegistry[fileKey];
+  mapColumns(sessionId, fileKey, columnSchema) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    const rec = registry[fileKey];
     if (!rec) throw new Error('File not found');
     if (!['.csv', '.xlsx', '.xls'].includes(rec.fileType)) {
       throw new Error('Not a CSV/XLSX file, cannot map columns');
@@ -133,8 +145,9 @@ export const fileService = {
     rec.storeBuilt = false;
   },
 
-  getColumns(fileKey) {
-    const rec = fileRegistry[fileKey];
+  getColumns(sessionId, fileKey) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    const rec = registry[fileKey];
     if (!rec) throw new Error('File not found');
     if (!['.csv', '.xlsx', '.xls'].includes(rec.fileType)) {
       throw new Error('Not a CSV/XLSX file, cannot get columns');
@@ -144,8 +157,9 @@ export const fileService = {
     return Object.keys(records[0]);
   },
 
-  async buildStore(fileKey) {
-    const rec = fileRegistry[fileKey];
+  async buildStore(sessionId, fileKey) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    const rec = registry[fileKey];
     if (!rec) throw new Error(`File ${fileKey} not found`);
     const ext = rec.fileType;
 
@@ -223,7 +237,8 @@ export const fileService = {
     };
   },
 
-  loadDemo(demoName) {
+  loadDemo(sessionId, demoName) {
+    const registry = getOrCreateUserRegistry(sessionId);
     const demoDir = path.join(__dirname, '../demo_docs');
     const demoFilePath = path.join(demoDir, demoName);
     if (!fs.existsSync(demoFilePath)) {
@@ -236,7 +251,7 @@ export const fileService = {
     const ext = path.extname(demoName).toLowerCase();
     const nowISO = new Date().toISOString();
 
-    fileRegistry[newFileKey] = {
+    registry[newFileKey] = {
       fileName: demoName,
       tags: ['demo'],
       docType: 'otherResource', // default
@@ -256,7 +271,12 @@ export const fileService = {
     };
   },
 
-  async loadAllDemos() {
+  /**
+   * loadAllDemos(sessionId)
+   *   - 读取 demo_config.json, 把里面列的文件一并复制+build
+   */
+  async loadAllDemos(sessionId) {
+    const registry = getOrCreateUserRegistry(sessionId);
     try {
       const demoDir = path.join(__dirname, '../demo_docs');
       // 1) 找到 demo_config.json
@@ -293,7 +313,7 @@ export const fileService = {
 
         const nowISO = new Date().toISOString();
         // 4) registry
-        fileRegistry[newFileKey] = {
+        registry[newFileKey] = {
           fileName,
           tags: ['demo'],
           docType: docType || 'otherResource',
@@ -315,12 +335,11 @@ export const fileService = {
           // 这里可复用 your buildStore logic
           // 先set columnSchema
           if (['.csv', '.xlsx', '.xls'].includes(ext) && columnSchema) {
-            // ok do map
-            fileRegistry[newFileKey].columnSchema = columnSchema;
+            registry[newFileKey].columnSchema = columnSchema;
           }
-          // await build
-          const result = await this.buildStore(newFileKey);
-          buildMsg = `Store built (docType=${docType || 'otherResource'})`;
+          // 调用 buildStore
+          const result = await this.buildStore(sessionId, newFileKey);
+          buildMsg = `Store built for docType=${docType || 'otherResource'}`;
         } else {
           buildMsg = `Skip build for ext=${ext}`;
         }
@@ -339,25 +358,37 @@ export const fileService = {
     }
   },
 
-  // ========== 提供存取 memoryStore 的函数 ========== //
-  getMemoryStore(fileKey) {
-    const rec = fileRegistry[fileKey];
+  /**
+   * getMemoryStore(sessionId, fileKey)
+   *   - 返回本文件对应的 memoryStore
+   */
+  getMemoryStore(sessionId, fileKey) {
+    const registry = getOrCreateUserRegistry(sessionId);
+    const rec = registry[fileKey];
     if (!rec || !rec.storeBuilt || !rec.memoryStore) return null;
     return rec.memoryStore;
   },
 
-  getStoresByKeys(fileKeys) {
-    // 如果 fileKeys 为空，则默认用全部 storeBuilt == true 的
+  /**
+   * getStoresByKeys(sessionId, fileKeys)
+   *   - 如果 fileKeys 为空 => 返回 userId 下 所有 storeBuilt 的 store
+   *   - 否则仅返回用户选定的keys
+   */
+  getStoresByKeys(sessionId, fileKeys) {
+    const registry = getOrCreateUserRegistry(sessionId);
     let targetKeys = fileKeys;
     if (!targetKeys || targetKeys.length === 0) {
-      targetKeys = Object.keys(fileRegistry).filter(
-        (k) => fileRegistry[k].storeBuilt === true
+      // 取全部 storeBuilt == true
+      targetKeys = Object.keys(registry).filter(
+        (k) => registry[k].storeBuilt === true
       );
     }
     const stores = [];
     for (const fk of targetKeys) {
-      const s = this.getMemoryStore(fk);
-      if (s) stores.push(s);
+      const rec = registry[fk];
+      if (rec && rec.storeBuilt && rec.memoryStore) {
+        stores.push(rec.memoryStore);
+      }
     }
     return stores;
   },

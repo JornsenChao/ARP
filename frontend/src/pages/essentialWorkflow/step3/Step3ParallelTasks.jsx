@@ -51,6 +51,7 @@ import GraphViewer from '../../../components/GraphViewer';
 import axios from 'axios';
 
 import { API_BASE as DOMAIN } from '../../../utils/apiBase';
+import { getUserId } from '../../../utils/userId';
 
 // 示例同义词映射
 
@@ -125,7 +126,8 @@ function Step3ParallelTasks() {
     (async () => {
       try {
         setLoading(true);
-        const wfRes = await fetch(`${DOMAIN}/workflow`);
+        const userId = getUserId(); 
+        const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
         if (!wfRes.ok) {
           throw new Error('Failed to fetch workflow');
         }
@@ -224,7 +226,8 @@ function Step3ParallelTasks() {
   async function saveStep3ToBackend() {
     try {
       // 1) 先获取原workflow
-      const wfRes = await fetch(`${DOMAIN}/workflow`);
+      const userId = getUserId(); 
+      const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
       if (!wfRes.ok) return console.error('Failed GET /workflow');
       const oldWf = await wfRes.json();
 
@@ -275,7 +278,7 @@ function Step3ParallelTasks() {
       newWf.step3.taskC.query = queryC;
 
       // 3) POST 回后端
-      const postRes = await fetch(`${DOMAIN}/workflow`, {
+      const postRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newWf),
@@ -294,8 +297,9 @@ function Step3ParallelTasks() {
 
   async function fetchSelectedRisksAndBuildRows() {
     try {
+      const userId = getUserId(); 
       setLoading(true);
-      const wfRes = await fetch(`${DOMAIN}/workflow`);
+      const wfRes = await fetch(`${DOMAIN}/workflow/?sessionId=${userId}`);
       const wfData = await wfRes.json();
 
       const riskRes = wfData.step2?.riskResult || [];

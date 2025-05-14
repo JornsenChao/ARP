@@ -19,30 +19,41 @@ const storage = multer.diskStorage({
 const upload = multer({ storage, limits: { fileSize: 15 * 1024 * 1024 } });
 
 export const fileController = {
-  // GET /files/list
+  // GET /files/list?sessionId=xxx
   async listFiles(req, res) {
     try {
-      const list = fileService.listAllFiles();
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
+      const list = fileService.listAllFiles(sessionId);
       res.json(list);
     } catch (err) {
       console.error(err);
       res.status(500).send(err.message);
     }
   },
-
-  // POST /files/upload
+  // POST /files/upload?sessionId=xxx
   uploadFile: [
     // 先用multer处理上传
     upload.single('file'),
     async (req, res) => {
       try {
-        const { tags, docType } = req.body; // <--- docType: "caseStudy" | "strategy" | "otherResource"
+        const { sessionId } = req.query;
+        if (!sessionId) {
+          return res.status(400).json({ error: 'Missing ?sessionId=' });
+        }
+        const { tags, docType } = req.body;
         const file = req.file;
         if (!file) {
           return res.status(400).json({ error: 'No file uploaded' });
         }
-        // 将 docType、tags 传递给 service
-        const result = fileService.handleUploadFile(file, tags, docType);
+        const result = fileService.handleUploadFile(
+          sessionId,
+          file,
+          tags,
+          docType
+        );
         res.json(result);
       } catch (err) {
         console.error(err);
@@ -51,12 +62,17 @@ export const fileController = {
     },
   ],
 
-  // PATCH /files/:fileKey
+  // PATCH /files/:fileKey?userId=xxx
   async updateFile(req, res) {
     try {
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
       const { fileKey } = req.params;
       const { newName, tags, docType } = req.body;
       const updated = fileService.updateFileInfo(
+        sessionId,
         fileKey,
         newName,
         tags,
@@ -70,11 +86,15 @@ export const fileController = {
     }
   },
 
-  // DELETE /files/:fileKey
+  // DELETE /files/:fileKey?userId=xxx
   async deleteFile(req, res) {
     try {
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
       const { fileKey } = req.params;
-      fileService.deleteFile(fileKey);
+      fileService.deleteFile(sessionId, fileKey);
       return res.json({ message: `File ${fileKey} deleted.` });
     } catch (err) {
       console.error(err);
@@ -82,13 +102,16 @@ export const fileController = {
     }
   },
 
-  // POST /files/:fileKey/mapColumns
+  // POST /files/:fileKey/mapColumns?userId=xxx
   async mapColumns(req, res) {
     try {
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
       const { fileKey } = req.params;
-      // 假设 body={ columnSchema: [ { columnName, infoCategory, metaCategory }, ... ] }
       const { columnSchema } = req.body;
-      fileService.mapColumns(fileKey, columnSchema);
+      fileService.mapColumns(sessionId, fileKey, columnSchema);
       res.json({ message: 'Column map saved', columnSchema });
     } catch (err) {
       console.error(err);
@@ -96,11 +119,15 @@ export const fileController = {
     }
   },
 
-  // GET /files/:fileKey/columns
+  // GET /files/:fileKey/columns?userId=xxx
   async getColumns(req, res) {
     try {
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
       const { fileKey } = req.params;
-      const columns = fileService.getColumns(fileKey);
+      const columns = fileService.getColumns(sessionId, fileKey);
       res.json(columns);
     } catch (err) {
       console.error(err);
@@ -108,11 +135,15 @@ export const fileController = {
     }
   },
 
-  // POST /files/:fileKey/buildStore
+  // POST /files/:fileKey/buildStore?userId=xxx
   async buildStore(req, res) {
     try {
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
       const { fileKey } = req.params;
-      const result = await fileService.buildStore(fileKey);
+      const result = await fileService.buildStore(sessionId, fileKey);
       res.json(result);
     } catch (err) {
       console.error(err);
@@ -120,14 +151,17 @@ export const fileController = {
     }
   },
 
-  // GET /files/loadDemo
+  // GET /files/loadDemo?demoName=xxx&userId=xxx
   async loadDemo(req, res) {
     try {
-      const { demoName } = req.query;
+      const { sessionId, demoName } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
       if (!demoName) {
         return res.status(400).send('Missing demoName param');
       }
-      const result = fileService.loadDemo(demoName);
+      const result = fileService.loadDemo(sessionId, demoName);
       if (!result) {
         return res.status(404).send(`Demo file ${demoName} not found.`);
       }
@@ -138,10 +172,14 @@ export const fileController = {
     }
   },
 
-  // GET /files/loadAllDemos
+  // GET /files/loadAllDemos?userId=xxx
   async loadAllDemos(req, res) {
     try {
-      const result = await fileService.loadAllDemos(); // 我们待会在 fileService.js 写
+      const { sessionId } = req.query;
+      if (!sessionId) {
+        return res.status(400).json({ error: 'Missing ?sessionId=' });
+      }
+      const result = await fileService.loadAllDemos(sessionId);
       res.json(result); // 返回加载详情
     } catch (err) {
       console.error(err);

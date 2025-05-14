@@ -6,19 +6,39 @@ import {
 import { impactCategories } from '../mockData/impactCategories.js';
 import { computeBayesianLikelihoodForHazards } from '../services/bayesModelService.js';
 
-function ensureImpactCategoriesInState() {
-  const state = getWorkflowState();
+function ensureImpactCategoriesInState(req) {
+  const state = getWorkflowState(req);
   if (!state.step2.impactCategories) {
     state.step2.impactCategories = JSON.parse(JSON.stringify(impactCategories));
-    saveWorkflowState(state);
+    saveWorkflowState(req, state);
   }
 }
 
 // ============ API 1) 获取系统-子系统结构 ============
 export function getImpactCategories(req, res) {
-  ensureImpactCategoriesInState();
-  const state = getWorkflowState();
-  return res.json({ impactCategories: state.step2.impactCategories });
+  try {
+    const { sessionId } = req.query;
+    if (!sessionId) {
+      return res
+        .status(400)
+        .json({ detail: 'Missing required sessionId parameter' });
+    }
+
+    ensureImpactCategoriesInState(req);
+    const state = getWorkflowState(req);
+    if (!state || !state.step2 || !state.step2.impactCategories) {
+      return res
+        .status(404)
+        .json({ detail: 'Impact categories not found for this session' });
+    }
+
+    return res.json({ impactCategories: state.step2.impactCategories });
+  } catch (err) {
+    console.error('Error in getImpactCategories:', err);
+    return res
+      .status(500)
+      .json({ detail: 'Internal server error: ' + err.message });
+  }
 }
 
 /**
@@ -29,8 +49,8 @@ export function addSystem(req, res) {
   if (!systemName) {
     return res.status(400).json({ detail: 'systemName is required' });
   }
-  ensureImpactCategoriesInState();
-  const state = getWorkflowState();
+  ensureImpactCategoriesInState(req);
+  const state = getWorkflowState(req);
 
   const exists = state.step2.impactCategories.find(
     (s) => s.systemName.toLowerCase() === systemName.toLowerCase()
@@ -45,7 +65,7 @@ export function addSystem(req, res) {
     systemName,
     subSystems: [],
   });
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
 
   return res.json({
     message: 'System added',
@@ -63,8 +83,8 @@ export function addSubSystem(req, res) {
       .status(400)
       .json({ detail: 'systemName and subSystemName are required' });
   }
-  ensureImpactCategoriesInState();
-  const state = getWorkflowState();
+  ensureImpactCategoriesInState(req);
+  const state = getWorkflowState(req);
 
   const sys = state.step2.impactCategories.find(
     (s) => s.systemName === systemName
@@ -84,7 +104,7 @@ export function addSubSystem(req, res) {
   }
 
   sys.subSystems.push({ name: subSystemName });
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
 
   return res.json({
     message: 'SubSystem added',
@@ -104,7 +124,7 @@ export function setImpactRating(req, res) {
     });
   }
 
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
   const impactData = state.step2.impactData;
 
   const idx = impactData.findIndex(
@@ -124,7 +144,7 @@ export function setImpactRating(req, res) {
     });
   }
 
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
   res.json({ message: 'Impact rating saved', impactData });
 }
 
@@ -139,7 +159,7 @@ export function setLikelihoodRating(req, res) {
       .json({ detail: 'hazard and likelihoodRating are required' });
   }
 
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
   const list = state.step2.likelihoodData;
 
   const idx = list.findIndex((h) => h.hazard === hazard);
@@ -149,7 +169,7 @@ export function setLikelihoodRating(req, res) {
     list.push({ hazard, likelihoodRating: Number(likelihoodRating) });
   }
 
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
   res.json({ message: 'Likelihood rating saved', likelihoodData: list });
 }
 
@@ -157,7 +177,7 @@ export function setLikelihoodRating(req, res) {
  * 6) GET /workflow/step2/risk?sortBy=system|hazard|score
  */
 export function calculateAndGetRisk(req, res) {
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
   const { impactData, likelihoodData } = state.step2;
   const { sortBy } = req.query;
 
@@ -205,7 +225,7 @@ export function calculateAndGetRisk(req, res) {
   }
 
   state.step2.riskResult = riskResult;
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
 
   res.json({ riskResult });
 }
@@ -214,9 +234,9 @@ export function calculateAndGetRisk(req, res) {
  * 7) 标记step2完成
  */
 export function markStep2Complete(req, res) {
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
   state.step2.isCompleted = true;
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
 
   res.json({ message: 'Step2 marked as completed', step2: state.step2 });
 }
@@ -225,11 +245,11 @@ export function markStep2Complete(req, res) {
  * 清空 Impact Data
  */
 export function clearImpactData(req, res) {
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
   state.step2.impactData = [];
   state.step2.selectedRisks = [];
 
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
   res.json({
     message: 'Impact data cleared.',
     step2: state.step2,
@@ -240,10 +260,10 @@ export function clearImpactData(req, res) {
  * 清空 Likelihood Data
  */
 export function clearLikelihoodData(req, res) {
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
   state.step2.likelihoodData = [];
   state.step2.selectedRisks = [];
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
   res.json({
     message: 'Likelihood data cleared.',
     step2: state.step2,
@@ -268,7 +288,7 @@ export function setSelectedRisk(req, res) {
     });
   }
 
-  const state = getWorkflowState();
+  const state = getWorkflowState(req);
 
   if (selected) {
     // 若没有则加入
@@ -293,7 +313,7 @@ export function setSelectedRisk(req, res) {
     );
   }
 
-  saveWorkflowState(state);
+  saveWorkflowState(req, state);
   return res.json({
     message: 'Selection updated',
     selectedRisks: state.step2.selectedRisks,
@@ -309,13 +329,19 @@ export function setSelectedRisk(req, res) {
  */
 export function getBayesianModelLikelihood(req, res) {
   try {
-    const { modelApproach, interpretation } = req.query;
+    const { modelApproach, interpretation, sessionId } = req.query;
+    if (!sessionId) {
+      return res
+        .status(400)
+        .json({ detail: 'Missing required sessionId parameter' });
+    }
+
     // default fallback
     const approach = modelApproach || 'quickGamma';
     const interpret = interpretation || 'prob30';
     const horizonYears = 30;
 
-    const state = getWorkflowState();
+    const state = getWorkflowState(req);
     const hazards = state.step1?.hazards || [];
     const records = state.step1?.femaRecords || [];
 

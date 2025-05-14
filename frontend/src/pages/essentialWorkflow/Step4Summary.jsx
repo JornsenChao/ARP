@@ -38,6 +38,7 @@ import { Document, Packer, Paragraph, TextRun, Media } from 'docx';
 
 import { EssentialWorkflowContext } from '../../contexts/EssentialWorkflowContext';
 import { API_BASE as DOMAIN } from '../../utils/apiBase';
+import { getUserId } from '../../utils/userId';
 
 import {
   BarChart,
@@ -370,6 +371,7 @@ export default function Step4Summary() {
   // Summarize
   async function handleSummarize() {
     try {
+      const userId = getUserId();
       setSummarizing(true);
       // only summarySelected
       const step3 = workflowState.step3 || {};
@@ -409,11 +411,14 @@ export default function Step4Summary() {
         setSummarizing(false);
         return;
       }
-      const resp = await fetch(`${DOMAIN}/multiRAG/summarize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ docs: normalizedDocs, language: 'en' }),
-      });
+      const resp = await fetch(
+        `${DOMAIN}/multiRAG/summarize?sessionId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docs: normalizedDocs, language: 'en' }),
+        }
+      );
       if (!resp.ok) {
         throw new Error('Summarize error ' + resp.status);
       }

@@ -34,7 +34,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ColumnMapper from '../components/ColumnMapper';
 import RenderQA from '../components/RenderQA';
 import ChatComponent from '../components/ChatComponent';
-
+import { getUserId } from '../utils/userId';
 import { API_BASE as DOMAIN } from '../utils/apiBase';
 const LOCALSTORAGE_PREFIX = 'fileChat_conversation_';
 
@@ -91,7 +91,8 @@ function FileManagement() {
   const fetchFiles = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${DOMAIN}/files/list`);
+      const userId = getUserId();
+      const res = await axios.get(`${DOMAIN}/files/list?sessionId=${userId}`);
       setFileList(res.data);
     } catch (err) {
       console.error(err);
@@ -104,15 +105,20 @@ function FileManagement() {
   /* ---------------- upload ---------------- */
   const handleUploadFile = async (file) => {
     try {
+      const userId = getUserId();
       const formData = new FormData();
       uploadTags.forEach((tag) => formData.append('tags', tag));
       // 这里我们也传 docType
       formData.append('docType', uploadDocType);
       formData.append('file', file);
 
-      const res = await axios.post(`${DOMAIN}/files/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const res = await axios.post(
+        `${DOMAIN}/files/upload?sessionId=${userId}`,
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        }
+      );
       if (res.data.fileKey) {
         openSnack('File uploaded', 'success');
         fetchFiles();
@@ -128,7 +134,10 @@ function FileManagement() {
     if (!window.confirm(`Are you sure to delete file: ${record.fileName}?`))
       return;
     try {
-      await axios.delete(`${DOMAIN}/files/${record.fileKey}`);
+      const userId = getUserId();
+      await axios.delete(
+        `${DOMAIN}/files/${record.fileKey}?sessionId=${userId}`
+      );
       openSnack('File deleted', 'success');
       fetchFiles();
       if (activeChatFile === record.fileKey) setActiveChatFile('');
@@ -149,11 +158,15 @@ function FileManagement() {
 
   const handleEditOk = async () => {
     try {
-      await axios.patch(`${DOMAIN}/files/${editRecord.fileKey}`, {
-        newName: editName,
-        tags: editTags,
-        docType: editDocType,
-      });
+      const userId = getUserId();
+      await axios.patch(
+        `${DOMAIN}/files/${editRecord.fileKey}?sessionId=${userId}`,
+        {
+          newName: editName,
+          tags: editTags,
+          docType: editDocType,
+        }
+      );
       openSnack('File updated', 'success');
       setEditModalVisible(false);
       fetchFiles();
@@ -167,7 +180,10 @@ function FileManagement() {
   const openMapModal = async (record) => {
     setMapRecord(record);
     try {
-      const res = await axios.get(`${DOMAIN}/files/${record.fileKey}/columns`);
+      const userId = getUserId();
+      const res = await axios.get(
+        `${DOMAIN}/files/${record.fileKey}/columns?sessionId=${userId}`
+      );
       setAvailableCols(res.data || []);
     } catch (err) {
       console.error(err);
@@ -181,11 +197,17 @@ function FileManagement() {
   const handleMapOk = async () => {
     if (!mapRecord) return;
     try {
-      await axios.post(`${DOMAIN}/files/${mapRecord.fileKey}/mapColumns`, {
-        columnSchema,
-      });
+      const userId = getUserId();
+      await axios.post(
+        `${DOMAIN}/files/${mapRecord.fileKey}/mapColumns?sessionId=${userId}`,
+        {
+          columnSchema,
+        }
+      );
       openSnack('Column map saved', 'success');
-      await axios.post(`${DOMAIN}/files/${mapRecord.fileKey}/buildStore`);
+      await axios.post(
+        `${DOMAIN}/files/${mapRecord.fileKey}/buildStore?sessionId=${userId}`
+      );
       openSnack('Vector store built', 'success');
       setMapModalVisible(false);
       fetchFiles();
@@ -198,9 +220,13 @@ function FileManagement() {
   /* ---------------- load demo ---------------- */
   const loadDemo = async (demoName) => {
     try {
-      const res = await axios.get(`${DOMAIN}/files/loadDemo`, {
-        params: { demoName },
-      });
+      const userId = getUserId();
+      const res = await axios.get(
+        `${DOMAIN}/files/loadDemo?sessionId=${userId}`,
+        {
+          params: { demoName },
+        }
+      );
       if (res.data.fileKey) {
         openSnack(res.data.message || 'Demo file loaded', 'success');
         await fetchFiles();
@@ -213,7 +239,10 @@ function FileManagement() {
   };
   async function loadAllDemos() {
     try {
-      const res = await axios.get(`${DOMAIN}/files/loadAllDemos`);
+      const userId = getUserId();
+      const res = await axios.get(
+        `${DOMAIN}/files/loadAllDemos?sessionId=${userId}`
+      );
       if (res.status === 200) {
         openSnack('Loaded all demo files successfully!', 'success');
         // 这里 res.data 是 loaded: [ {fileKey, message, buildMsg}, ... ]
@@ -418,8 +447,9 @@ function FileManagement() {
                             size="small"
                             onClick={async () => {
                               try {
+                                const userId = getUserId();
                                 await axios.post(
-                                  `${DOMAIN}/files/${row.fileKey}/buildStore`
+                                  `${DOMAIN}/files/${row.fileKey}/buildStore?sessionId=${userId}`
                                 );
                                 openSnack('Store built', 'success');
                                 fetchFiles();

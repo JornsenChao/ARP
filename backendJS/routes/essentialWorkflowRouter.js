@@ -25,13 +25,17 @@ const router = Router();
 
 // 读取/写入 workflow 状态
 router.get('/', (req, res) => {
-  const state = getWorkflowState();
-  res.json(state);
+  try {
+    const state = getWorkflowState(req);
+    res.json(state);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.post('/', (req, res) => {
   const newState = req.body;
-  saveWorkflowState(newState);
+  saveWorkflowState(req, newState);
   res.json({ message: 'Workflow state saved', state: newState });
 });
 

@@ -43,6 +43,7 @@ import {
 import { Link } from 'react-router-dom';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
 import { API_BASE as DOMAIN } from '../../../utils/apiBase';
+import { getUserId } from '../../../utils/userId'; // <-- 新增
 
 function PrioritizedRisk({ activeTabIndex }) {
   const { workflowState, setWorkflowState } = useContext(
@@ -126,7 +127,8 @@ function PrioritizedRisk({ activeTabIndex }) {
     setError(null);
     try {
       // 1) 获取 workflow => 拿到impact / likelihood
-      const wfRes = await fetch(`${DOMAIN}/workflow`);
+      const userId = getUserId();
+      const wfRes = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
       if (!wfRes.ok) throw new Error('Error fetching workflow state');
       const wfData = await wfRes.json();
 
@@ -136,7 +138,7 @@ function PrioritizedRisk({ activeTabIndex }) {
       setLikelihoodCount(likelihoodArr.length);
 
       // 2) 获取 risk
-      let url = `${DOMAIN}/workflow/step2/risk`;
+      let url = `${DOMAIN}/workflow/step2/risk?sessionId=${userId}`;
       if (sortBy) {
         url += `?sortBy=${sortBy}`;
       }
@@ -160,7 +162,8 @@ function PrioritizedRisk({ activeTabIndex }) {
 
   async function markComplete() {
     try {
-      await fetch(`${DOMAIN}/workflow/step2/complete`, {
+      const userId = getUserId();
+      await fetch(`${DOMAIN}/workflow/step2/complete?sessionId=${userId}`, {
         method: 'POST',
       });
       setWorkflowState((prev) => {
@@ -210,7 +213,8 @@ function PrioritizedRisk({ activeTabIndex }) {
   async function handleSelectChange(row, checked) {
     try {
       // 调用后端
-      await fetch(`${DOMAIN}/workflow/step2/select-risk`, {
+      const userId = getUserId();
+      await fetch(`${DOMAIN}/workflow/step2/select-risk?sessionId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

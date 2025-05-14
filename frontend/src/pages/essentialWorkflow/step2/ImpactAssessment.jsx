@@ -34,6 +34,7 @@ import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import { EssentialWorkflowContext } from '../../../contexts/EssentialWorkflowContext';
 import { Link } from 'react-router-dom';
 import { API_BASE as DOMAIN } from '../../../utils/apiBase';
+import { getUserId } from '../../../utils/userId';
 
 /**
  * ImpactAssessment:
@@ -74,7 +75,10 @@ export function ImpactAssessment({ activeTabIndex }) {
   async function fetchImpactCategories() {
     setLoadingCats(true);
     try {
-      const res = await fetch(`${DOMAIN}/workflow/step2/impact-categories`);
+      const userId = getUserId();
+      const res = await fetch(
+        `${DOMAIN}/workflow/step2/impact-categories?sessionId=${userId}`
+      );
       const data = await res.json();
       if (Array.isArray(data.impactCategories)) {
         setImpactCategories(data.impactCategories);
@@ -91,7 +95,8 @@ export function ImpactAssessment({ activeTabIndex }) {
 
   async function buildLocalRatingsFromServer() {
     try {
-      const resp = await fetch(`${DOMAIN}/workflow`);
+      const userId = getUserId();
+      const resp = await fetch(`${DOMAIN}/workflow?sessionId=${userId}`);
       const fullState = await resp.json();
       const arr = fullState?.step2?.impactData || [];
       const newMap = {};
@@ -130,7 +135,8 @@ export function ImpactAssessment({ activeTabIndex }) {
     );
     if (!yes) return;
     try {
-      await fetch(`${DOMAIN}/workflow/step2/clear-impact`, {
+      const userId = getUserId();
+      await fetch(`${DOMAIN}/workflow/step2/clear-impact?sessionId=${userId}`, {
         method: 'POST',
       });
       setImpactRatings({});
@@ -184,7 +190,8 @@ export function ImpactAssessment({ activeTabIndex }) {
 
     // rating可能是数值1..5 或者 0
     try {
-      await fetch(`${DOMAIN}/workflow/step2/impact`, {
+      const userId = getUserId();
+      await fetch(`${DOMAIN}/workflow/step2/impact?sessionId=${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -221,11 +228,15 @@ export function ImpactAssessment({ activeTabIndex }) {
   async function handleAddSystem() {
     if (!newSystemName.trim()) return;
     try {
-      const res = await fetch(`${DOMAIN}/workflow/step2/add-system`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ systemName: newSystemName }),
-      });
+      const userId = getUserId();
+      const res = await fetch(
+        `${DOMAIN}/workflow/step2/add-system?sessionId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ systemName: newSystemName }),
+        }
+      );
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add system error');
@@ -243,14 +254,18 @@ export function ImpactAssessment({ activeTabIndex }) {
   async function handleAddSubSystem() {
     if (!selectedSystemForSub || !newSubSystemName.trim()) return;
     try {
-      const res = await fetch(`${DOMAIN}/workflow/step2/add-subsystem`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemName: selectedSystemForSub,
-          subSystemName: newSubSystemName,
-        }),
-      });
+      const userId = getUserId();
+      const res = await fetch(
+        `${DOMAIN}/workflow/step2/add-subsystem?sessionId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemName: selectedSystemForSub,
+            subSystemName: newSubSystemName,
+          }),
+        }
+      );
       if (!res.ok) {
         const errMsg = await res.json();
         alert(errMsg.detail || 'Add subsystem error');
