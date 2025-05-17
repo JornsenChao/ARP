@@ -7,7 +7,7 @@
         {
           "columnName": "Option",
           "infoCategory": "project",
-          "metaCategory": "input condition"
+          "metaCategory": "inference process"
         },
         {
           "columnName": "Hazards",
@@ -17,7 +17,7 @@
         {
           "columnName": "Assets",
           "infoCategory": "buildingStrategy",
-          "metaCategory": "design driver factor"
+          "metaCategory": "input condition"
         },
         {
           "columnName": "Action Type",
@@ -27,32 +27,32 @@
         {
           "columnName": "Sub-Action Type",
           "infoCategory": "buildingStrategy",
-          "metaCategory": "design driver factor"
+          "metaCategory": "input condition"
         },
         {
           "columnName": "Source Plan",
           "infoCategory": "disaster",
-          "metaCategory": "input condition"
+          "metaCategory": "auxiliary reference"
         },
         {
           "columnName": "URL",
           "infoCategory": "buildingStrategy",
-          "metaCategory": "design driver factor"
+          "metaCategory": "auxiliary reference"
         },
         {
           "columnName": "Toolkit Case Study",
           "infoCategory": "buildingStrategy",
-          "metaCategory": "design driver factor"
+          "metaCategory": "auxiliary reference"
         }
       ]
     },
     {
       "fileName": "CR4HC_1_All_Multiple Hazards.pdf",
-      "docType": "strategy"
+      "docType": "otherResource"
     },
     {
       "fileName": "Building Code Funding Opportunities.pdf",
-      "docType": "strategy"
+      "docType": "otherResource"
     },
     {
       "fileName": "publications.csv",
@@ -61,7 +61,7 @@
         {
           "columnName": "name",
           "infoCategory": "structureSystem",
-          "metaCategory": "input condition"
+          "metaCategory": "auxiliary reference"
         },
         {
           "columnName": "field_media_description",
@@ -81,28 +81,28 @@
         {
           "columnName": "Keywords",
           "infoCategory": "other",
-          "metaCategory": "auxiliary reference"
+          "metaCategory": "input condition"
         },
         {
           "columnName": "Audience",
           "infoCategory": "other",
-          "metaCategory": "auxiliary reference"
+          "metaCategory": "input condition"
         },
         {
           "columnName": "Document Type",
           "infoCategory": "other",
-          "metaCategory": "auxiliary reference"
+          "metaCategory": "input condition"
         }
       ]
     },
     {
       "fileName": "fema-case-studies.csv",
-      "docType": "strategy",
+      "docType": "caseStudy",
       "columnSchema": [
         {
           "columnName": "Link to Content",
           "infoCategory": "structureSystem",
-          "metaCategory": "input condition"
+          "metaCategory": "auxiliary reference"
         },
         {
           "columnName": "title",
@@ -112,17 +112,17 @@
         {
           "columnName": "body",
           "infoCategory": "other",
-          "metaCategory": "auxiliary reference"
+          "metaCategory": "inference process"
         },
         {
           "columnName": "Related Locations",
           "infoCategory": "other",
-          "metaCategory": "auxiliary reference"
+          "metaCategory": "input condition"
         },
         {
           "columnName": "Incident Type",
           "infoCategory": "other",
-          "metaCategory": "auxiliary reference"
+          "metaCategory": "input condition"
         }
       ]
     }
