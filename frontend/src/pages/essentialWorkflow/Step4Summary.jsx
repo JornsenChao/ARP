@@ -158,36 +158,61 @@ export default function Step4Summary() {
   // ====== load workflow ======
   useEffect(() => {
     if (!workflowState) return;
-    if (workflowState.step4 && workflowState.step4.summaryData) {
-      const s4 = workflowState.step4 || {};
-      const sd = s4.summaryData || {};
+    const sessionId = getSessionId();
 
-      setOverallConclusion(sd.overallConclusion || '');
-      setHazardReasons(sd.hazardReasons || {});
-      setCollectionSummary(sd.collectionSummary || '');
-      setBottomReflections(sd.bottomReflections || '');
-      setDocFlags(sd.docFlags || {});
+    // 验证数据完整性
+    if (
+      !workflowState.step2?.selectedRisks?.length ||
+      !workflowState.step3?.collection
+    ) {
+      // 如果关键数据丢失，尝试重新获取完整的工作流数据
+      fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`)
+        .then((resp) => {
+          if (!resp.ok) throw new Error('Failed to fetch workflow data');
+          return resp.json();
+        })
+        .then((data) => {
+          if (data) {
+            setWorkflowState(data);
+          }
+        })
+        .catch((err) => {
+          console.error('Error loading workflow data:', err);
+        });
+      return;
+    }
 
-      // step3
-      const step3 = workflowState.step3 || {};
-      setContextObj(step3.context || {});
+    // 正常数据加载流程
+    const s4 = workflowState.step4 || {};
+    const sd = s4.summaryData || {};
 
-      // step1
-      const s1 = workflowState.step1 || {};
-      const hzs = s1.hazards || [];
-      setHazards(hzs);
-      setFemaRecords(s1.femaRecords || []);
-      setLocationText(s1.location || '');
-      setMultiHazardData(buildMultiHazardYearData(hzs, s1.femaRecords || []));
+    setOverallConclusion(sd.overallConclusion || '');
+    setHazardReasons(sd.hazardReasons || {});
+    setCollectionSummary(sd.collectionSummary || '');
+    setBottomReflections(sd.bottomReflections || '');
+    setDocFlags(sd.docFlags || {});
 
-      // step2
-      const s2 = workflowState.step2 || {};
-      setRiskResult(s2.riskResult || []);
-      setSelectedRisks(s2.selectedRisks || []);
-      setLikelihoodData(s2.likelihoodData || []);
+    // step3
+    const step3 = workflowState.step3 || {};
+    setContextObj(step3.context || {});
 
-      // step3 => splitted
-      const coll = step3.collection || [];
+    // step1
+    const s1 = workflowState.step1 || {};
+    const hzs = s1.hazards || [];
+    setHazards(hzs);
+    setFemaRecords(s1.femaRecords || []);
+    setLocationText(s1.location || '');
+    setMultiHazardData(buildMultiHazardYearData(hzs, s1.femaRecords || []));
+
+    // step2
+    const s2 = workflowState.step2 || {};
+    setRiskResult(s2.riskResult || []);
+    setSelectedRisks(s2.selectedRisks || []);
+    setLikelihoodData(s2.likelihoodData || []);
+
+    // step3 data loading
+    if (step3.collection?.length > 0) {
+      const coll = step3.collection;
       const arrC = [];
       const arrS = [];
       const arrO = [];
@@ -201,12 +226,8 @@ export default function Step4Summary() {
       setDocsStrat(arrS);
       setDocsOther(arrO);
     }
-    // 标记加载完成
+
     setHasLoadedFromServer(true);
-    // firstRenderRef 在这个初次useEffect结束后，默认下一次render再改
-    // 这样可以避免进入下个 useEffect 就立即发请求
-    // 也可以把 firstRenderRef.current = false 放在setTimeout里
-    // 视情况决定
     setTimeout(() => {
       firstRenderRef.current = false;
     }, 0);
@@ -214,13 +235,41 @@ export default function Step4Summary() {
 
   // ====== auto save ======
   const firstRenderRef = useRef(true);
+  const previousDataRef = useRef(null);
+  
   useEffect(() => {
     if (!hasLoadedFromServer) return;
     if (!workflowState) return;
     if (firstRenderRef.current) {
       firstRenderRef.current = false;
+      // 初始化 previousDataRef
+      previousDataRef.current = {
+        overallConclusion,
+        hazardReasons,
+        collectionSummary,
+        bottomReflections,
+        docFlags,
+      };
       return;
     }
+
+    // 检查数据是否真的发生了变化
+    const currentData = {
+      overallConclusion,
+      hazardReasons,
+      collectionSummary,
+      bottomReflections,
+      docFlags,
+    };
+
+    if (JSON.stringify(currentData) === JSON.stringify(previousDataRef.current)) {
+      return; // 如果数据没有变化，不需要保存
+    }
+
+    // 更新 previousDataRef
+    previousDataRef.current = currentData;
+    
+    // 执行保存
     saveStep4ToBackend();
     // eslint-disable-next-line
   }, [
@@ -229,26 +278,51 @@ export default function Step4Summary() {
     collectionSummary,
     bottomReflections,
     docFlags,
-    docExpands,
-    sortBy,
-    showSelectedOnly,
     hasLoadedFromServer,
   ]);
   const debouncedHandleReasonChange = debounce((hz, val) => {
     setHazardReasons((prev) => ({ ...prev, [hz]: val }));
   }, 500); // delay 500ms before updating state
-  function saveStep4ToBackend() {
-    const newWF = { ...workflowState };
-    if (!newWF.step4) newWF.step4 = {};
-    if (!newWF.step4.summaryData) newWF.step4.summaryData = {};
+  async function saveStep4ToBackend() {
+    try {
+      const sessionId = getSessionId();
+      // 创建完整的工作流状态的深拷贝
+      const newWF = JSON.parse(JSON.stringify(workflowState));
 
-    newWF.step4.summaryData.overallConclusion = overallConclusion;
-    newWF.step4.summaryData.hazardReasons = hazardReasons;
-    newWF.step4.summaryData.collectionSummary = collectionSummary;
-    newWF.step4.summaryData.bottomReflections = bottomReflections;
-    newWF.step4.summaryData.docFlags = docFlags;
-    // docExpands 只本地，需要的话也可存
-    setWorkflowState(newWF);
+      // 确保存在必要的对象结构
+      if (!newWF.step4) newWF.step4 = {};
+      if (!newWF.step4.summaryData) newWF.step4.summaryData = {};
+
+      // 更新 step4 数据
+      newWF.step4.summaryData.overallConclusion = overallConclusion;
+      newWF.step4.summaryData.hazardReasons = hazardReasons;
+      newWF.step4.summaryData.collectionSummary = collectionSummary;
+      newWF.step4.summaryData.bottomReflections = bottomReflections;
+      newWF.step4.summaryData.docFlags = docFlags;
+
+      // 保留其他步骤的数据
+      if (!newWF.step3) newWF.step3 = workflowState.step3;
+      if (!newWF.step2) newWF.step2 = workflowState.step2;
+      if (!newWF.step1) newWF.step1 = workflowState.step1;
+
+      const resp = await fetch(`${DOMAIN}/workflow?sessionId=${sessionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newWF),
+      });
+
+      if (!resp.ok) {
+        throw new Error(`Failed to save workflow: ${resp.status}`);
+      }
+
+      // 只有在成功保存后才更新状态
+      const savedData = await resp.json();
+      setWorkflowState(savedData);
+    } catch (err) {
+      console.error('Error saving step4 data:', err);
+      // 可以添加用户提示
+      alert('Failed to save data. Please try again.');
+    }
   }
 
   // hazard reason
