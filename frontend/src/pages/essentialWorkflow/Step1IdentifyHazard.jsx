@@ -105,8 +105,22 @@ function Step1IdentifyHazard() {
     EssentialWorkflowContext
   );
 
-  // 如果workflowState还没加载，就先“Loading”
-  if (!workflowState) {
+  // 如果workflowState还没加载，就先"Loading"
+  if (!workflowState || !workflowState.step1) {
+    // Initialize workflowState.step1 with default values if it doesn't exist
+    if (workflowState && !workflowState.step1) {
+      setWorkflowState((prev) => ({
+        ...prev,
+        step1: {
+          hazards: [],
+          femaRecords: [],
+          searchMode: 'state',
+          location: '',
+          startDate: '',
+          endDate: '',
+        },
+      }));
+    }
     return (
       <Box sx={{ mt: 8, p: 2 }}>
         <Toolbar />
