@@ -1123,15 +1123,30 @@ function Step3ParallelTasks() {
                     hallucination.{' '}
                   </li>
                   <li>
-                    In the demo version, we use FEMA and NOAA data. But you can
-                    use your own data in the future as well.
+                    In the demo version, we use FEMA and NOAA data to privide
+                    search results. But you can use your own data in the future
+                    as well.
+                  </li>
+                  <li>
+                    The matched "context" is based on keywords matching. But in
+                    future we can also use LLM to provide more dynamic matching.
+                  </li>
+                  <li>
+                    The "certification" matching is based on a set of
+                    pre-defined keywords and descriptions, but right now only
+                    work for <em>wildfire, drought, and extreme heat</em>.
+                    Special thanks for Perkins&Will for organizing existing
+                    sharing their summary of related certifications in the{' '}
+                    <em>PRECEDE</em> project
+                    (https://precede.perkinswill.com/act/).
                   </li>
                   <li>
                     The quality of the results depends on the data you provide.{' '}
                   </li>
                   <li>
-                    Please contact us or your organization's resilience champion
-                    for more details about sharing data.{' '}
+                    Please contact Yongqin at yongqz2@uw.edu or your
+                    organization's resilience champion for more details about
+                    sharing data.{' '}
                   </li>
                 </ul>
               </Typography>

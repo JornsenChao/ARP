@@ -108,11 +108,16 @@ function riskCellColor(score) {
   return '#ffcdd2';
 }
 
-// docKey
+// docKey: combine fileName + page/row + hash of content for uniqueness
 function getDocKey(doc) {
   const fn = doc.metadata?.fileName || 'unknownFile';
-  const add = doc.addedAt || 'noTime';
-  return `${fn}_${add}`;
+  const page = doc.metadata?.page ?? '';
+  const rowIdx = doc.metadata?.rowIndex ?? '';
+  const content = doc.pageContent || doc.text || '';
+  const contentHash = content.split('').reduce((hash, char) => {
+    return ((hash << 5) - hash + char.charCodeAt(0)) | 0;
+  }, 0);
+  return `${fn}||p${page}||r${rowIdx}||${contentHash}`;
 }
 
 export default function Step4Summary() {
@@ -192,25 +197,41 @@ export default function Step4Summary() {
     setBottomReflections(sd.bottomReflections || '');
     setDocFlags(sd.docFlags || {});
 
-    // step3
-    const step3 = workflowState.step3 || {};
-    setContextObj(step3.context || {});
+    setHasLoadedFromServer(true);
+    setTimeout(() => {
+      firstRenderRef.current = false;
+    }, 0);
+  }, [workflowState]);
 
-    // step1
-    const s1 = workflowState.step1 || {};
+  // step1 data loading
+  useEffect(() => {
+    if (!workflowState?.step1) return;
+    const s1 = workflowState.step1;
     const hzs = s1.hazards || [];
     setHazards(hzs);
     setFemaRecords(s1.femaRecords || []);
     setLocationText(s1.location || '');
     setMultiHazardData(buildMultiHazardYearData(hzs, s1.femaRecords || []));
+  }, [workflowState?.step1]);
 
-    // step2
-    const s2 = workflowState.step2 || {};
+  // step2 data loading
+  useEffect(() => {
+    if (!workflowState?.step2) return;
+    const s2 = workflowState.step2;
     setRiskResult(s2.riskResult || []);
     setSelectedRisks(s2.selectedRisks || []);
     setLikelihoodData(s2.likelihoodData || []);
+  }, [workflowState?.step2]);
 
-    // step3 data loading
+  // step3 data loading
+  useEffect(() => {
+    if (!workflowState?.step3) return;
+    const step3 = workflowState.step3;
+
+    // context
+    setContextObj(step3.context || {});
+
+    // collection docs
     if (step3.collection?.length > 0) {
       const coll = step3.collection;
       const arrC = [];
@@ -226,17 +247,12 @@ export default function Step4Summary() {
       setDocsStrat(arrS);
       setDocsOther(arrO);
     }
-
-    setHasLoadedFromServer(true);
-    setTimeout(() => {
-      firstRenderRef.current = false;
-    }, 0);
-  }, [workflowState]);
+  }, [workflowState?.step3]);
 
   // ====== auto save ======
   const firstRenderRef = useRef(true);
   const previousDataRef = useRef(null);
-  
+
   useEffect(() => {
     if (!hasLoadedFromServer) return;
     if (!workflowState) return;
@@ -262,13 +278,15 @@ export default function Step4Summary() {
       docFlags,
     };
 
-    if (JSON.stringify(currentData) === JSON.stringify(previousDataRef.current)) {
+    if (
+      JSON.stringify(currentData) === JSON.stringify(previousDataRef.current)
+    ) {
       return; // 如果数据没有变化，不需要保存
     }
 
     // 更新 previousDataRef
     previousDataRef.current = currentData;
-    
+
     // 执行保存
     saveStep4ToBackend();
     // eslint-disable-next-line

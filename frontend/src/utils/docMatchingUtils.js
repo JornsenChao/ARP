@@ -166,9 +166,6 @@ const CERT_MAP = {
         'wild fire',
         'brush fire',
         'wilderness fire',
-        'drought',
-        'heatwave',
-        'landslide',
       ],
       recommendations: [
         {
