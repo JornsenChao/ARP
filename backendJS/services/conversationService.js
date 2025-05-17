@@ -4,7 +4,7 @@ import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import { Document } from 'langchain/document';
 
 // 在这里维护一个 { sessionId -> MemoryVectorStore } 的映射
-const sessionStores = {};
+export const sessionStores = {};
 
 export const conversationService = {
   /**

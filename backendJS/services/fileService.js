@@ -8,11 +8,11 @@ import { embeddingsService } from './embeddingsService.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// “总” Registry: { sessionId -> { fileKey -> fileObj } }
-const userFileRegistry = {};
+// "总" Registry: { sessionId -> { fileKey -> fileObj } }
+export const userFileRegistry = {};
 // 全局保存在内存
 // const fileRegistry = {};
-const uploadsDir = path.join(__dirname, '../uploads');
+export const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }

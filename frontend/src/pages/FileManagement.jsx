@@ -31,6 +31,7 @@ import {
 import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
 import ColumnMapper from '../components/ColumnMapper';
 import RenderQA from '../components/RenderQA';
 import ChatComponent from '../components/ChatComponent';
@@ -148,6 +149,40 @@ function FileManagement() {
       openSnack('Delete failed', 'error');
     }
   };
+
+  /* ---------------- delete session ---------------- */ const handleDeleteSession =
+    async () => {
+      if (
+        !window.confirm(
+          'WARNING: Deleting this session will:\n\n' +
+            '1. Delete all uploaded files\n' +
+            '2. Remove all workflows and progress\n' +
+            '3. Clear all conversation history\n' +
+            '4. Erase all locally stored data\n\n' +
+            'This action cannot be undone. Are you sure you want to continue?'
+        )
+      ) {
+        return;
+      }
+      try {
+        const sessionId = getSessionId();
+        await axios.delete(`${DOMAIN}/session?sessionId=${sessionId}`);
+
+        // Clear localStorage
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith(LOCALSTORAGE_PREFIX) || key === 'APP_SESSION_ID') {
+            localStorage.removeItem(key);
+          }
+        }
+
+        // Generate new session ID by clearing the cached one
+        localStorage.removeItem('APP_SESSION_ID');
+        window.location.reload(); // Reload to reset all states with new session
+      } catch (err) {
+        console.error(err);
+        openSnack('Failed to delete session', 'error');
+      }
+    };
 
   /* ---------------- edit ---------------- */
   const openEditModal = (record) => {
@@ -379,6 +414,15 @@ function FileManagement() {
         </Typography> */}
         <Button variant="contained" onClick={loadAllDemos}>
           Load All Demo Files
+        </Button>
+
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={handleDeleteSession}
+          startIcon={<DeleteIcon />}
+        >
+          Delete Session
         </Button>
         {/* <Button size="small" onClick={() => loadDemo('demo.pdf')}>
           Demo PDF

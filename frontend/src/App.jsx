@@ -25,6 +25,7 @@ import Step2AssessRisk from './pages/essentialWorkflow/step2/Step2AssessRisk';
 import Step3ParallelTasks from './pages/essentialWorkflow/step3/Step3ParallelTasks';
 import Step4Summary from './pages/essentialWorkflow/Step4Summary';
 import FileManagement from './pages/FileManagement';
+import MaintenanceLog from './pages/MaintenanceLog';
 
 const theme = createTheme({
   palette: {
@@ -46,7 +47,6 @@ function App() {
             {/* <Route path="/resources" element={<Resources />} /> */}
             {/* <Route path="/precedents" element={<Precedents />} /> */}
             {/* <Route path="/notes" element={<NotesOverview />} /> */}
-
             {/* Reference Workflow routes */}
             <Route path="/ref-workflow" element={<RefWorkflowHome />} />
             <Route
@@ -57,7 +57,6 @@ function App() {
               path="/ref-workflow/step/:stepId/task/:taskId"
               element={<RefWorkflowTaskPage />}
             />
-
             {/* Essential Workflow */}
             <Route
               path="/workflow"
@@ -101,6 +100,7 @@ function App() {
             />
             {/* New RAG-based File Management */}
             <Route path="/files" element={<FileManagement />} />
+            <Route path="/maintenance" element={<MaintenanceLog />} />
             {/* 如果想直接暴露 MultiRAG / ProRAG, 可加: */}
             {/* <Route path="/multirag" element={<MultiRAG />} />
             <Route path="/prorag" element={<ProRAG />} /> */}

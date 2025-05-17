@@ -14,6 +14,7 @@ import { fileRoutes } from './routes/fileRoutes.js';
 import { conversationRoutes } from './routes/conversationRoutes.js';
 import { multiRAGRoutes } from './routes/multiRAGRoutes.js';
 import { proRAGRoutes } from './routes/proRAGRoutes.js';
+import { sessionRoutes } from './routes/sessionRoutes.js';
 
 dotenv.config();
 const app = express();
@@ -74,6 +75,7 @@ app.use('/files', fileRoutes);
 app.use('/conversation', conversationRoutes);
 app.use('/multiRAG', multiRAGRoutes);
 app.use('/proRAG', proRAGRoutes);
+app.use('/session', sessionRoutes);
 
 app.get('/', (req, res) => {
   res.send('Server is running. Try /files or /RAG routes.');

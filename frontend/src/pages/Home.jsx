@@ -12,6 +12,8 @@ import {
   Card,
   CardContent,
   CardActions,
+  Alert,
+  // Link,
 } from '@mui/material';
 
 function HomePage() {
@@ -26,7 +28,7 @@ function HomePage() {
         mx: 'auto',
       }}
     >
-      {/* ---------- Hero ---------- */}
+      {/* ---------- Hero ---------- */}{' '}
       <Paper elevation={2} sx={{ p: 4, mb: 4, borderRadius: 3 }}>
         <Typography variant="h3" gutterBottom>
           Resilience&nbsp;Research&nbsp;Platform
@@ -36,6 +38,20 @@ function HomePage() {
           A guided, web-based toolkit that brings scattered resilience resources
           & firm knowledge directly into the design workflow.
         </Typography>
+
+        <Alert severity="info" sx={{ mt: 2 }}>
+          This is a research prototype. Data is stored temporarily and will be
+          cleared during scheduled maintenance.{' '}
+          <Link component={Link} to="/maintenance" color="inherit">
+            <strong>Learn more about data storage</strong>
+          </Link>
+        </Alert>
+
+        <Alert severity="info" sx={{ mt: 2 }}>
+          Interested? My thesis review would be on May 28, 2025, 2-3pm, PDT.
+          Please reach out to me at yongqz2@uw.edu if you would like to discuss
+          the project or provide feedback.
+        </Alert>
 
         <Stack direction="row" spacing={2} sx={{ mt: 3 }}>
           <Button
@@ -185,13 +201,16 @@ function HomePage() {
           />
         </em>
       </Box>
-      {/* ---------- Call-to-action ---------- */}
+      {/* ---------- Call-to-action ---------- */}{' '}
       <Stack direction="row" spacing={2} sx={{ mt: 4 }}>
         <Button variant="contained" component={Link} to="/workflow">
           Start Now
         </Button>
         <Button variant="outlined" component={Link} to="/about">
           About the Research
+        </Button>
+        <Button variant="outlined" component={Link} to="/maintenance">
+          System Info & Data Storage
         </Button>
       </Stack>
     </Box>

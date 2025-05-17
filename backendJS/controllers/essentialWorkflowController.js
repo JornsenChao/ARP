@@ -1,7 +1,7 @@
 // backendJS/controllers/essentialWorkflowController.js
 
 // 一个全局对象，存放单一的 Essential Workflow 状态
-const workflowMap = {};
+export const workflowMap = {};
 // 另外，可以定义一个函数: getOrCreateWorkflow(sessionId)
 function getOrCreateWorkflow(sessionId) {
   if (!workflowMap[sessionId]) {
